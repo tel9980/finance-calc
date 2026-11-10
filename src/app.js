@@ -8176,7 +8176,7 @@
   }
 
   /* 把当前面板（模块、名字、主结果、指标、参数）打成一个快照对象 */
-  function makeSnap(name, note) {
+  function makeSnap(name, note, tag) {
     var panel = document.querySelector(".panel.is-on");
     var tab = document.querySelector(".tab.is-on");
     if (!panel || !tab) return null;
@@ -8187,7 +8187,7 @@
       var sp = lab ? lab.querySelector("span") : null;
       return { id: el.id, label: sp ? sp.textContent.trim() : el.id, value: el.value };
     });
-    return { id: "s" + Date.now(), mod: mod, modName: snapNameOf(mod), name: name || snapNameOf(mod), note: note || "", rows: rows, params: params, at: Date.now() };
+    return { id: "s" + Date.now(), mod: mod, modName: snapNameOf(mod), name: name || snapNameOf(mod), note: note || "", tag: tag || "", rows: rows, params: params, at: Date.now() };
   }
 
   /* ---------------- 家庭财务体检 ---------------- */
@@ -8387,7 +8387,7 @@
     var q = qEl ? String(qEl.value || "").trim().toLowerCase() : "";
     if (q) {
       arr = arr.filter(function (s) {
-        return [s.name, s.note, s.modName, s.mod].join(" ").toLowerCase().indexOf(q) >= 0;
+        return [s.name, s.note, s.tag, s.modName, s.mod].join(" ").toLowerCase().indexOf(q.replace(/^#/, "")) >= 0;
       });
       if (!arr.length) {
         tb.innerHTML = "<tr><td class=\"tal\" colspan=\"5\">没有匹配「" + q.replace(/</g, "&lt;") + "」的方案。</td></tr>";
@@ -8405,7 +8405,8 @@
       var main = s.rows && s.rows.length ? s.rows[0][1] : "—";
       h += "<tr><td><input type=\"checkbox\" class=\"snap-pick\" data-id=\"" + s.id + "\"" + (SNAP_PICK[s.id] ? " checked" : "") + " aria-label=\"选择方案\"></td>"
         + "<td class=\"tal\"><a href=\"#" + s.mod + "\" class=\"snap-load\" data-id=\"" + s.id + "\">" + s.modName + "</a></td>"
-        + "<td class=\"tal\"><b>" + (s.name || "") + "</b>" + (s.note ? "<br><span class=\"mut\">" + s.note + "</span>" : "") + "</td>"
+        + "<td class=\"tal\"><b>" + (s.name || "") + "</b>" + (s.tag ? " <span class=\"tag\">#" + s.tag + "</span>" : "")
+        + (s.note ? "<br><span class=\"mut\">" + s.note + "</span>" : "") + "</td>"
         + "<td>" + main + "</td><td>" + fmtAt(s.at) + " <button type=\"button\" class=\"ghost sm snap-ren\" data-id=\"" + s.id + "\">改</button><button type=\"button\" class=\"ghost sm snap-del\" data-id=\"" + s.id + "\">删</button></td></tr>";
     }
     tb.innerHTML = h;
@@ -8651,6 +8652,124 @@
     }
   }
 
+  /* ---------------- 家庭支出结构（套餐） ---------------- */
+  function calcBundle() {
+    var inc = Math.max(0, num($("bxsp-inc"), 0));
+    var goal = Math.max(0, num($("bxsp-goal"), 25));
+    var defs = [
+      ["住（房贷/租金）", "bxsp-house", 25, 30],
+      ["教育", "bxsp-edu", 10, 15],
+      ["保险", "bxsp-ins", 5, 10],
+      ["交通", "bxsp-car", 5, 10],
+      ["餐饮日用", "bxsp-food", 10, 15],
+      ["其他", "bxsp-other", 10, 15]
+    ];
+    var rows = [], total = 0, over = [], low = [], top = { name: "", v: 0 }, h = "";
+    for (var i = 0; i < defs.length; i++) {
+      var v = Math.max(0, num($(defs[i][1]), 0));
+      total += v;
+      if (v > top.v) top = { name: defs[i][0], v: v };
+      var share = inc > 0 ? v / inc * 100 : 0;
+      var lo = defs[i][2], hi = defs[i][3], judge = "合理", cls = "";
+      if (inc > 0) {
+        if (share > hi) { judge = "偏高"; cls = "c-warn"; over.push(defs[i][0]); }
+        else if (share < lo) { judge = "偏低"; cls = "c-soft"; low.push(defs[i][0]); }
+      }
+      rows.push({ name: defs[i][0], v: v, share: share, lo: lo, hi: hi, judge: judge, cls: cls });
+    }
+    var left = inc - total, rate = inc > 0 ? left / inc * 100 : 0;
+    for (var r = 0; r < rows.length; r++) {
+      h += "<tr class=\"" + rows[r].cls + "\"><td class=\"tal\">" + rows[r].name + "</td><td>" + money(rows[r].v)
+        + "</td><td>" + fmt(rows[r].share) + "%</td><td>" + rows[r].lo + "–" + rows[r].hi + "%</td><td>" + rows[r].judge + "</td></tr>";
+    }
+    if ($("bxsp-body")) $("bxsp-body").innerHTML = h;
+    var score = 100 - over.length * 12 - low.length * 6;
+    if (inc <= 0) score = 0;
+    score = Math.max(0, Math.min(100, Math.round(score)));
+    if ($("bxsp-big")) $("bxsp-big").textContent = money(total);
+    if ($("bxsp-left")) $("bxsp-left").textContent = money(left) + " 元";
+    if ($("bxsp-rate")) $("bxsp-rate").textContent = fmt(rate) + "%";
+    if ($("bxsp-year")) $("bxsp-year").textContent = money(left * 12) + " 元";
+    if ($("bxsp-top")) $("bxsp-top").textContent = top.name + " " + fmt(inc > 0 ? top.v / inc * 100 : 0) + "%";
+    if ($("bxsp-over")) $("bxsp-over").textContent = over.length ? over.join("、") : "没有";
+    if ($("bxsp-score")) $("bxsp-score").textContent = score + " 分";
+    if ($("bxsp-links")) $("bxsp-links").innerHTML = "住 → <a href=\"#rentbuy\">租房vs买房</a>、<a href=\"#housecash\">购房一次性支出</a>；"
+      + "教育 → <a href=\"#childcost\">养娃成本</a>；保险 → <a href=\"#insure\">保额测算</a>、<a href=\"#checkup\">保单体检</a>；"
+      + "交通 → <a href=\"#car\">买车vs打车</a>；应急金 → <a href=\"#emergency\">应急金</a>；整体 → <a href=\"#report\">一页体检报告</a>。";
+    var tip;
+    if (left < 0) tip = "每月已经入不敷出 " + money(-left) + " 元，先砍「" + (over.length ? over[0] : "其他") + "」这类偏高的项，再谈投资。";
+    else if (rate < goal) tip = "储蓄率 " + fmt(rate) + "% 还差目标 " + goal + "% ，每月要少花 " + money(inc * goal / 100 - left) + " 元才能达标。";
+    else tip = "储蓄率 " + fmt(rate) + "% 已经达标（目标 " + goal + "%），可以优先把应急金补到 6 个月支出。";
+    if ($("bxsp-note")) $("bxsp-note").textContent = tip
+      + " 参考区间是经验值：住 25–30%、教育 10–15%、保险 5–10%、交通 5–10%、餐饮日用 10–15%、其他 10–15%；"
+      + "一线城市住房占比普遍超 30%，不必硬套，关键是「先存后花」。";
+  }
+
+  /* ---------------- 12 个月记账小结 ---------------- */
+  function calcMonthly() {
+    var inc = Math.max(0, num($("mt-inc"), 0));
+    var outs = [], i;
+    for (i = 1; i <= 12; i++) outs.push(Math.max(0, num($("mt-m" + i), 0)));
+    var inTotal = inc * 12, outTotal = 0, maxI = 0, minI = 0, neg = 0, streak = 0, best = 0, cum = 0, h = "";
+    for (i = 0; i < 12; i++) {
+      outTotal += outs[i];
+      if (outs[i] > outs[maxI]) maxI = i;
+      if (outs[i] < outs[minI]) minI = i;
+    }
+    for (i = 0; i < 12; i++) {
+      var bal = inc - outs[i];
+      cum += bal;
+      if (bal < 0) { neg++; streak++; if (streak > best) best = streak; } else streak = 0;
+      h += "<tr class=\"" + (bal < 0 ? "c-warn" : "") + "\"><td class=\"tal\">" + (i + 1) + " 月</td><td>" + money(outs[i])
+        + "</td><td>" + money(bal) + "</td><td>" + money(cum) + "</td></tr>";
+    }
+    var save = inTotal - outTotal, rate = inTotal > 0 ? save / inTotal * 100 : 0;
+    if ($("mt-body")) $("mt-body").innerHTML = h;
+    if ($("mt-big")) $("mt-big").textContent = money(save);
+    if ($("mt-in")) $("mt-in").textContent = money(inTotal) + " 元";
+    if ($("mt-out")) $("mt-out").textContent = money(outTotal) + " 元";
+    if ($("mt-avg")) $("mt-avg").textContent = money(outTotal / 12) + " 元";
+    if ($("mt-rate")) $("mt-rate").textContent = fmt(rate) + "%";
+    if ($("mt-max")) $("mt-max").textContent = (maxI + 1) + " 月 " + money(outs[maxI]) + " 元";
+    if ($("mt-min")) $("mt-min").textContent = (minI + 1) + " 月 " + money(outs[minI]) + " 元";
+    if ($("mt-gap")) $("mt-gap").textContent = money(outs[maxI] - outs[minI]) + " 元（" + fmt(outs[minI] > 0 ? (outs[maxI] / outs[minI] - 1) * 100 : 0) + "%）";
+    if ($("mt-neg")) $("mt-neg").textContent = neg + " 个月";
+    if ($("mt-streak")) $("mt-streak").textContent = best + " 个月";
+    if ($("mt-note")) $("mt-note").textContent =
+      (neg ? "有 " + neg + " 个月当月结余为负" + (best >= 2 ? "，最长连续 " + best + " 个月" : "") + "，先看这几个月的支出里有没有一次性大项（学费、保险、年节）。" : "12 个月都是正结余，节奏很稳。")
+      + " 全年储蓄率 " + fmt(rate) + "%；年终奖、十三薪这类不进月收入的钱另外存，别当成月供能力。图上柱高是当月支出，横线是月收入。";
+    drawnMonthlyChart(inc, outs);
+  }
+
+  function drawnMonthlyChart(inc, outs) {
+    var cv = $("mt-chart");
+    if (!cv || !cv.getContext) return;
+    var dpr = Math.min(2, window.devicePixelRatio || 1);
+    var w = 720, hgt = 180;
+    cv.width = w * dpr; cv.height = hgt * dpr;
+    cv.style.width = "100%"; cv.style.height = "180px";
+    var g = cv.getContext("2d");
+    g.setTransform(1, 0, 0, 1, 0, 0); g.scale(dpr, dpr);
+    g.clearRect(0, 0, w, hgt);
+    var pad = 26, base = hgt - 22, max = 0, i;
+    for (i = 0; i < 12; i++) max = Math.max(max, outs[i], inc);
+    if (max <= 0) max = 1;
+    var bw = (w - pad * 2) / 12 - 6;
+    for (i = 0; i < 12; i++) {
+      var bh = Math.max(1, (outs[i] / max) * (base - 16));
+      var x = pad + i * (bw + 6), y = base - bh;
+      g.fillStyle = outs[i] > inc ? "#dc2626" : "#93b4f7";
+      g.fillRect(x, y, bw, bh);
+      g.fillStyle = "#94a3b8"; g.font = "10px -apple-system,'PingFang SC','Microsoft YaHei',sans-serif";
+      g.textAlign = "center"; g.fillText(String(i + 1), x + bw / 2, hgt - 8);
+    }
+    var iy = base - (inc / max) * (base - 16);
+    g.strokeStyle = "#1e3a8a"; g.lineWidth = 1; g.setLineDash([4, 3]);
+    g.beginPath(); g.moveTo(pad - 6, iy); g.lineTo(w - pad + 6, iy); g.stroke(); g.setLineDash([]);
+    g.fillStyle = "#1e3a8a"; g.textAlign = "left";
+    g.fillText("月收入", pad - 4, Math.max(12, iy - 5));
+  }
+
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
@@ -8699,7 +8818,8 @@
     healthcheck: calcHealth,
     salesallow: calcSalesAllow, lease: calcLease, gpmix: calcGpmix, vatchoose: calcVatChoose,
     datemath: calcDatemath, pct3: calcPct3, xlhelp: calcXlHelp, csvrecon: calcCsvRecon,
-    contractperf: calcContractPerf, projrev: calcProjRev, creditpolicy: calcCreditPolicy, rateadj: calcRateAdj
+    contractperf: calcContractPerf, projrev: calcProjRev, creditpolicy: calcCreditPolicy, rateadj: calcRateAdj,
+    bundle: calcBundle, monthly: calcMonthly
   };
 
   var curCat = "hot", curSub = "";
@@ -9014,9 +9134,10 @@
     "pl-ins",
     "pl-close", "pl-deco", "pl-cashall",
     "hcx-price", "hcx-dp", "hcx-deed", "hcx-agent", "hcx-fund", "hcx-odd",
-    "hcx-deco", "hcx-furn", "hcx-move", "hcx-need", "hcx-cash"
+    "hcx-deco", "hcx-furn", "hcx-move", "hcx-need", "hcx-cash",
+    "bxsp-inc", "bxsp-house", "bxsp-edu", "bxsp-ins", "bxsp-car", "bxsp-food", "bxsp-other", "bxsp-goal", "mt-inc", "mt-m1", "mt-m2", "mt-m3", "mt-m4", "mt-m5", "mt-m6", "mt-m7", "mt-m8", "mt-m9", "mt-m10", "mt-m11", "mt-m12"
 ];
-  var KEY = "finance-calc-v46";
+  var KEY = "finance-calc-v47";
   var CAT_KEY = "finance-calc-cat";
 
   /* ---------------- 现金流月历 ---------------- */
@@ -9686,7 +9807,9 @@
       }
       if (line && noteLines.length < 4) noteLines.push(line);
     })(sn.note || "");
-    var top = 104, hgt = top + rows.length * lineH + noteLines.length * 19 + 62;
+    var share = "";
+    try { share = buildShare().replace(/^https?:\/\//, ""); } catch (e) { share = ""; }
+    var top = 104, hgt = top + rows.length * lineH + noteLines.length * 19 + (share ? 20 : 0) + 62;
     var cv = document.createElement("canvas");
     var dpr = Math.min(2, window.devicePixelRatio || 1);
     cv.width = W * dpr; cv.height = hgt * dpr;
@@ -9720,8 +9843,18 @@
     var ny = top + rows.length * lineH + 14;
     g.font = "12px " + FONT; g.fillStyle = "#94a3b8";
     for (var n = 0; n < noteLines.length; n++) g.fillText(noteLines[n], pad, ny + n * 19);
+    if (share) {
+      g.fillStyle = "#64748b"; g.font = "11.5px " + FONT;
+      g.fillText(clipRawShare("打开这个链接就是当前参数：" + share, W - pad * 2), pad, ny + noteLines.length * 19 + 4);
+    }
     g.fillStyle = "#cbd5e1"; g.font = "11.5px " + FONT;
     g.fillText("纯前端计算，数据不上传 · 结果按页面假设推算，实际以合同与当地政策为准", pad, hgt - 20);
+    function clipRawShare(txt, max) {
+      if (g.measureText(txt).width <= max) return txt;
+      var s2 = txt;
+      while (s2.length > 8 && g.measureText(s2 + "…").width > max) s2 = s2.slice(0, -1);
+      return s2 + "…";
+    }
     cv.toBlob(function (blob) {
       var a2 = document.createElement("a");
       a2.href = URL.createObjectURL(blob);
@@ -9802,9 +9935,9 @@
     var tab = document.querySelector(".tab.is-on");
     var def = (tab ? tab.textContent.trim() : "方案") + " #" + (loadSnaps().length + 1);
     var nm = "";
-    try { nm = window.prompt("方案名称（可留空；想写备注就写「名称｜备注」）", def) || ""; } catch (e) { nm = ""; }
+    try { nm = window.prompt("方案名称（可留空；要加备注和标签就写「名称｜备注｜标签」）", def) || ""; } catch (e) { nm = ""; }
     var parts = nm.split(/[｜|]/);
-    var s = makeSnap((parts[0] || "").trim() || def, (parts[1] || "").trim());
+    var s = makeSnap((parts[0] || "").trim() || def, (parts[1] || "").trim(), (parts[2] || "").trim().replace(/^#/, ""));
     if (!s) return;
     var arr = loadSnaps();
     arr.unshift(s);
@@ -9814,6 +9947,26 @@
   });
 
   tap("snap-cmp", "click", function () { runCalc("snaps"); });
+
+  tap("snap-all", "change", function () {
+    var on = !!this.checked;
+    var arr = loadSnaps();
+    for (var i = 0; i < arr.length; i++) SNAP_PICK[arr[i].id] = on;
+    renderSnapList(); renderSnapCompare();
+  });
+
+  tap("snap-del-sel", "click", function () {
+    var picked = Object.keys(SNAP_PICK).filter(function (k) { return SNAP_PICK[k]; });
+    if (!picked.length) { flash(this, "先勾选要删的方案"); return; }
+    var ok = true;
+    try { ok = window.confirm("删除选中的 " + picked.length + " 个方案？"); } catch (e) {}
+    if (!ok) return;
+    saveSnaps(loadSnaps().filter(function (x) { return picked.indexOf(x.id) < 0; }));
+    SNAP_PICK = {};
+    var all = $("snap-all"); if (all) all.checked = false;
+    runCalc("snaps");
+    flash(this, "已删除 " + picked.length + " 个");
+  });
 
   tap("snap-clear", "click", function () {
     var ok = true;

@@ -212,6 +212,7 @@
           <button class="ghost" type="button" id="snap-backup">整站备份</button>
           <button class="ghost" type="button" id="snap-restore">恢复备份</button>
           <button class="ghost" type="button" id="snap-png">导出对比图 PNG</button>
+          <button class="ghost" type="button" id="snap-del-sel">删除选中</button>
           <input type="file" id="snap-file" accept=".json,application/json" hidden>
           <input type="file" id="bak-file" accept=".json,application/json" hidden>
         </p>
@@ -221,7 +222,7 @@
         <h2>快照列表</h2>
         <div class="tablebox">
           <table>
-            <thead><tr><th>选</th><th class="tal">模块</th><th class="tal">方案名</th><th>主结果</th><th>时间</th></tr></thead>
+            <thead><tr><th><input type="checkbox" id="snap-all" aria-label="全选"></th><th class="tal">模块</th><th class="tal">方案名</th><th>主结果</th><th>时间</th></tr></thead>
             <tbody id="snap-body"></tbody>
           </table>
         </div>
@@ -8106,5 +8107,81 @@
     </ul>
     <p class="hint" id="vchk-note"></p>
   </div>
+    </div>
+  </section>
+  <section class="panel" id="panel-bundle">
+    <div class="cols">
+      <div class="card">
+        <h2>输入：家庭每月开支</h2>
+        <label class="f"><span>家庭税后月收入</span><input id="bxsp-inc" type="number" inputmode="decimal" min="0" step="1000" value="30000"></label>
+        <label class="f"><span>住（房贷/租金+物业）</span><input id="bxsp-house" type="number" inputmode="decimal" min="0" step="500" value="7000"></label>
+        <label class="f"><span>教育（学费+辅导）</span><input id="bxsp-edu" type="number" inputmode="decimal" min="0" step="500" value="3000"></label>
+        <label class="f"><span>保险（纯保障+储蓄型）</span><input id="bxsp-ins" type="number" inputmode="decimal" min="0" step="100" value="1500"></label>
+        <label class="f"><span>交通（车贷+油+打车）</span><input id="bxsp-car" type="number" inputmode="decimal" min="0" step="100" value="2000"></label>
+        <label class="f"><span>餐饮日用</span><input id="bxsp-food" type="number" inputmode="decimal" min="0" step="500" value="4500"></label>
+        <label class="f"><span>其他（医疗/人情/娱乐）</span><input id="bxsp-other" type="number" inputmode="decimal" min="0" step="500" value="3000"></label>
+        <label class="f"><span>目标储蓄率（%）</span><input id="bxsp-goal" type="number" inputmode="decimal" min="0" max="80" step="1" value="25"></label>
+        <em>这是把「房贷、养娃、保险、养车、日常」放在一张表里看结构。各项的数字都可以到对应模块里先单独算准再填进来。</em>
+      </div>
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">每月总支出</span><strong id="bxsp-big">—</strong><span class="unit">元</span></div>
+        <ul class="kv">
+          <li><span>每月结余</span><b id="bxsp-left">—</b></li>
+          <li><span>实际储蓄率</span><b id="bxsp-rate">—</b></li>
+          <li><span>全年可存</span><b id="bxsp-year">—</b></li>
+          <li><span>最大头</span><b id="bxsp-top">—</b></li>
+          <li><span>超参考区间的项</span><b id="bxsp-over">—</b></li>
+          <li><span>结构评分</span><b id="bxsp-score">—</b></li>
+        </ul>
+        <div class="tablebox">
+          <table>
+            <thead><tr><th class="tal">类别</th><th>金额</th><th>占收入</th><th>参考区间</th><th>判断</th></tr></thead>
+            <tbody id="bxsp-body"></tbody>
+          </table>
+        </div>
+        <h2 class="sub">想细算就去这几个模块</h2>
+        <p class="hint" id="bxsp-links"></p>
+        <p class="hint" id="bxsp-note"></p>
+      </div>
+    </div>
+  </section>
+  <section class="panel" id="panel-monthly">
+    <div class="cols">
+      <div class="card">
+        <h2>输入：每月支出</h2>
+        <label class="f"><span>每月税后收入</span><input id="mt-inc" type="number" inputmode="decimal" min="0" step="1000" value="20000"></label>
+        <h2 class="sub">12 个月的支出（从 1 月到 12 月）</h2>
+        <span class="row"><input id="mt-m1" type="number" inputmode="decimal" min="0" step="100" value="18000" aria-label="1月支出"><input id="mt-m2" type="number" inputmode="decimal" min="0" step="100" value="19500" aria-label="2月支出"></span>
+        <span class="row"><input id="mt-m3" type="number" inputmode="decimal" min="0" step="100" value="21000" aria-label="3月支出"><input id="mt-m4" type="number" inputmode="decimal" min="0" step="100" value="17600" aria-label="4月支出"></span>
+        <span class="row"><input id="mt-m5" type="number" inputmode="decimal" min="0" step="100" value="22300" aria-label="5月支出"><input id="mt-m6" type="number" inputmode="decimal" min="0" step="100" value="19800" aria-label="6月支出"></span>
+        <span class="row"><input id="mt-m7" type="number" inputmode="decimal" min="0" step="100" value="18500" aria-label="7月支出"><input id="mt-m8" type="number" inputmode="decimal" min="0" step="100" value="20200" aria-label="8月支出"></span>
+        <span class="row"><input id="mt-m9" type="number" inputmode="decimal" min="0" step="100" value="19100" aria-label="9月支出"><input id="mt-m10" type="number" inputmode="decimal" min="0" step="100" value="18700" aria-label="10月支出"></span>
+        <span class="row"><input id="mt-m11" type="number" inputmode="decimal" min="0" step="100" value="20500" aria-label="11月支出"><input id="mt-m12" type="number" inputmode="decimal" min="0" step="100" value="23800" aria-label="12月支出"></span>
+        <em>只填支出就够了——收入按月平摊。想按真实月份记，把每月到手工资填进「税后工资」模块再回填这里的月均收入。</em>
+      </div>
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">全年结余</span><strong id="mt-big">—</strong><span class="unit">元</span></div>
+        <ul class="kv">
+          <li><span>全年收入</span><b id="mt-in">—</b></li>
+          <li><span>全年支出</span><b id="mt-out">—</b></li>
+          <li><span>月均支出</span><b id="mt-avg">—</b></li>
+          <li><span>储蓄率</span><b id="mt-rate">—</b></li>
+          <li><span>花得最多的月</span><b id="mt-max">—</b></li>
+          <li><span>花得最少的月</span><b id="mt-min">—</b></li>
+          <li><span>支出波动</span><b id="mt-gap">—</b></li>
+          <li><span>结余为负的月数</span><b id="mt-neg">—</b></li>
+          <li><span>最长连续为负</span><b id="mt-streak">—</b></li>
+        </ul>
+        <canvas id="mt-chart" width="720" height="180" aria-label="每月支出柱状图"></canvas>
+        <div class="tablebox">
+          <table>
+            <thead><tr><th class="tal">月份</th><th>支出</th><th>当月结余</th><th>累计结余</th></tr></thead>
+            <tbody id="mt-body"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="mt-note"></p>
+      </div>
     </div>
   </section>
