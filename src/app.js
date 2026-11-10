@@ -8162,7 +8162,7 @@
   }
 
   function saveSnaps(arr) {
-    try { localStorage.setItem(SNAP_KEY, JSON.stringify(arr.slice(0, 12))); } catch (e) {}
+    try { localStorage.setItem(SNAP_KEY, JSON.stringify(arr.slice(0, 20))); } catch (e) {}
   }
 
   function snapNameOf(mod) {
@@ -8383,6 +8383,22 @@
       $("snap-count").textContent = "0";
       return;
     }
+    var sortEl = $("snap-sort"), qEl = $("snap-q");
+    var q = qEl ? String(qEl.value || "").trim().toLowerCase() : "";
+    if (q) {
+      arr = arr.filter(function (s) {
+        return [s.name, s.note, s.modName, s.mod].join(" ").toLowerCase().indexOf(q) >= 0;
+      });
+      if (!arr.length) {
+        tb.innerHTML = "<tr><td class=\"tal\" colspan=\"5\">没有匹配「" + q.replace(/</g, "&lt;") + "」的方案。</td></tr>";
+        return;
+      }
+    }
+    var mode = sortEl ? sortEl.value : "new";
+    if (mode === "old") arr = arr.slice().sort(function (a, b) { return a.at - b.at; });
+    else if (mode === "mod") arr = arr.slice().sort(function (a, b) { return (a.modName || "").localeCompare(b.modName || "", "zh") || b.at - a.at; });
+    else if (mode === "name") arr = arr.slice().sort(function (a, b) { return (a.name || "").localeCompare(b.name || "", "zh") || b.at - a.at; });
+    else arr = arr.slice().sort(function (a, b) { return b.at - a.at; });
     var h = "";
     for (var i = 0; i < arr.length; i++) {
       var s = arr[i];
@@ -8407,7 +8423,7 @@
     var sel = arr.filter(function (x) { return picked.indexOf(x.id) >= 0; }).slice(0, 3);
     if (sel.length < 2) {
       box.innerHTML = "<tr><td class=\"tal\" colspan=\"4\">勾选 2–3 个方案就能并排比（最多 3 个）。</td></tr>";
-      $("snap-note").textContent = "快照存在本机，最多 12 条；点模块名可以带着当时的参数回到那个模块继续调。";
+      $("snap-note").textContent = "快照存在本机，最多 20 条；点模块名可以带着当时的参数回到那个模块继续调。";
       return;
     }
     var labels = [];
@@ -9399,7 +9415,9 @@
     var panel = document.querySelector(".panel.is-on");
     if (!panel) return [];
     var els = panel.querySelectorAll("input,select");
-    return [].slice.call(els).filter(function (el) { return el.id && el.type !== "search"; });
+    return [].slice.call(els).filter(function (el) {
+      return el.id && el.type !== "search" && el.type !== "file" && el.id.indexOf("snap-") !== 0;
+    });
   }
 
   function panelParams() {
@@ -9646,12 +9664,90 @@
   });
   if ($("cmp-close")) $("cmp-close").addEventListener("click", function () { $("cmpbox").hidden = true; });
 
+  /* 单模块结果图：把当前面板的主结果 + 指标 + 口径画成一张 980 宽的 PNG，方便发微信 */
+  tap("btn-card", "click", function () {
+    var btn = this, sn = snapshot();
+    if (!sn.rows.length) { flash(btn, "这个模块没有可截图的结果"); return; }
+    var mod = document.querySelector(".tab.is-on");
+    var name = mod ? mod.textContent.trim() : sn.name;
+    var FONT = "-apple-system,'PingFang SC','Microsoft YaHei',sans-serif";
+    var W = 980, pad = 30, lineH = 30;
+    var rows = sn.rows.slice(0, 9);
+    var noteLines = [];
+    var cv0 = document.createElement("canvas");
+    var g0 = cv0.getContext("2d");
+    g0.font = "13px " + FONT;
+    (function wrapNote(txt) {
+      if (!txt) return;
+      var max = W - pad * 2, line = "";
+      for (var i = 0; i < txt.length && noteLines.length < 4; i++) {
+        if (g0.measureText(line + txt[i]).width > max) { noteLines.push(line); line = ""; }
+        line += txt[i];
+      }
+      if (line && noteLines.length < 4) noteLines.push(line);
+    })(sn.note || "");
+    var top = 104, hgt = top + rows.length * lineH + noteLines.length * 19 + 62;
+    var cv = document.createElement("canvas");
+    var dpr = Math.min(2, window.devicePixelRatio || 1);
+    cv.width = W * dpr; cv.height = hgt * dpr;
+    var g = cv.getContext("2d");
+    g.scale(dpr, dpr);
+    g.fillStyle = "#ffffff"; g.fillRect(0, 0, W, hgt);
+    g.fillStyle = "#1e3a8a"; g.fillRect(0, 0, W, 6);
+    g.font = "bold 22px " + FONT; g.fillStyle = "#0f172a";
+    g.fillText(name, pad, 48);
+    g.font = "13px " + FONT; g.fillStyle = "#64748b";
+    g.fillText("财务计算器 · " + location.host + "　·　" + new Date().toLocaleString("zh-CN"), pad, 74);
+    g.strokeStyle = "#e2e8f0"; g.beginPath(); g.moveTo(pad, top - 16); g.lineTo(W - pad, top - 16); g.stroke();
+    g.textBaseline = "middle";
+    for (var i = 0; i < rows.length; i++) {
+      var y = top + i * lineH + 6;
+      if (i === 0) {
+        g.fillStyle = "#eef2ff"; g.fillRect(pad - 8, y - lineH / 2 - 2, W - pad * 2 + 16, lineH);
+        g.font = "bold 17px " + FONT; g.fillStyle = "#1e3a8a"; g.textAlign = "left";
+        g.fillText(rows[i][0], pad, y);
+        g.textAlign = "right"; g.font = "bold 19px " + FONT;
+        g.fillText(rows[i][1], W - pad, y);
+        g.textAlign = "left";
+      } else {
+        g.font = "14px " + FONT; g.fillStyle = "#475569"; g.textAlign = "left";
+        g.fillText(rows[i][0], pad, y);
+        g.fillStyle = "#0f172a"; g.font = "15px " + FONT; g.textAlign = "right";
+        g.fillText(rows[i][1], W - pad, y);
+        g.textAlign = "left";
+      }
+    }
+    var ny = top + rows.length * lineH + 14;
+    g.font = "12px " + FONT; g.fillStyle = "#94a3b8";
+    for (var n = 0; n < noteLines.length; n++) g.fillText(noteLines[n], pad, ny + n * 19);
+    g.fillStyle = "#cbd5e1"; g.font = "11.5px " + FONT;
+    g.fillText("纯前端计算，数据不上传 · 结果按页面假设推算，实际以合同与当地政策为准", pad, hgt - 20);
+    cv.toBlob(function (blob) {
+      var a2 = document.createElement("a");
+      a2.href = URL.createObjectURL(blob);
+      a2.download = "财务计算器-" + name + ".png";
+      document.body.appendChild(a2); a2.click(); document.body.removeChild(a2);
+      setTimeout(function () { URL.revokeObjectURL(a2.href); }, 2000);
+      flash(btn, "已导出结果图");
+    }, "image/png");
+  });
+
+  /* 体检报告：打印 / 存 PDF（浏览器打印面板里选「另存为 PDF」） */
+  tap("rp-pdf", "click", function () {
+    document.title = "财务计算器-家庭财务体检";
+    window.print();
+    setTimeout(function () { document.title = "财务计算器 · 个人理财 + 公司财务"; }, 1200);
+  });
+
   if ($("btn-print")) $("btn-print").addEventListener("click", function () {
     var t = document.querySelector(".tab.is-on");
     document.title = "财务计算器-" + (t ? t.textContent.trim() : "计算");
     window.print();
     setTimeout(function () { document.title = "财务计算器 · 个人理财 + 公司财务"; }, 1200);
   });
+
+  tap("snap-sort", "change", function () { renderSnapList(); });
+  tap("snap-q", "input", function () { renderSnapList(); });
 
   tap("hk-pull", "click", function () {
     var o = {};
@@ -9847,7 +9943,7 @@
         });
         if (obj.fav) localStorage.setItem(FAV_KEY, JSON.stringify(obj.fav));
         if (obj.presets) localStorage.setItem(PRE_KEY, JSON.stringify(obj.presets));
-        if (obj.snaps) localStorage.setItem(SNAP_KEY, JSON.stringify(obj.snaps.slice(0, 12)));
+        if (obj.snaps) localStorage.setItem(SNAP_KEY, JSON.stringify(obj.snaps.slice(0, 20)));
         if (obj.cat) localStorage.setItem(CAT_KEY, obj.cat);
         if (obj.theme) localStorage.setItem(THEME_KEY, obj.theme);
         save();

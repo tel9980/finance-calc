@@ -855,7 +855,7 @@
   }
 
   function saveSnaps(arr) {
-    try { localStorage.setItem(SNAP_KEY, JSON.stringify(arr.slice(0, 12))); } catch (e) {}
+    try { localStorage.setItem(SNAP_KEY, JSON.stringify(arr.slice(0, 20))); } catch (e) {}
   }
 
   function snapNameOf(mod) {
@@ -902,6 +902,22 @@
       $("snap-count").textContent = "0";
       return;
     }
+    var sortEl = $("snap-sort"), qEl = $("snap-q");
+    var q = qEl ? String(qEl.value || "").trim().toLowerCase() : "";
+    if (q) {
+      arr = arr.filter(function (s) {
+        return [s.name, s.note, s.modName, s.mod].join(" ").toLowerCase().indexOf(q) >= 0;
+      });
+      if (!arr.length) {
+        tb.innerHTML = "<tr><td class=\"tal\" colspan=\"5\">没有匹配「" + q.replace(/</g, "&lt;") + "」的方案。</td></tr>";
+        return;
+      }
+    }
+    var mode = sortEl ? sortEl.value : "new";
+    if (mode === "old") arr = arr.slice().sort(function (a, b) { return a.at - b.at; });
+    else if (mode === "mod") arr = arr.slice().sort(function (a, b) { return (a.modName || "").localeCompare(b.modName || "", "zh") || b.at - a.at; });
+    else if (mode === "name") arr = arr.slice().sort(function (a, b) { return (a.name || "").localeCompare(b.name || "", "zh") || b.at - a.at; });
+    else arr = arr.slice().sort(function (a, b) { return b.at - a.at; });
     var h = "";
     for (var i = 0; i < arr.length; i++) {
       var s = arr[i];
@@ -926,7 +942,7 @@
     var sel = arr.filter(function (x) { return picked.indexOf(x.id) >= 0; }).slice(0, 3);
     if (sel.length < 2) {
       box.innerHTML = "<tr><td class=\"tal\" colspan=\"4\">勾选 2–3 个方案就能并排比（最多 3 个）。</td></tr>";
-      $("snap-note").textContent = "快照存在本机，最多 12 条；点模块名可以带着当时的参数回到那个模块继续调。";
+      $("snap-note").textContent = "快照存在本机，最多 20 条；点模块名可以带着当时的参数回到那个模块继续调。";
       return;
     }
     var labels = [];
@@ -1028,7 +1044,7 @@ undefined
   /* ---- 按分类懒加载：只有点到的模块才下载对应 chunk ---- */
   var CHUNK_OF = { "deposit": "save", "loan": "loan", "combo": "loan", "prepay": "loan", "compound": "save", "goal": "save", "installment": "life", "annual": "save", "inflation": "save", "tax": "tax", "deal": "life", "salary": "tax", "rentbuy": "house", "card": "life", "fx": "life", "fund": "loan", "lpr": "loan", "deed": "house", "split": "life", "pension": "tax", "sell": "house", "offset": "loan", "multi": "life", "repayvs": "loan", "edu": "family", "insure": "family", "car": "life", "bonus": "tax", "deduct": "tax", "ladder": "save", "rentyield": "house", "settle": "tax", "balance": "family", "selfins": "tax", "underpay": "tax", "loanways": "loan", "dca": "save", "checkup": "family", "calendar": "save", "cashflow": "family", "zeroloan": "loan", "riskalloc": "family", "penalty": "loan", "debtfree": "life", "fire": "family", "annualfee": "family", "budget": "house", "zhuan": "loan", "medins": "tax", "childcost": "family", "ppension": "tax", "fundlimit": "loan", "emergency": "family", "rule503020": "family", "debtmerge": "life", "freeperiod": "life", "overtime": "tax", "rentup": "house", "ev": "life", "vat": "acct-tax", "vatdue": "acct-tax", "deprec": "acct-cost", "breakeven": "acct-perf", "ratios": "acct-report", "recon": "acct-report", "expense": "acct-report", "aging": "acct-bd", "funding": "acct-cash", "pricing": "acct-perf", "triplede": "acct-report", "multimargin": "acct-perf", "apterms": "acct-bd", "assetledger": "acct-cost", "payage": "acct-bd", "costcard": "acct-cost", "budgetvar": "acct-cost", "finreport": "acct-report", "invoice": "acct-bd", "expbudget": "acct-report", "efficiency": "acct-report", "cashstmt": "acct-report", "invstock": "acct-bd", "exportrebate": "acct-tax", "tieout": "acct-bd", "feetrend": "acct-report", "mpbe": "acct-perf", "payroll": "acct-perf", "assetdiff": "acct-cost", "monthclose": "acct-report", "factoring": "acct-cash", "deadstock": "acct-bd", "aptalk": "acct-cash", "cash13": "acct-cash", "bill": "acct-cash", "loanreal": "loan", "collect": "acct-bd", "mgmtpack": "acct-report", "settleway": "acct-cash", "creditline": "acct-cash", "impair": "acct-bd", "fxgain": "acct-cash", "taxburden": "acct-tax", "sens": "acct-report", "consol": "acct-report", "eoq": "acct-bd", "bplan": "acct-report", "refundflow": "acct-tax", "costalloc": "acct-cost", "importcost": "acct-perf", "makeorbuy": "acct-cost", "ecl": "acct-bd", "quotefx": "acct-perf", "capacity": "acct-cost", "mold": "acct-cost", "rebate": "acct-perf", "stdcost": "acct-cost", "svc": "acct-bd", "taxadj": "acct-tax", "supplier": "acct-bd", "debtcap": "acct-tax", "accdep": "acct-tax", "custwin": "acct-bd", "upgrade": "acct-cost", "deptalloc": "acct-cost", "payout": "acct-perf", "numwords": "util", "duedate": "util", "workday": "util", "cagr": "util", "apportion": "util", "grossup": "util", "trprice": "acct-cash", "esop": "acct-tax", "rdexp": "acct-tax", "rollfc": "acct-report", "commission": "acct-perf", "capex": "acct-cost", "pooling": "acct-cash", "creditlimit": "acct-cash", "contractperf": "acct-report", "projrev": "acct-report", "creditpolicy": "acct-bd", "rateadj": "tax", "invfund": "acct-bd", "machrate": "acct-cost", "govgrant": "acct-tax", "fxtranslate": "acct-report", "rebateacc": "acct-perf", "pledgeloan": "acct-cash", "labvar": "acct-cost", "rdcap": "acct-tax", "processcost": "acct-cost", "makeoroutsource": "acct-cost", "rebatedta": "acct-tax", "leasebuy": "acct-cash", "welfare": "acct-tax", "inputout": "acct-tax", "stampduty": "acct-tax", "assetdisp": "acct-cost", "headcount": "acct-perf", "markroi": "acct-perf", "rdproject": "acct-cost", "intsvc": "acct-tax", "accrual": "acct-report", "cfconsol": "acct-report", "exportcheck": "acct-tax", "vatcheck": "acct-tax", "report": "family", "snaps": "util", "housecash": "house", "planner": "family", "healthcheck": "hot", "salesallow": "acct-tax", "lease": "acct-report", "gpmix": "acct-report", "vatchoose": "acct-tax", "datemath": "util", "pct3": "util", "xlhelp": "util", "csvrecon": "util" };
   var TABS = { "deposit": 1, "loan": 1, "combo": 1, "prepay": 1, "compound": 1, "goal": 1, "installment": 1, "annual": 1, "inflation": 1, "tax": 1, "deal": 1, "salary": 1, "rentbuy": 1, "card": 1, "fx": 1, "fund": 1, "lpr": 1, "deed": 1, "split": 1, "pension": 1, "sell": 1, "offset": 1, "multi": 1, "repayvs": 1, "edu": 1, "insure": 1, "car": 1, "bonus": 1, "deduct": 1, "ladder": 1, "rentyield": 1, "settle": 1, "balance": 1, "selfins": 1, "underpay": 1, "loanways": 1, "dca": 1, "checkup": 1, "calendar": 1, "cashflow": 1, "zeroloan": 1, "riskalloc": 1, "penalty": 1, "debtfree": 1, "fire": 1, "annualfee": 1, "budget": 1, "zhuan": 1, "medins": 1, "childcost": 1, "ppension": 1, "fundlimit": 1, "emergency": 1, "rule503020": 1, "debtmerge": 1, "freeperiod": 1, "overtime": 1, "rentup": 1, "ev": 1, "vat": 1, "vatdue": 1, "deprec": 1, "breakeven": 1, "ratios": 1, "recon": 1, "expense": 1, "aging": 1, "funding": 1, "pricing": 1, "triplede": 1, "multimargin": 1, "apterms": 1, "assetledger": 1, "payage": 1, "costcard": 1, "budgetvar": 1, "finreport": 1, "invoice": 1, "expbudget": 1, "efficiency": 1, "cashstmt": 1, "invstock": 1, "exportrebate": 1, "tieout": 1, "feetrend": 1, "mpbe": 1, "payroll": 1, "assetdiff": 1, "monthclose": 1, "factoring": 1, "deadstock": 1, "aptalk": 1, "cash13": 1, "bill": 1, "loanreal": 1, "collect": 1, "mgmtpack": 1, "settleway": 1, "creditline": 1, "impair": 1, "fxgain": 1, "taxburden": 1, "sens": 1, "consol": 1, "eoq": 1, "bplan": 1, "refundflow": 1, "costalloc": 1, "importcost": 1, "makeorbuy": 1, "ecl": 1, "quotefx": 1, "capacity": 1, "mold": 1, "rebate": 1, "stdcost": 1, "svc": 1, "taxadj": 1, "supplier": 1, "debtcap": 1, "accdep": 1, "custwin": 1, "upgrade": 1, "deptalloc": 1, "payout": 1, "numwords": 1, "duedate": 1, "workday": 1, "cagr": 1, "apportion": 1, "grossup": 1, "trprice": 1, "esop": 1, "rdexp": 1, "rollfc": 1, "commission": 1, "capex": 1, "pooling": 1, "creditlimit": 1, "contractperf": 1, "projrev": 1, "creditpolicy": 1, "rateadj": 1, "invfund": 1, "machrate": 1, "govgrant": 1, "fxtranslate": 1, "rebateacc": 1, "pledgeloan": 1, "labvar": 1, "rdcap": 1, "processcost": 1, "makeoroutsource": 1, "rebatedta": 1, "leasebuy": 1, "welfare": 1, "inputout": 1, "stampduty": 1, "assetdisp": 1, "headcount": 1, "markroi": 1, "rdproject": 1, "intsvc": 1, "accrual": 1, "cfconsol": 1, "exportcheck": 1, "vatcheck": 1, "report": 1, "snaps": 1, "housecash": 1, "planner": 1, "healthcheck": 1, "salesallow": 1, "lease": 1, "gpmix": 1, "vatchoose": 1, "datemath": 1, "pct3": 1, "xlhelp": 1, "csvrecon": 1 };
-  var CHUNK_FILES = { "save": "assets/c-save.1da39d83a9.js", "loan": "assets/c-loan.34aeae3a7c.js", "life": "assets/c-life.2e698054e4.js", "tax": "assets/c-tax.40117aff8f.js", "house": "assets/c-house.407d65b515.js", "family": "assets/c-family.4ba6208347.js", "acct-tax": "assets/c-acct-tax.2f25671bd6.js", "acct-cost": "assets/c-acct-cost.8906504f8f.js", "acct-perf": "assets/c-acct-perf.6ffbaa6727.js", "acct-report": "assets/c-acct-report.f768fbb162.js", "acct-bd": "assets/c-acct-bd.8e80ef2942.js", "acct-cash": "assets/c-acct-cash.6e77d92ba4.js", "util": "assets/c-util.04d6c8cac3.js", "hot": "assets/c-hot.3bb1a811c2.js" };
+  var CHUNK_FILES = { "save": "assets/c-save.1da39d83a9.js", "loan": "assets/c-loan.34aeae3a7c.js", "life": "assets/c-life.2e698054e4.js", "tax": "assets/c-tax.40117aff8f.js", "house": "assets/c-house.407d65b515.js", "family": "assets/c-family.f21a93a798.js", "acct-tax": "assets/c-acct-tax.2f25671bd6.js", "acct-cost": "assets/c-acct-cost.8906504f8f.js", "acct-perf": "assets/c-acct-perf.6ffbaa6727.js", "acct-report": "assets/c-acct-report.f768fbb162.js", "acct-bd": "assets/c-acct-bd.8e80ef2942.js", "acct-cash": "assets/c-acct-cash.6e77d92ba4.js", "util": "assets/c-util.44b7631221.js", "hot": "assets/c-hot.3bb1a811c2.js" };
   var CORE_CALC = { "loan": calcLoan };
   var calcMap = {};
   Object.keys(CORE_CALC).forEach(function (k) { calcMap[k] = CORE_CALC[k]; });
@@ -1546,7 +1562,9 @@ undefined
     var panel = document.querySelector(".panel.is-on");
     if (!panel) return [];
     var els = panel.querySelectorAll("input,select");
-    return [].slice.call(els).filter(function (el) { return el.id && el.type !== "search"; });
+    return [].slice.call(els).filter(function (el) {
+      return el.id && el.type !== "search" && el.type !== "file" && el.id.indexOf("snap-") !== 0;
+    });
   }
 
   function panelParams() {
@@ -1793,12 +1811,90 @@ undefined
   });
   if ($("cmp-close")) $("cmp-close").addEventListener("click", function () { $("cmpbox").hidden = true; });
 
+  /* 单模块结果图：把当前面板的主结果 + 指标 + 口径画成一张 980 宽的 PNG，方便发微信 */
+  tap("btn-card", "click", function () {
+    var btn = this, sn = snapshot();
+    if (!sn.rows.length) { flash(btn, "这个模块没有可截图的结果"); return; }
+    var mod = document.querySelector(".tab.is-on");
+    var name = mod ? mod.textContent.trim() : sn.name;
+    var FONT = "-apple-system,'PingFang SC','Microsoft YaHei',sans-serif";
+    var W = 980, pad = 30, lineH = 30;
+    var rows = sn.rows.slice(0, 9);
+    var noteLines = [];
+    var cv0 = document.createElement("canvas");
+    var g0 = cv0.getContext("2d");
+    g0.font = "13px " + FONT;
+    (function wrapNote(txt) {
+      if (!txt) return;
+      var max = W - pad * 2, line = "";
+      for (var i = 0; i < txt.length && noteLines.length < 4; i++) {
+        if (g0.measureText(line + txt[i]).width > max) { noteLines.push(line); line = ""; }
+        line += txt[i];
+      }
+      if (line && noteLines.length < 4) noteLines.push(line);
+    })(sn.note || "");
+    var top = 104, hgt = top + rows.length * lineH + noteLines.length * 19 + 62;
+    var cv = document.createElement("canvas");
+    var dpr = Math.min(2, window.devicePixelRatio || 1);
+    cv.width = W * dpr; cv.height = hgt * dpr;
+    var g = cv.getContext("2d");
+    g.scale(dpr, dpr);
+    g.fillStyle = "#ffffff"; g.fillRect(0, 0, W, hgt);
+    g.fillStyle = "#1e3a8a"; g.fillRect(0, 0, W, 6);
+    g.font = "bold 22px " + FONT; g.fillStyle = "#0f172a";
+    g.fillText(name, pad, 48);
+    g.font = "13px " + FONT; g.fillStyle = "#64748b";
+    g.fillText("财务计算器 · " + location.host + "　·　" + new Date().toLocaleString("zh-CN"), pad, 74);
+    g.strokeStyle = "#e2e8f0"; g.beginPath(); g.moveTo(pad, top - 16); g.lineTo(W - pad, top - 16); g.stroke();
+    g.textBaseline = "middle";
+    for (var i = 0; i < rows.length; i++) {
+      var y = top + i * lineH + 6;
+      if (i === 0) {
+        g.fillStyle = "#eef2ff"; g.fillRect(pad - 8, y - lineH / 2 - 2, W - pad * 2 + 16, lineH);
+        g.font = "bold 17px " + FONT; g.fillStyle = "#1e3a8a"; g.textAlign = "left";
+        g.fillText(rows[i][0], pad, y);
+        g.textAlign = "right"; g.font = "bold 19px " + FONT;
+        g.fillText(rows[i][1], W - pad, y);
+        g.textAlign = "left";
+      } else {
+        g.font = "14px " + FONT; g.fillStyle = "#475569"; g.textAlign = "left";
+        g.fillText(rows[i][0], pad, y);
+        g.fillStyle = "#0f172a"; g.font = "15px " + FONT; g.textAlign = "right";
+        g.fillText(rows[i][1], W - pad, y);
+        g.textAlign = "left";
+      }
+    }
+    var ny = top + rows.length * lineH + 14;
+    g.font = "12px " + FONT; g.fillStyle = "#94a3b8";
+    for (var n = 0; n < noteLines.length; n++) g.fillText(noteLines[n], pad, ny + n * 19);
+    g.fillStyle = "#cbd5e1"; g.font = "11.5px " + FONT;
+    g.fillText("纯前端计算，数据不上传 · 结果按页面假设推算，实际以合同与当地政策为准", pad, hgt - 20);
+    cv.toBlob(function (blob) {
+      var a2 = document.createElement("a");
+      a2.href = URL.createObjectURL(blob);
+      a2.download = "财务计算器-" + name + ".png";
+      document.body.appendChild(a2); a2.click(); document.body.removeChild(a2);
+      setTimeout(function () { URL.revokeObjectURL(a2.href); }, 2000);
+      flash(btn, "已导出结果图");
+    }, "image/png");
+  });
+
+  /* 体检报告：打印 / 存 PDF（浏览器打印面板里选「另存为 PDF」） */
+  tap("rp-pdf", "click", function () {
+    document.title = "财务计算器-家庭财务体检";
+    window.print();
+    setTimeout(function () { document.title = "财务计算器 · 个人理财 + 公司财务"; }, 1200);
+  });
+
   if ($("btn-print")) $("btn-print").addEventListener("click", function () {
     var t = document.querySelector(".tab.is-on");
     document.title = "财务计算器-" + (t ? t.textContent.trim() : "计算");
     window.print();
     setTimeout(function () { document.title = "财务计算器 · 个人理财 + 公司财务"; }, 1200);
   });
+
+  tap("snap-sort", "change", function () { renderSnapList(); });
+  tap("snap-q", "input", function () { renderSnapList(); });
 
   tap("hk-pull", "click", function () {
     var o = {};
@@ -1994,7 +2090,7 @@ undefined
         });
         if (obj.fav) localStorage.setItem(FAV_KEY, JSON.stringify(obj.fav));
         if (obj.presets) localStorage.setItem(PRE_KEY, JSON.stringify(obj.presets));
-        if (obj.snaps) localStorage.setItem(SNAP_KEY, JSON.stringify(obj.snaps.slice(0, 12)));
+        if (obj.snaps) localStorage.setItem(SNAP_KEY, JSON.stringify(obj.snaps.slice(0, 20)));
         if (obj.cat) localStorage.setItem(CAT_KEY, obj.cat);
         if (obj.theme) localStorage.setItem(THEME_KEY, obj.theme);
         save();

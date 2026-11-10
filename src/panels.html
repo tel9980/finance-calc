@@ -189,6 +189,7 @@
         <h2 class="sub">先改这三项（按"缺分 × 好改程度"排）</h2>
         <ol class="pri" id="rp-pri"></ol>
         <p class="hint" id="rp-note"></p>
+        <p class="btnrow"><button class="ghost" type="button" id="rp-pdf">导出这份报告（PDF / 打印）</button></p>
       </div>
     </div>
   </section>
@@ -196,7 +197,13 @@
     <div class="cols">
       <div class="card">
         <h2>方案快照</h2>
-        <p class="hint">在任意模块调好参数，回来点「存当前方案」，就能把不同方案并排比。快照只存在本机，最多 12 条。</p>
+        <p class="hint">在任意模块调好参数，回来点「存当前方案」，就能把不同方案并排比。快照只存在本机，最多 20 条。</p>
+        <span class="row"><label class="f"><span>排序</span><select id="snap-sort">
+          <option value="new">最新的在前面</option>
+          <option value="old">最早的在前</option>
+          <option value="mod">按模块分组</option>
+          <option value="name">按方案名</option>
+        </select></label><label class="f"><span>只看含关键词的方案</span><input id="snap-q" type="search" placeholder="方案名 / 备注 / 模块名"></label></span>
         <p class="btnrow">
           <button class="ghost" type="button" id="snap-cmp">刷新对比</button>
           <button class="ghost" type="button" id="snap-clear">清空全部</button>

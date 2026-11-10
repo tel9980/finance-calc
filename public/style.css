@@ -310,3 +310,19 @@ a.snap-load{color:var(--accent2);text-decoration:underline;text-underline-offset
 .updbar .upd-go{border:0;background:#fff;color:#1e3a8a;font-weight:650;padding:5px 14px;border-radius:999px;cursor:pointer;font-size:13px}
 .updbar .upd-x{border:0;background:transparent;color:#c7d2fe;font-size:17px;line-height:1;padding:2px 8px;cursor:pointer}
 @media print{.updbar{display:none}}
+
+/* 暗色模式下的行底色（对比表/差异行/预警行） */
+html[data-theme="dark"] .c-info{background:#16243d}
+html[data-theme="dark"] .c-warn{background:#2c2317}
+html[data-theme="dark"] .c-bad{background:#2e1a1c}
+html[data-theme="dark"] .c-soft{background:#1a2233}
+html[data-theme="dark"] tbody tr:nth-child(even){background:#141c2b}
+html[data-theme="dark"] .cmpbox{background:#111a28}
+
+/* 体检报告 / 打印：分块别被切断 */
+@media print{
+  .card{break-inside:avoid;page-break-inside:avoid}
+  .panel.is-on .card.res .big{position:static;border:0}
+  .pri{margin:6px 0 10px 18px;padding:0}
+  .pri li{margin:0 0 6px}
+}
