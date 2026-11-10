@@ -1387,6 +1387,247 @@
       + "电车还有充电/家充桩/电池衰减，油车还有大保养和轮胎。买之前先把这笔账算清，别只看月供。";
   }
 
+  /* ================= 年终奖拆分 ================= */
+  function rateOf(table, per) {
+    for (var i = 0; i < table.length; i++) if (per <= table[i][0]) return table[i][1];
+    return table[table.length - 1][1];
+  }
+  function quickOf(table, per) {
+    for (var i = 0; i < table.length; i++) if (per <= table[i][0]) return table[i][2];
+    return table[table.length - 1][2];
+  }
+  /* 年终奖单独计税：总额 ÷ 12 找月度税率表档位，税额 = 总额 × 税率 − 速算扣除 */
+  function bonusSoloTax(b) {
+    if (b <= 0) return 0;
+    var per = b / 12;
+    return Math.max(0, b * rateOf(MONTH_TABLE, per) - quickOf(MONTH_TABLE, per));
+  }
+  function combineTax(base) { return Math.max(0, taxBy(YEAR_TABLE, base)); }
+
+  function calcBonus() {
+    var income = Math.max(0, num($("bn-income"), 0));
+    var ins = Math.max(0, num($("bn-ins"), 0));
+    var special = Math.max(0, num($("bn-special"), 0));
+    var bonus = Math.max(0, num($("bn-bonus"), 0));
+    var W = Math.max(0, income - ins - special - 60000);
+
+    var taxA = combineTax(W) + bonusSoloTax(bonus);        // 全单独
+    var taxB = combineTax(W + bonus);                      // 全并入
+
+    // 拆分：x 并入综合所得，bonus-x 单独计税
+    var pick = function (x) { return combineTax(W + x) + bonusSoloTax(bonus - x); };
+    var bestX = 0, bestT = pick(0);
+    for (var x = 0; x <= bonus; x += 100) {
+      var t = pick(x);
+      if (t < bestT - 0.005) { bestT = t; bestX = x; }
+    }
+    var lo = Math.max(0, bestX - 100), hi = Math.min(bonus, bestX + 100);
+    for (var y = lo; y <= hi; y += 1) {
+      var t2 = pick(y);
+      if (t2 < bestT - 0.005) { bestT = t2; bestX = y; }
+    }
+    var wageT = combineTax(W + bestX), bonT = bonusSoloTax(bonus - bestX);
+
+    $("bn-best").textContent = money(bestT);
+    $("bn-taxable").textContent = yuan(W);
+    $("bn-a").textContent = yuan(taxA) + "（工资 " + money(combineTax(W)) + " + 奖金 " + money(bonusSoloTax(bonus)) + "）";
+    $("bn-b").textContent = yuan(taxB);
+    $("bn-split-in").textContent = yuan(bestX);
+    $("bn-split-solo").textContent = yuan(bonus - bestX);
+    $("bn-wage-tax").textContent = yuan(wageT);
+    $("bn-bonus-tax").textContent = yuan(bonT);
+    $("bn-save-a").textContent = taxA - bestT > 0.5 ? yuan(taxA - bestT) : "已是最优（不用拆）";
+    $("bn-save-b").textContent = taxB - bestT > 0.5 ? yuan(taxB - bestT) : "已是最优（不用拆）";
+    $("bn-net").textContent = yuan(income + bonus - ins - bestT);
+
+    var ratioSolo = bonus - bestX > 0 ? (bonus - bestX) / 12 : 0;
+    var note = "两个政策各算一遍再取小的："
+      + "①单独计税——年终奖总额 ÷ 12 找工作表（3,000 元以内 3%、3,000–12,000 元 10%、12,000–25,000 元 20%…），税额 = 年终奖 × 该档税率 − 速算扣除数，这笔钱不占综合所得的额度；"
+      + "②并入综合所得——和工资合并按年度累进表算。"
+      + " 本例工资部分应纳税所得额 " + money(W) + "：全单独 " + money(taxA) + "、全并入 " + money(taxB)
+      + "，最优是「" + money(bestX) + " 并入工资 + " + money(bonus - bestX) + " 单独计税」，合计 " + money(bestT) + " 元"
+      + (bonus - bestX > 0 ? "（单独那部分落在 " + pct(rateOf(MONTH_TABLE, ratioSolo), 0) + " 档）" : "") + "。"
+      + " 拆分能省钱的原因是：单独计税没有速算扣除数的平滑，存在「陷阱区间」——年终奖 36,000 元税 1,080 元，发 36,001 元税 3,390 元，多发 1 元多交 2,310 元；"
+      + "同理 14.4 万、30 万、42 万、66 万、96 万都是跳档点。所以要么把超出部分挤到工资里，要么干脆让单位把奖金压到档位以内。"
+      + " 注意事项：单独计税优惠目前延续到 2027 年 12 月 31 日，一个纳税年度内只能用一次；实操上要单位在申报时选对方式，事后可在年度汇算时改。";
+    if (bonus === 0) note = "年终奖填 0 时，这里算的就是纯工资个税：" + money(bestT) + " 元。把年终奖填进去才能比较拆分方案。";
+    $("bn-note").textContent = note;
+  }
+
+  /* ================= 专项附加扣除 ================= */
+  function calcDeduct() {
+    var income = Math.max(0, num($("dq-income"), 0));
+    var ins = Math.max(0, num($("dq-ins"), 0));
+    var child = Math.max(0, Math.round(num($("dq-child"), 0))) * 24000;
+    var baby = Math.max(0, Math.round(num($("dq-baby"), 0))) * 24000;
+    var edu = num($("dq-edu"), 0);
+    var loanI = num($("dq-loan"), 0);
+    var rent = num($("dq-rent"), 0);
+    var elder = num($("dq-elder"), 0);
+    var medRaw = Math.max(0, num($("dq-med"), 0));
+    var med = Math.min(80000, Math.max(0, medRaw - 15000));
+
+    var houseBoth = loanI > 0 && rent > 0;
+    var house = houseBoth ? Math.max(loanI, rent) : loanI + rent;
+    var total = child + baby + edu + house + elder + med;
+
+    var base0 = Math.max(0, income - ins - 60000);
+    var base1 = Math.max(0, base0 - total);
+    var t0 = Math.max(0, taxBy(YEAR_TABLE, base0));
+    var t1 = Math.max(0, taxBy(YEAR_TABLE, base1));
+    var save = t0 - t1;
+
+    $("dq-save").textContent = money(save);
+    $("dq-total").textContent = yuan(total);
+    $("dq-base0").textContent = yuan(base0);
+    $("dq-tax0").textContent = yuan(t0);
+    $("dq-base1").textContent = yuan(base1);
+    $("dq-tax1").textContent = yuan(t1);
+    $("dq-rate").textContent = income > 0 ? pct(t1 / income, 2) : "—";
+    $("dq-month").textContent = yuan(save / 12) + " / 月";
+
+    var parts = [];
+    if (child) parts.push("子女教育 " + money(child));
+    if (baby) parts.push("婴幼儿照护 " + money(baby));
+    if (edu) parts.push("继续教育 " + money(edu));
+    if (house) parts.push((houseBoth ? "住房贷款利息/租金（二选一取高的）" : loanI ? "住房贷款利息" : "住房租金") + " " + money(house));
+    if (elder) parts.push("赡养老人 " + money(elder));
+    if (med) parts.push("大病医疗 " + money(med));
+    var note = "专项附加扣除合计 " + money(total) + " 元/年"
+      + (parts.length ? "（" + parts.join("、") + "）" : "（一项都没选）")
+      + "，把应纳税所得额从 " + money(base0) + " 压到 " + money(base1) + "，个税从 " + money(t0) + " 降到 " + money(t1)
+      + "，一年少缴 " + money(save) + " 元、平均每月 " + money(save / 12) + " 元。";
+    if (houseBoth) note += " 注意：住房贷款利息和住房租金只能二选一，这里已按金额高的那项算。";
+    if (medRaw > 0 && medRaw <= 15000) note += " 大病医疗要自付超过 1.5 万元的部分才能扣，你的金额没到起扣点，扣除为 0。";
+    note += " 几个容易漏的：婴幼儿照护三项（3 岁以下）标准已提到 2000 元/月/孩，和子女教育不冲突；"
+      + "赡养老人只要父母任一方满 60 岁就能扣，非独生子女兄弟姐妹分摊、每人每月不超过 1,500 元；"
+      + "继续教育里职业资格证书是「取得当年一次性 3,600 元」，学历教育是每月 400 元（同一学历最长 48 个月）；"
+      + "所有扣除都在个税 App 里填，填了当月就能少扣，年底还能在汇算时补退。";
+    $("dq-note").textContent = note;
+  }
+
+  /* ================= 存单阶梯 ================= */
+  function calcLadder() {
+    var total = Math.max(0, num($("ld-total"), 0));
+    var r1 = Math.max(0, num($("ld-r1"), 0)) / 100;
+    var r2 = Math.max(0, num($("ld-r2"), 0)) / 100;
+    var r3 = Math.max(0, num($("ld-r3"), 0)) / 100;
+    var part = total / 3;
+    var i1 = part * r1 * 1, i2 = part * r2 * 2, i3 = part * r3 * 3;
+    var sum = i1 + i2 + i3;
+    var all = total * r3 * 3;
+    var avg = total > 0 ? sum / total / 3 : 0;
+
+    $("ld-int").textContent = money(sum);
+    $("ld-part").textContent = yuan(part);
+    $("ld-i1").textContent = yuan(i1);
+    $("ld-i2").textContent = yuan(i2);
+    $("ld-i3").textContent = yuan(i3);
+    $("ld-all").textContent = yuan(all);
+    $("ld-cost").textContent = yuan(Math.max(0, all - sum));
+    $("ld-avg").textContent = pct(avg, 3);
+    $("ld-m12").textContent = yuan(part + i1) + "（本息）";
+
+    var rows = [
+      ["第 1 年末", part, "1 年期", i1, part + i1],
+      ["第 2 年末", part, "2 年期", i2, part + i2],
+      ["第 3 年末", part, "3 年期", i3, part + i3]
+    ];
+    var body = $("ld-body");
+    body.innerHTML = "";
+    for (var i = 0; i < rows.length; i++) {
+      var tr = document.createElement("tr");
+      for (var j = 0; j < rows[i].length; j++) {
+        var td = document.createElement("td");
+        td.textContent = j === 1 || j === 3 || j === 4 ? money(rows[i][j]) : rows[i][j];
+        tr.appendChild(td);
+      }
+      body.appendChild(tr);
+    }
+
+    $("ld-note").textContent = "把 " + money(total) + " 元拆成三份各 " + money(part) + "，分别存 1 年、2 年、3 年期，"
+      + "于是从第 1 年末开始每年都有一笔到期，用钱不用全砸在定期里提前支取（那样只能拿活期利息）。"
+      + " 三年累计利息 " + money(sum) + "，平均年化 " + pct(avg, 3) + "；如果一开始全存 3 年期，利息是 " + money(all)
+      + "，也就是为了「每年都有一笔能取」多付出的代价约 " + money(Math.max(0, all - sum)) + " 元。"
+      + " 滚动起来的做法是：第 1 年末到期的那笔改存 3 年期，第 2 年末到期的那笔也改存 3 年期——三年之后三笔全部变成 3 年期，且仍然每年到期一笔，收益就追上「全存 3 年」了。"
+      + " 利率按你能拿到的挂牌价填（中小银行、大额存单通常更高），存款保险对同一家银行本息最高偿付 50 万元，超过就分散到不同银行。";
+  }
+
+  /* ================= 租售比 ================= */
+  function calcRentYield() {
+    var price = Math.max(0, num($("ry-price"), 0));
+    var rent = Math.max(0, num($("ry-rent"), 0));
+    var downR = Math.min(100, Math.max(0, num($("ry-down"), 30))) / 100;
+    var rate = Math.max(0, num($("ry-rate"), 0)) / 100;
+    var yrs = Math.max(1, Math.min(40, Math.round(num($("ry-years"), 30))));
+    var hold = Math.max(1, Math.min(40, Math.round(num($("ry-hold"), 10))));
+    var g = num($("ry-growth"), 0) / 100;
+    var rg = num($("ry-rgrowth"), 0) / 100;
+    var cost = Math.max(0, num($("ry-cost"), 0));
+    var vac = Math.min(60, Math.max(0, num($("ry-vac"), 0))) / 100;
+
+    var loan = price * (1 - downR);
+    var i = rate / 12, n = yrs * 12;
+    var pay = annuityPayment(loan, i, n);
+    var ann = rent * 12 * (1 - vac);
+    var grossRatio = price > 0 ? rent * 12 / price : 0;
+    var effRatio = price > 0 ? ann / price : 0;
+    var netRatio = price > 0 ? (ann - cost) / price : 0;
+
+    // 现金流 + IRR（月度）
+    var months = hold * 12;
+    var cf = [-price * downR];
+    var P = loan, rentSum = 0, invest = price * downR, exit = 0, loanEnd = 0;
+    for (var m = 1; m <= months; m++) {
+      var it = P * i, pr = Math.min(P, pay - it);
+      P -= pr;
+      var rNow = rent * Math.pow(1 + rg, Math.floor((m - 1) / 12));
+      var cash = rNow * (1 - vac) - pay - cost / 12;
+      rentSum += rNow * (1 - vac);
+      if (cash < 0) invest += -cash;
+      if (m === months) {
+        loanEnd = P;
+        exit = price * Math.pow(1 + g, hold) - P;
+        cash += exit;
+      }
+      cf.push(cash);
+    }
+    var npv = function (r) {
+      var s = 0, d = 1;
+      for (var k = 0; k < cf.length; k++) { d *= (1 + r); s += cf[k] / d; }
+      return s;
+    };
+    var lo = -0.9, hi = 1.0;
+    for (var z = 0; z < 120; z++) {
+      var mid = (lo + hi) / 2;
+      if (npv(mid) > 0) lo = mid; else hi = mid;
+    }
+    var mr = (lo + hi) / 2;
+    var annualIrr = (Math.pow(1 + mr, 12) - 1) * 100;
+
+    $("ry-irr").textContent = fmt(annualIrr, 2);
+    $("ry-ratio").textContent = pct(grossRatio, 2);
+    $("ry-eff").textContent = pct(effRatio, 2);
+    $("ry-net").textContent = pct(netRatio, 2);
+    $("ry-pay").textContent = yuan(pay) + " / 月";
+    $("ry-cash").textContent = yuan(rent - pay - cost / 12) + " / 月";
+    $("ry-price-end").textContent = yuan(price * Math.pow(1 + g, hold));
+    $("ry-loan-end").textContent = yuan(loanEnd);
+    $("ry-rent-sum").textContent = yuan(rentSum);
+    $("ry-invest").textContent = yuan(invest);
+    $("ry-exit").textContent = yuan(exit);
+
+    var note = "租售比 = 年租金 " + money(rent * 12) + " ÷ 房价 " + money(price) + " = " + pct(grossRatio, 2) + "，"
+      + "扣掉 " + pct(vac, 0) + " 空置/欠租后 " + pct(effRatio, 2) + "，再扣年持有成本 " + money(cost) + " 后只有 " + pct(netRatio, 2) + "。"
+      + " 国际经验把 3%–5% 当合理区间，1.5%–2% 意味着「靠租金回本要 50 年以上」，这种房子买的是涨价预期、不是租金现金流。"
+      + " 上面的年化 " + fmt(annualIrr, 2) + "% 是加杠杆后的股东回报（首付 " + money(price * downR) + "、月供 " + money(pay) + "、持有 " + hold + " 年按房价每年 " + pct(g, 1) + "、租金每年 " + pct(rg, 1) + " 卖出），"
+      + (rent - pay - cost / 12 < 0
+          ? "并且已经算进每月还要自己再掏 " + money(pay + cost / 12 - rent) + " 元的负现金流。"
+          : "并且已经算进每月净收 " + money(rent - pay - cost / 12) + " 元的正现金流。")
+      + " 没算契税/中介/装修/卖房税费和空置期的物业费；房价涨幅是最大的变量——把年涨幅调到 0% 再看这个数，就知道租金能不能单独撑起这笔投资。";
+    $("ry-note").textContent = note;
+  }
+
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
@@ -1394,7 +1635,8 @@
     salary: calcSalary, rentbuy: calcRentBuy, card: calcCard, fx: calcFx,
     fund: calcFund, lpr: calcLpr, deed: calcDeed, split: calcSplit,
     pension: calcPension, sell: calcSell, offset: calcOffset, multi: calcMulti,
-    repayvs: calcRepayVs, edu: calcEdu, insure: calcInsure, car: calcCar
+    repayvs: calcRepayVs, edu: calcEdu, insure: calcInsure, car: calcCar,
+    bonus: calcBonus, deduct: calcDeduct, ladder: calcLadder, rentyield: calcRentYield
   };
 
   function activate(name) {
@@ -1459,7 +1701,7 @@
     "in-income", "in-expense", "in-debt", "in-edu", "in-assets", "in-have", "in-years",
     "cr-price", "cr-years", "cr-residual", "cr-km", "cr-fc", "cr-oil", "cr-ins", "cr-maint", "cr-park", "cr-taxi"
   ];
-  var KEY = "finance-calc-v7";
+  var KEY = "finance-calc-v8";
 
   function save() {
     try {

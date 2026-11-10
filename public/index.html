@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>财务计算器 · 存款 贷款 提前还款 退休金 教育金 保险保额</title>
-<meta name="description" content="免费的财务计算器（27 个模块）：存款利息、贷款月供与还款计划、组合贷、提前还款省息、复利与定投、攒钱目标、分期真实年化、年化收益、通胀购买力、个税与到手工资、租房还是买房、信用卡循环利息、汇率与单位换算、公积金可贷额度、利率调整后月供、二手房交易税费、AA 分摊、退休金测算、卖房换房、公积金月冲年冲、多币种折算、提前还款 vs 理财、教育金、保险保额、买车 vs 打车。纯前端计算，不联网、不上传数据。">
+<title>财务计算器 · 存款 贷款 退休金 个税 年终奖 教育金 保险保额</title>
+<meta name="description" content="免费的财务计算器（31 个模块）：存款利息、贷款月供与还款计划、组合贷、提前还款省息、复利与定投、攒钱目标、分期真实年化、年化收益、通胀购买力、个税与到手工资、租房还是买房、信用卡循环利息、汇率与单位换算、公积金可贷额度、利率调整后月供、二手房交易税费、AA 分摊、退休金测算、卖房换房、公积金月冲年冲、多币种折算、提前还款 vs 理财、教育金、保险保额、买车 vs 打车、年终奖拆分、专项附加扣除、存单阶梯、租售比。纯前端计算，不联网、不上传数据。">
 <meta name="theme-color" content="#1e3a8a">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231e3a8a'/%3E%3Ctext x='16' y='23' font-size='17' text-anchor='middle' fill='%23fff' font-family='sans-serif'%3E%C2%A5%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="./style.css">
@@ -17,7 +17,7 @@
       <span class="mark">¥</span>
       <div>
         <h1>财务计算器</h1>
-        <p>存款 · 贷款 · 提前还款 · 复利 · 攒钱 · 分期 · 个税 · 到手工资 · 退休金 · 教育金 · 保险 · 租买 · 信用卡 · 公积金 · 换房 · AA · 多币种 · 养车</p>
+        <p>存款 · 贷款 · 提前还款 · 复利 · 攒钱 · 分期 · 个税 · 年终奖 · 扣除 · 到手工资 · 退休金 · 教育金 · 保险 · 租买 · 租售比 · 信用卡 · 公积金 · 换房 · AA · 多币种 · 存单阶梯</p>
       </div>
     </div>
     <nav class="tabs" id="tabs" role="tablist">
@@ -48,6 +48,10 @@
       <button class="tab" data-tab="edu" role="tab">教育金</button>
       <button class="tab" data-tab="insure" role="tab">保险保额</button>
       <button class="tab" data-tab="car" role="tab">买车 vs 打车</button>
+      <button class="tab" data-tab="bonus" role="tab">年终奖拆分</button>
+      <button class="tab" data-tab="deduct" role="tab">专项附加扣除</button>
+      <button class="tab" data-tab="ladder" role="tab">存单阶梯</button>
+      <button class="tab" data-tab="rentyield" role="tab">租售比</button>
     </nav>
   </div>
 </header>
@@ -1587,6 +1591,252 @@
           <li><span>持有期内总花费</span><b id="cr-life">—</b></li>
         </ul>
         <p class="hint" id="cr-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-bonus">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f">
+          <span>全年工资薪金收入（元，不含年终奖）</span>
+          <input id="bn-income" type="number" inputmode="decimal" min="0" step="1000" value="240000">
+        </label>
+        <label class="f">
+          <span>全年三险一金个人部分（元）</span>
+          <input id="bn-ins" type="number" inputmode="decimal" min="0" step="1000" value="36000">
+        </label>
+        <label class="f">
+          <span>全年专项附加扣除合计（元）</span>
+          <input id="bn-special" type="number" inputmode="decimal" min="0" step="1000" value="24000">
+        </label>
+        <label class="f">
+          <span>年终奖总额（元）</span>
+          <input id="bn-bonus" type="number" inputmode="decimal" min="0" step="1000" value="60000">
+        </label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big">
+          <span class="k">最低总税额</span>
+          <strong id="bn-best">—</strong>
+          <span class="unit">元</span>
+        </div>
+        <ul class="kv">
+          <li><span>工资部分应纳税所得额</span><b id="bn-taxable">—</b></li>
+          <li><span>方案A 全部单独计税</span><b id="bn-a">—</b></li>
+          <li><span>方案B 全部并入综合所得</span><b id="bn-b">—</b></li>
+          <li><span>最优拆分：并入工资</span><b id="bn-split-in">—</b></li>
+          <li><span>最优拆分：单独计税</span><b id="bn-split-solo">—</b></li>
+          <li><span>其中工资部分税</span><b id="bn-wage-tax">—</b></li>
+          <li><span>其中奖金部分税</span><b id="bn-bonus-tax">—</b></li>
+          <li><span>比方案A（全单独）少缴</span><b id="bn-save-a">—</b></li>
+          <li><span>比方案B（全并入）少缴</span><b id="bn-save-b">—</b></li>
+          <li><span>税后到手（含奖）</span><b id="bn-net">—</b></li>
+        </ul>
+        <p class="hint" id="bn-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-deduct">
+    <div class="cols">
+      <div class="card">
+        <h2>收入</h2>
+        <label class="f">
+          <span>全年工资薪金收入（元）</span>
+          <input id="dq-income" type="number" inputmode="decimal" min="0" step="1000" value="300000">
+        </label>
+        <label class="f">
+          <span>全年三险一金个人部分（元）</span>
+          <input id="dq-ins" type="number" inputmode="decimal" min="0" step="1000" value="45000">
+        </label>
+        <h2 class="sub">专项附加扣除</h2>
+        <label class="f">
+          <span>子女教育（每个子女，2000 元/月）</span>
+          <input id="dq-child" type="number" inputmode="numeric" min="0" max="10" step="1" value="1">
+        </label>
+        <label class="f">
+          <span>3 岁以下婴幼儿（每个，2000 元/月）</span>
+          <input id="dq-baby" type="number" inputmode="numeric" min="0" max="10" step="1" value="0">
+        </label>
+        <label class="f">
+          <span>继续教育</span>
+          <select id="dq-edu">
+            <option value="0" selected>无</option>
+            <option value="4800">学历（继续教育）400 元/月</option>
+            <option value="3600">职业资格 3600 元（当年一次性）</option>
+          </select>
+        </label>
+        <label class="f">
+          <span>住房贷款利息（首套，1000 元/月）</span>
+          <select id="dq-loan">
+            <option value="0" selected>无</option>
+            <option value="12000">有，1000 元/月</option>
+          </select>
+        </label>
+        <label class="f">
+          <span>住房租金（与贷款利息二选一）</span>
+          <select id="dq-rent">
+            <option value="0" selected>无</option>
+            <option value="9600">直辖市/省会/计划单列市 800 元/月</option>
+            <option value="13200">市辖区人口 &gt; 100 万 1100 元/月</option>
+            <option value="18000">市辖区人口 ≤ 100 万 1500 元/月</option>
+          </select>
+        </label>
+        <label class="f">
+          <span>赡养老人</span>
+          <select id="dq-elder">
+            <option value="0" selected>无</option>
+            <option value="36000">独生子女 3000 元/月</option>
+            <option value="18000">非独生，分摊 1500 元/月</option>
+          </select>
+        </label>
+        <label class="f">
+          <span>大病医疗自付金额（元，年，超 1.5 万部分）</span>
+          <input id="dq-med" type="number" inputmode="decimal" min="0" step="1000" value="0">
+        </label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big">
+          <span class="k">一年少缴个税</span>
+          <strong id="dq-save">—</strong>
+          <span class="unit">元</span>
+        </div>
+        <ul class="kv">
+          <li><span>专项附加扣除合计（年）</span><b id="dq-total">—</b></li>
+          <li><span>不填扣除时的应纳税所得额</span><b id="dq-base0">—</b></li>
+          <li><span>不填扣除时应缴个税</span><b id="dq-tax0">—</b></li>
+          <li><span>填完扣除后应纳税所得额</span><b id="dq-base1">—</b></li>
+          <li><span>填完扣除后应缴个税</span><b id="dq-tax1">—</b></li>
+          <li><span>实际税负率（税 ÷ 收入）</span><b id="dq-rate">—</b></li>
+          <li><span>每月少扣（工资条上能看到的）</span><b id="dq-month">—</b></li>
+        </ul>
+        <p class="hint" id="dq-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-ladder">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f">
+          <span>总金额（元）</span>
+          <input id="ld-total" type="number" inputmode="decimal" min="0" step="10000" value="300000">
+        </label>
+        <label class="f">
+          <span>1 年期利率（年，%）</span>
+          <input id="ld-r1" type="number" inputmode="decimal" min="0" step="0.05" value="1.35">
+        </label>
+        <label class="f">
+          <span>2 年期利率（年，%）</span>
+          <input id="ld-r2" type="number" inputmode="decimal" min="0" step="0.05" value="1.45">
+        </label>
+        <label class="f">
+          <span>3 年期利率（年，%）</span>
+          <input id="ld-r3" type="number" inputmode="decimal" min="0" step="0.05" value="1.75">
+        </label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big">
+          <span class="k">阶梯存三年累计利息</span>
+          <strong id="ld-int">—</strong>
+          <span class="unit">元</span>
+        </div>
+        <ul class="kv">
+          <li><span>每份金额（三等分）</span><b id="ld-part">—</b></li>
+          <li><span>1 年期利息</span><b id="ld-i1">—</b></li>
+          <li><span>2 年期利息</span><b id="ld-i2">—</b></li>
+          <li><span>3 年期利息</span><b id="ld-i3">—</b></li>
+          <li><span>全部存 3 年期利息</span><b id="ld-all">—</b></li>
+          <li><span>阶梯的机会成本</span><b id="ld-cost">—</b></li>
+          <li><span>阶梯平均年化</span><b id="ld-avg">—</b></li>
+          <li><span>第 1 年末可动用</span><b id="ld-m12">—</b></li>
+        </ul>
+        <div class="tablebox">
+          <table>
+            <thead><tr><th>到期时点</th><th>本金</th><th>存期</th><th>利息</th><th>到期本息</th></tr></thead>
+            <tbody id="ld-body"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="ld-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-rentyield">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f">
+          <span>房子总价（元）</span>
+          <input id="ry-price" type="number" inputmode="decimal" min="0" step="10000" value="2000000">
+        </label>
+        <label class="f">
+          <span>月租金（元）</span>
+          <input id="ry-rent" type="number" inputmode="decimal" min="0" step="100" value="4000">
+        </label>
+        <label class="f">
+          <span>首付比例（%）</span>
+          <input id="ry-down" type="number" inputmode="decimal" min="0" max="100" step="5" value="30">
+        </label>
+        <label class="f">
+          <span>贷款利率（年，%）</span>
+          <input id="ry-rate" type="number" inputmode="decimal" min="0" step="0.05" value="3.1">
+        </label>
+        <label class="f">
+          <span>贷款年限（年）</span>
+          <input id="ry-years" type="number" inputmode="numeric" min="1" max="40" step="1" value="30">
+        </label>
+        <label class="f">
+          <span>持有年限（年）</span>
+          <input id="ry-hold" type="number" inputmode="numeric" min="1" max="40" step="1" value="10">
+        </label>
+        <label class="f">
+          <span>房价年涨幅（%）</span>
+          <input id="ry-growth" type="number" inputmode="decimal" min="-20" max="30" step="0.5" value="2">
+        </label>
+        <label class="f">
+          <span>租金年涨幅（%）</span>
+          <input id="ry-rgrowth" type="number" inputmode="decimal" min="-20" max="30" step="0.5" value="3">
+        </label>
+        <label class="f">
+          <span>年持有成本（元，物业+维修+保险）</span>
+          <input id="ry-cost" type="number" inputmode="decimal" min="0" step="500" value="6000">
+        </label>
+        <label class="f">
+          <span>空置与欠租（% 年租金）</span>
+          <input id="ry-vac" type="number" inputmode="decimal" min="0" max="60" step="1" value="5">
+        </label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big">
+          <span class="k">持有到期年化收益（IRR）</span>
+          <strong id="ry-irr">—</strong>
+          <span class="unit">%</span>
+        </div>
+        <ul class="kv">
+          <li><span>租售比（年租金 ÷ 房价）</span><b id="ry-ratio">—</b></li>
+          <li><span>扣空置后的有效租金回报</span><b id="ry-eff">—</b></li>
+          <li><span>再扣持有成本的净回报</span><b id="ry-net">—</b></li>
+          <li><span>月供</span><b id="ry-pay">—</b></li>
+          <li><span>每月现金流（租金 − 月供 − 成本）</span><b id="ry-cash">—</b></li>
+          <li><span>持有期末房价</span><b id="ry-price-end">—</b></li>
+          <li><span>期末剩余贷款</span><b id="ry-loan-end">—</b></li>
+          <li><span>累计净租金收入</span><b id="ry-rent-sum">—</b></li>
+          <li><span>累计自掏现金（首付+补贴月供）</span><b id="ry-invest">—</b></li>
+          <li><span>期末卖出到手（扣贷款）</span><b id="ry-exit">—</b></li>
+        </ul>
+        <p class="hint" id="ry-note"></p>
       </div>
     </div>
   </section>
