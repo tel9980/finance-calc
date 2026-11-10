@@ -2044,6 +2044,271 @@
       + "中小银行、大额存单通常更高，但要注意是否有「靠档计息」「提前支取按活期」的条款。日期计算按自然月对日、遇到月末自动取当月最后一天。";
   }
 
+  /* ---------------- 债务先还哪笔：雪崩 vs 雪球 ---------------- */
+  function calcDebtFree() {
+    var list = [
+      { n: "车贷尾款", b: Math.max(0, num($("df-bal1"), 0)), r: Math.max(0, num($("df-rate1"), 0)) / 100, m: Math.max(0, num($("df-min1"), 0)) },
+      { n: "信用卡", b: Math.max(0, num($("df-bal2"), 0)), r: Math.max(0, num($("df-rate2"), 0)) / 100, m: Math.max(0, num($("df-min2"), 0)) },
+      { n: "消费贷", b: Math.max(0, num($("df-bal3"), 0)), r: Math.max(0, num($("df-rate3"), 0)) / 100, m: Math.max(0, num($("df-min3"), 0)) }
+    ].filter(function (d) { return d.b > 0.005; });
+    var extra = Math.max(0, num($("df-extra"), 0));
+
+    function run(mode, ex) {
+      var ds = list.map(function (d) { return { n: d.n, b: d.b, r: d.r, m: d.m, done: 0, int0: 0 }; });
+      var pool = ex, month = 0, intTotal = 0, alive = ds.length > 0;
+      while (alive && month < 600) {
+        month++;
+        ds.forEach(function (d) {
+          if (d.b <= 0.005) return;
+          var it = d.b * d.r / 12;
+          d.b += it; d.int0 += it; intTotal += it;
+        });
+        ds.forEach(function (d) {
+          if (d.b <= 0.005) return;
+          d.b -= Math.min(d.b, d.m);
+        });
+        var left = pool;
+        while (left > 0.005) {
+          var act = ds.filter(function (d) { return d.b > 0.005; });
+          if (!act.length) break;
+          var t = act[0];
+          act.forEach(function (d) {
+            if (mode === "avalanche" ? d.r > t.r : d.b < t.b) t = d;
+          });
+          var p = Math.min(t.b, left);
+          t.b -= p; left -= p;
+        }
+        pool = ex;
+        ds.forEach(function (d) { if (d.b <= 0.005) pool += d.m; });
+        ds.forEach(function (d) { if (d.b <= 0.005 && !d.done) d.done = month; });
+        alive = ds.some(function (d) { return d.b > 0.005; });
+      }
+      return { months: month, interest: intTotal, rows: ds, capped: alive };
+    }
+
+    var A = run("avalanche", extra), S = run("snowball", extra), M = run("avalanche", 0);
+    var totalDebt = list.reduce(function (s, d) { return s + d.b; }, 0);
+    var perMonth = extra + list.reduce(function (s, d) { return s + d.m; }, 0);
+    var diff = S.interest - A.interest;
+    var firstA = null, firstS = null;
+    list.forEach(function (d) {
+      if (!firstA || d.r > firstA.r) firstA = d;
+      if (!firstS || d.b < firstS.b) firstS = d;
+    });
+
+    $("df-months").textContent = A.capped ? ">600" : String(A.months);
+    $("df-total").textContent = yuan(totalDebt);
+    $("df-permonth").textContent = yuan(perMonth) + (extra > 0 ? "（含额外 " + money(extra) + "）" : "");
+    $("df-intA").textContent = yuan(A.interest);
+    $("df-intS").textContent = yuan(S.interest);
+    $("df-diff").textContent = diff > 0.005 ? yuan(diff) + "（高息优先更省）" : "两者一样";
+    $("df-minonly").textContent = M.capped ? "50 年都还不完" : M.months + " 个月 / 利息 " + money(M.interest) + " 元";
+    $("df-first").textContent = (firstA ? firstA.n : "—") + "（" + (firstA ? money(firstA.b) : "0") + " 元，利率 " + (firstA ? fmt(firstA.r * 100, 1) : "0") + "%）";
+
+    var body = $("df-body");
+    body.innerHTML = "";
+    list.forEach(function (d, idx) {
+      var tr = document.createElement("tr");
+      var aRow = A.rows[idx] || { done: 0, int0: 0 };
+      var sRow = S.rows[idx] || { done: 0, int0: 0 };
+      [d.n, money(d.b), fmt(d.r * 100, 1) + "%",
+        (A.capped ? ">600" : aRow.done) + " 月", (S.capped ? ">600" : sRow.done) + " 月", money(aRow.int0)
+      ].forEach(function (v) {
+        var td = document.createElement("td");
+        td.textContent = v;
+        tr.appendChild(td);
+      });
+      body.appendChild(tr);
+    });
+
+    if (!list.length) {
+      $("df-note").textContent = "先填上至少一笔欠款的余额和利率。";
+      return;
+    }
+    var note = "两种打法的区别只有一句：雪崩法把额外的钱先砸向利率最高的那笔（数学最优），雪球法先砸向余额最小的那笔（最快看到「清零」，心理最优）。"
+      + " 在你这个例子里，雪崩法总利息 " + money(A.interest) + " 元，雪球法 " + money(S.interest) + " 元，差 "
+      + money(Math.abs(diff)) + " 元";
+    note += diff > 0.005
+      ? "，雪崩法更省。差额看着不大，是因为你的月供已经压过利息了；如果信用卡余额再大一点、或者额外加的钱再多一点，这个差距会迅速放大。"
+      : "，两者一样——说明你的最低还款已经远高于利息，钱的顺序排不排队都无所谓，这种情况下先清哪笔看心情就行。";
+    note += " 真正的杀手是这个：只还最低、一分不加，要 " + (M.capped ? "50 年以上（等于永远还不完）" : M.months + " 个月、付 " + money(M.interest) + " 元利息") + "。"
+      + " 所以顺序问题远不如「每月多砸进去 " + money(extra) + " 元」重要。"
+      + " 三条实操：① 先把应急金留够（3–6 个月支出）再加速还债，否则一遇到意外又得刷卡，白干；"
+      + " ② 信用卡循环利息按日息万分之五算，年化 18% 左右，任何「理财」都跑不赢它，优先清掉；"
+      + " ③ 别用「新贷还旧贷」把高息换成看起来低息的长期贷款——如果总成本没降，你只是把痛苦拉长了。"
+      + " 还清一笔之后，记得把原来那笔月供继续投出去，别让它悄悄变成消费。";
+    $("df-note").textContent = note;
+  }
+
+  /* ---------------- FIRE 财务自由 ---------------- */
+  function calcFire() {
+    var exp = Math.max(0, num($("fr-exp"), 0));
+    var has = Math.max(0, num($("fr-has"), 0));
+    var saveM = Math.max(0, num($("fr-save"), 0));
+    var r = Math.max(0, num($("fr-rate"), 0)) / 100;
+    var swr = Math.max(0.1, num($("fr-swr"), 4)) / 100;
+    var age = Math.max(0, num($("fr-age"), 30));
+    var target = exp * 12 / swr;
+    var i = r / 12;
+
+    function reach(monthly, rate) {
+      var m = 0, bal = has, ii = rate / 12;
+      while (bal < target && m < 1200) {
+        bal = bal * (1 + ii) + monthly;
+        m++;
+      }
+      return { m: m, bal: bal, done: bal >= target };
+    }
+
+    var res = reach(saveM, r);
+    var g = Math.pow(1 + i, 120);
+    var pmt10 = target > has * g
+      ? (target - has * g) / (i === 0 ? 120 : (g - 1) / i)
+      : 0;
+
+    $("fr-target").textContent = money(target);
+    $("fr-gap").textContent = target > has ? yuan(target - has) : "已经超过目标";
+    $("fr-time").textContent = res.done ? (Math.floor(res.m / 12) + " 年 " + (res.m % 12) + " 个月") : "按这个速度到不了（试试提高月存或收益）";
+    $("fr-ageout").textContent = res.done ? fmt(age + res.m / 12, 1) + " 岁" : "—";
+    $("fr-progress").textContent = target > 0 ? pct(Math.min(1, has / target), 2) : "—";
+    $("fr-withdraw").textContent = yuan(target * swr / 12) + "（刚好覆盖月支出 " + money(exp) + "）";
+    $("fr-pmt").textContent = pmt10 > 0 ? yuan(pmt10) + " / 月" : "已有资产按这个收益 10 年就够，不用再存";
+    var sens = [0.03, 0.05, 0.07].map(function (rr) {
+      var x = reach(saveM, rr);
+      return fmt(rr * 100, 0) + "% → " + (x.done ? (x.m / 12).toFixed(1) + " 年" : "到不了");
+    });
+    $("fr-sens").textContent = sens.join(" / ");
+
+    if (exp <= 0) {
+      $("fr-note").textContent = "先填现在的月支出。FIRE 的算法只有一句话：把「一年要花的钱」除以「安全提取率」，就是你需要的那笔本金。";
+      return;
+    }
+    var note = "目标本金 = 年支出 " + money(exp * 12) + " ÷ 安全提取率 " + fmt(swr * 100, 1) + "%，得 " + money(target) + " 元。"
+      + " 这个算法的含义是：这笔钱不靠工资、只靠本金增值，每年提出 " + fmt(swr * 100, 1) + "%（" + money(target * swr) + " 元）来生活。"
+      + " 为什么是 4%：历史上美股/美股+债组合 30 年不破产的提取率大约在这个量级，但它是「美国历史数据 + 30 年期限」的结论，不是自然规律；"
+      + " 想更稳（比如 40–50 年、或想留给后人），用 3%–3.5%，本金要求会立刻涨三到四成。"
+      + " 你现在的进度是 " + pct(Math.min(1, has / target), 1) + "，按每月存 " + money(saveM) + " 元、年化 " + fmt(r * 100, 1) + "% 测算，"
+      + (res.done
+        ? "还要 " + Math.floor(res.m / 12) + " 年 " + (res.m % 12) + " 个月，大约 " + fmt(age + res.m / 12, 1) + " 岁达成。"
+        : "以这个速度到不了目标，得把月存提上去或把收益预期放现实一点。")
+      + " 注意它的敏感性：同一笔钱，年化 3% 和 7% 的差别不是「小一点」，而是相差好几年（" + sens.join("、") + "），"
+      + " 所以别用「我一定能拿到 8%」来给这个计划加速。"
+      + " 三个容易被忽略的点：① 支出会变——有房贷、有孩子、父母年纪大了，月支出都会往上走，目标是移动靶；"
+      + " ② FIRE 之后往往还有零散收入（接活、写东西、做咨询），「半自由」比全退更常见也更稳；"
+      + " ③ 别把自住房算进这笔本金——你还得住。真要落地，先按 3.5% 提取率算一个「够稳」的数，再按 4% 算一个「够快」的数，中间那段就是你的操作空间。";
+    $("fr-note").textContent = note;
+  }
+
+  /* ---------------- 年缴费用分摊 ---------------- */
+  function calcAnnualFee() {
+    var items = [
+      { n: "物业费", v: Math.max(0, num($("af-1"), 0)), mo: Math.min(12, Math.max(1, Math.round(num($("af-1m"), 1)))) },
+      { n: "车险", v: Math.max(0, num($("af-2"), 0)), mo: Math.min(12, Math.max(1, Math.round(num($("af-2m"), 1)))) },
+      { n: "保险", v: Math.max(0, num($("af-3"), 0)), mo: Math.min(12, Math.max(1, Math.round(num($("af-3m"), 1)))) },
+      { n: "学费/其它", v: Math.max(0, num($("af-4"), 0)), mo: Math.min(12, Math.max(1, Math.round(num($("af-4m"), 1)))) }
+    ].filter(function (x) { return x.v > 0; });
+
+    var total = items.reduce(function (s, x) { return s + x.v; }, 0);
+    var monthly = total / 12;
+    var byMonth = [];
+    for (var mi = 1; mi <= 12; mi++) byMonth[mi] = 0;
+    items.forEach(function (x) { byMonth[x.mo] += x.v; });
+    var peak = 0, peakAmt = 0;
+    for (var mj = 1; mj <= 12; mj++) if (byMonth[mj] > peakAmt) { peakAmt = byMonth[mj]; peak = mj; }
+    var maxItem = 0;
+    items.forEach(function (x) { if (x.v > maxItem) maxItem = x.v; });
+    var lead = monthly > 0 ? Math.ceil(maxItem / monthly) : 0;
+
+    $("af-monthly").textContent = money(monthly);
+    $("af-total").textContent = yuan(total);
+    $("af-max").textContent = maxItem > 0 ? yuan(maxItem) : "—";
+    var peakCount = items.filter(function (x) { return x.mo === peak; }).length;
+    $("af-peak").textContent = peak > 0 ? peak + " 月（" + peakCount + " 笔，共 " + money(peakAmt) + " 元）" : "—";
+    $("af-peakamt").textContent = total > 0 ? pct(peakAmt / total, 1) + "（" + money(peakAmt) + " / " + money(total) + "）" : "—";
+    $("af-lead").textContent = lead > 0 ? lead + " 个月开始存" : "—";
+    $("af-check").textContent = total > 0 ? money(total / 365) + " 元 / 天" : "—";
+
+    var body = $("af-body");
+    body.innerHTML = "";
+    items.forEach(function (x) {
+      var tr = document.createElement("tr");
+      [x.n, money(x.v), x.mo + " 月", money(x.v / 12)].forEach(function (v) {
+        var td = document.createElement("td");
+        td.textContent = v;
+        tr.appendChild(td);
+      });
+      body.appendChild(tr);
+    });
+
+    if (!items.length) {
+      $("af-note").textContent = "把一年只交一次的费用填进来（物业费、车险、寿险、学费、会员费），看看每月该预留多少。";
+      return;
+    }
+    var note = "一年要交 " + money(total) + " 元，摊到每月是 " + money(monthly) + " 元（每天约 " + money(total / 365) + " 元）。"
+      + " 这类钱最容易出问题的地方不是金额，而是「集中到期」：你的缴费压力最大的是 " + peak + " 月，一次性要拿出 " + money(peakAmt) + " 元，"
+      + " 如果那个月正好还赶上过年、开学、换手机，就会出现「这个月怎么这么紧」的感觉。"
+      + " 做法很简单也很有效：开一个单独的账户（或者单独一张卡），每月发工资日先划 " + money(monthly) + " 元进去，只用来交这些年度费用，"
+      + " 到缴费月从里面直接付——不用算、不用记、也不会临时抓瞎。"
+      + " 如果你偏要「到期才准备」，那最大的一笔 " + money(maxItem) + " 元需要提前 " + lead + " 个月开始攒才攒得出来。"
+      + " 顺带提醒：车险和保险续费前记得比价，长期客户往往是最贵的客户；物业费若按年缴有折扣可以选年缴，但要把折扣和「钱放在自己手里的收益」比一比；"
+      + " 年缴金额通常会在缴费前一个月通知，收到通知就把它填进这里更新一下，别让分摊额停在旧数字上。";
+    $("af-note").textContent = note;
+  }
+
+  /* ---------------- 买房预算反推 ---------------- */
+  function calcBudget() {
+    var income = Math.max(0, num($("bg-income"), 0));
+    var cash = Math.max(0, num($("bg-cash"), 0));
+    var downPct = Math.min(95, Math.max(0, num($("bg-down"), 30))) / 100;
+    var rate = Math.max(0, num($("bg-rate"), 0)) / 100;
+    var years = Math.max(1, Math.min(40, num($("bg-years"), 30)));
+    var ratio = Math.min(80, Math.max(5, num($("bg-ratio"), 40))) / 100;
+    var feePct = Math.max(0, num($("bg-fee"), 5)) / 100;
+    var n = Math.round(years * 12), i = rate / 12;
+
+    var payCap = income * ratio;
+    var g = Math.pow(1 + i, n);
+    var loanCap = i === 0 ? payCap * n : payCap * (1 - 1 / g) / i;
+    var pByPay = downPct < 1 ? loanCap / (1 - downPct) : 0;
+    var pByCash = downPct + feePct > 0 ? cash / (downPct + feePct) : 0;
+    var P = Math.min(pByPay, pByCash);
+    var loan = P * (1 - downPct);
+    var dp = P * downPct;
+    var feeAmt = P * feePct;
+    var pay = annuityPayment(loan, i, n);
+    var share = income > 0 ? pay / income : 0;
+
+    $("bg-total").textContent = money(P);
+    $("bg-paycap").textContent = yuan(payCap) + "（收入 " + pct(ratio, 0) + "）";
+    $("bg-loancap").textContent = yuan(loanCap);
+    $("bg-byPay").textContent = yuan(pByPay);
+    $("bg-byCash").textContent = yuan(pByCash);
+    $("bg-bottle").textContent = pByCash <= pByPay ? "现金（凑首付＋税费）" : "月供（收入不够撑）";
+    $("bg-downamt").textContent = yuan(dp) + "（" + pct(downPct, 0) + "）";
+    $("bg-feeamt").textContent = yuan(feeAmt) + "（" + pct(feePct, 1) + "）";
+    $("bg-loan").textContent = yuan(loan) + " / " + yuan(pay);
+    $("bg-share").textContent = pct(share, 1);
+    $("bg-int").textContent = yuan(pay * n - loan);
+
+    if (income <= 0 || cash <= 0) {
+      $("bg-note").textContent = "先把家庭月收入和可动用的现金填上，再看能承受多贵的房子。";
+      return;
+    }
+    var note = "两个约束同时存在，谁先顶住谁说了算：按收入，" + pct(ratio, 0) + " 的月供上限是 " + money(payCap) + " 元/月，"
+      + "在 " + fmt(rate * 100, 2) + "%、" + years + " 年下最多贷 " + money(loanCap) + " 元，反推总价上限 " + money(pByPay) + " 元；"
+      + "按现金，扣掉 " + pct(downPct, 0) + " 首付和 " + pct(feePct, 1) + " 税费装修，总价上限 " + money(pByCash) + " 元。"
+      + " 取小的那个，你能承受的总价是 " + money(P) + " 元，卡在「" + (pByCash <= pByPay ? "现金" : "月供") + "」这一边。"
+      + (pByCash <= pByPay
+        ? " 也就是说，你的收入其实还能撑更贵的房子，是首付和税费的现金不够。"
+        : " 也就是说，你的现金够，是收入撑不起更高的月供——这条更该尊重，别为了买大房把月供顶到收入的 50% 以上。")
+      + " 还有三笔钱必须提前留在手里，否则会非常被动：① 契税、增值税、中介费、维修基金（二手房还有卖方税费的谈判空间）；"
+      + " ② 装修与家电，通常占房价 8%–15%，二手房更高；③ 至少 6 个月月供的应急金，"
+      + " 因为交房后最脆弱的时刻就是「首付掏空＋装修超支」的那半年。"
+      + " 另外提醒：月供占比 40% 已经偏紧，30% 以内才叫舒服（银行审批常按 50% 流水，但那是它的风控线，不是你的生活线）；"
+      + " 如果只能靠「30 年 + 顶格月供」才买得起，说明这个价位对你的现金流太薄了，先租一段时间或者买小一点，比硬扛更划算。";
+    $("bg-note").textContent = note;
+  }
+
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
@@ -2055,7 +2320,8 @@
     bonus: calcBonus, deduct: calcDeduct, ladder: calcLadder, rentyield: calcRentYield,
     settle: calcSettle, balance: calcBalance, selfins: calcSelfIns, underpay: calcUnderpay,
     loanways: calcLoanWays, dca: calcDCA, checkup: calcCheckup, calendar: calcCalendar,
-    cashflow: calcCashflow, zeroloan: calcZeroLoan, riskalloc: calcRiskAlloc, penalty: calcPenalty
+    cashflow: calcCashflow, zeroloan: calcZeroLoan, riskalloc: calcRiskAlloc, penalty: calcPenalty,
+    debtfree: calcDebtFree, fire: calcFire, annualfee: calcAnnualFee, budget: calcBudget
   };
 
   function activate(name) {
@@ -2127,9 +2393,13 @@
     "cf-open", "cf-income", "cf-payday", "cf-loan", "cf-loanday", "cf-card", "cf-cardday", "cf-living",
     "zl-amount", "zl-months", "zl-fee", "zl-discount", "zl-rate",
     "ra-age", "ra-years", "ra-dd", "ra-stable", "ra-cap",
-    "py-balance", "py-rate", "py-months", "py-lump", "py-fee", "py-invest"
+    "py-balance", "py-rate", "py-months", "py-lump", "py-fee", "py-invest",
+    "df-bal1", "df-rate1", "df-min1", "df-bal2", "df-rate2", "df-min2", "df-bal3", "df-rate3", "df-min3", "df-extra",
+    "fr-exp", "fr-has", "fr-save", "fr-rate", "fr-swr", "fr-age",
+    "af-1", "af-1m", "af-2", "af-2m", "af-3", "af-3m", "af-4", "af-4m",
+    "bg-income", "bg-cash", "bg-down", "bg-rate", "bg-years", "bg-ratio", "bg-fee"
   ];
-  var KEY = "finance-calc-v11";
+  var KEY = "finance-calc-v12";
 
   /* ---------------- 现金流月历 ---------------- */
   function calcCashflow() {

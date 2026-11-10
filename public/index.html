@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>财务计算器 · 存款 贷款 房贷 个税 社保 现金流 风险配置 违约金</title>
-<meta name="description" content="免费的财务计算器（43 个模块）：存款利息、贷款月供与还款计划、组合贷、提前还款省息、复利与定投、攒钱目标、分期真实年化、年化收益、通胀购买力、个税与到手工资、租房还是买房、信用卡循环利息、汇率与单位换算、公积金可贷额度、利率调整后月供、二手房交易税费、AA 分摊、退休金测算、卖房换房、公积金月冲年冲、多币种折算、提前还款 vs 理财、教育金、保险保额、买车 vs 打车、年终奖拆分、专项附加扣除、存单阶梯、租售比、年度汇算退税、家庭资产负债、灵活就业社保、社保少缴核查、三种还法对撞、定投 vs 一次性、保单体检、到期日历、现金流月历、0 利率真实成本、风险测评与资产配置、提前还款违约金临界点。纯前端计算，不联网、不上传数据。">
+<title>财务计算器 · 存款 贷款 房贷 个税 债务优先级 FIRE 买房预算</title>
+<meta name="description" content="免费的财务计算器（47 个模块）：存款利息、贷款月供与还款计划、组合贷、提前还款省息、复利与定投、攒钱目标、分期真实年化、年化收益、通胀购买力、个税与到手工资、租房还是买房、信用卡循环利息、汇率与单位换算、公积金可贷额度、利率调整后月供、二手房交易税费、AA 分摊、退休金测算、卖房换房、公积金月冲年冲、多币种折算、提前还款 vs 理财、教育金、保险保额、买车 vs 打车、年终奖拆分、专项附加扣除、存单阶梯、租售比、年度汇算退税、家庭资产负债、灵活就业社保、社保少缴核查、三种还法对撞、定投 vs 一次性、保单体检、到期日历、现金流月历、0 利率真实成本、风险测评与资产配置、提前还款违约金临界点、多笔债务先还哪笔、FIRE 财务自由、年缴费用分摊、买房预算反推。纯前端计算，不联网、不上传数据。">
 <meta name="theme-color" content="#1e3a8a">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231e3a8a'/%3E%3Ctext x='16' y='23' font-size='17' text-anchor='middle' fill='%23fff' font-family='sans-serif'%3E%C2%A5%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="./style.css">
@@ -17,7 +17,7 @@
       <span class="mark">¥</span>
       <div>
         <h1>财务计算器</h1>
-        <p>存款 · 贷款 · 提前还款 · 复利 · 攒钱 · 分期 · 个税 · 汇算退税 · 年终奖 · 到手工资 · 社保 · 退休金 · 教育金 · 保险 · 租买 · 租售比 · 信用卡 · 公积金 · 换房 · 多币种 · 存单阶梯 · 资产负债 · 还法对撞 · 保单体检 · 到期日历 · 现金流月历 · 风险配置</p>
+        <p>存款 · 贷款 · 提前还款 · 复利 · 攒钱 · 分期 · 个税 · 汇算退税 · 年终奖 · 到手工资 · 社保 · 退休金 · 教育金 · 保险 · 租买 · 租售比 · 信用卡 · 公积金 · 换房 · 多币种 · 存单阶梯 · 资产负债 · 还法对撞 · 保单体检 · 到期日历 · 现金流月历 · 风险配置 · 债务优先级 · FIRE · 年缴分摊 · 买房预算</p>
       </div>
     </div>
     <nav class="tabs" id="tabs" role="tablist">
@@ -64,6 +64,10 @@
       <button class="tab" data-tab="zeroloan" role="tab">0 利率真实成本</button>
       <button class="tab" data-tab="riskalloc" role="tab">风险测评配置</button>
       <button class="tab" data-tab="penalty" role="tab">违约金临界点</button>
+      <button class="tab" data-tab="debtfree" role="tab">债务先还哪笔</button>
+      <button class="tab" data-tab="fire" role="tab">FIRE 自由</button>
+      <button class="tab" data-tab="annualfee" role="tab">年缴费用分摊</button>
+      <button class="tab" data-tab="budget" role="tab">买房预算反推</button>
     </nav>
   </div>
 </header>
@@ -2421,6 +2425,177 @@
           <li><span>临界：理财收益超过这个数才别还</span><b id="py-crit">—</b></li>
         </ul>
         <p class="hint" id="py-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-debtfree">
+    <div class="cols">
+      <div class="card">
+        <h2>输入（三笔债务，用不到的填 0）</h2>
+        <label class="f"><span>第 1 笔：名称</span><span class="hint">车贷尾款</span></label>
+        <label class="f"><span>余额（元）</span>
+          <input id="df-bal1" type="number" inputmode="decimal" min="0" step="1000" value="15000"></label>
+        <label class="f"><span>年利率（%）</span>
+          <input id="df-rate1" type="number" inputmode="decimal" min="0" step="0.1" value="4"></label>
+        <label class="f"><span>每月最低还款（元）</span>
+          <input id="df-min1" type="number" inputmode="decimal" min="0" step="100" value="1200"></label>
+        <label class="f"><span>第 2 笔：名称</span><span class="hint">信用卡</span></label>
+        <label class="f"><span>余额（元）</span>
+          <input id="df-bal2" type="number" inputmode="decimal" min="0" step="1000" value="50000"></label>
+        <label class="f"><span>年利率（%）</span>
+          <input id="df-rate2" type="number" inputmode="decimal" min="0" step="0.1" value="18"></label>
+        <label class="f"><span>每月最低还款（元）</span>
+          <input id="df-min2" type="number" inputmode="decimal" min="0" step="100" value="500"></label>
+        <label class="f"><span>第 3 笔：名称</span><span class="hint">消费贷</span></label>
+        <label class="f"><span>余额（元）</span>
+          <input id="df-bal3" type="number" inputmode="decimal" min="0" step="1000" value="60000"></label>
+        <label class="f"><span>年利率（%）</span>
+          <input id="df-rate3" type="number" inputmode="decimal" min="0" step="0.1" value="9"></label>
+        <label class="f"><span>每月最低还款（元）</span>
+          <input id="df-min3" type="number" inputmode="decimal" min="0" step="100" value="800"></label>
+        <label class="f"><span>每月额外能多还（元）</span>
+          <input id="df-extra" type="number" inputmode="decimal" min="0" step="500" value="2000"></label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">高息优先，还清要</span><strong id="df-months">—</strong><span class="unit">个月</span></div>
+        <ul class="kv">
+          <li><span>欠款合计</span><b id="df-total">—</b></li>
+          <li><span>每月实际投入（最低还款＋额外）</span><b id="df-permonth">—</b></li>
+          <li><span>雪崩法（先还利率最高）总利息</span><b id="df-intA">—</b></li>
+          <li><span>雪球法（先还金额最小）总利息</span><b id="df-intS">—</b></li>
+          <li><span>雪崩法少付利息</span><b id="df-diff">—</b></li>
+          <li><span>只还最低、一分不加</span><b id="df-minonly">—</b></li>
+          <li><span>第一笔该先清掉</span><b id="df-first">—</b></li>
+        </ul>
+        <div class="tablebox">
+          <table>
+            <thead><tr><th>债务</th><th>余额</th><th>利率</th><th>雪崩</th><th>雪球</th><th>利息</th></tr></thead>
+            <tbody id="df-body"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="df-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-fire">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f"><span>现在每月支出（元）</span>
+          <input id="fr-exp" type="number" inputmode="decimal" min="0" step="500" value="12000"></label>
+        <label class="f"><span>已有可投资资产（元）</span>
+          <input id="fr-has" type="number" inputmode="decimal" min="0" step="10000" value="500000"></label>
+        <label class="f"><span>每月还能存（元）</span>
+          <input id="fr-save" type="number" inputmode="decimal" min="0" step="500" value="8000"></label>
+        <label class="f"><span>预期年化收益（%）</span>
+          <input id="fr-rate" type="number" inputmode="decimal" min="0" step="0.5" value="5"></label>
+        <label class="f"><span>安全提取率（%）</span>
+          <input id="fr-swr" type="number" inputmode="decimal" min="0.5" step="0.5" value="4"></label>
+        <label class="f"><span>现在的年龄</span>
+          <input id="fr-age" type="number" inputmode="decimal" min="15" step="1" value="30"></label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">需要的本金</span><strong id="fr-target">—</strong><span class="unit">元</span></div>
+        <ul class="kv">
+          <li><span>离目标还差</span><b id="fr-gap">—</b></li>
+          <li><span>按当前存钱速度还要</span><b id="fr-time">—</b></li>
+          <li><span>那大约是你多少岁</span><b id="fr-ageout">—</b></li>
+          <li><span>当前进度</span><b id="fr-progress">—</b></li>
+          <li><span>达成后每月可提取</span><b id="fr-withdraw">—</b></li>
+          <li><span>想在 10 年内达成，每月要存</span><b id="fr-pmt">—</b></li>
+          <li><span>收益 3% / 5% / 7% 各要多久</span><b id="fr-sens">—</b></li>
+        </ul>
+        <p class="hint" id="fr-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-annualfee">
+    <div class="cols">
+      <div class="card">
+        <h2>输入（一年交一次的费用）</h2>
+        <label class="f"><span>物业费 每年（元）</span>
+          <input id="af-1" type="number" inputmode="decimal" min="0" step="100" value="3600"></label>
+        <label class="f"><span>物业费 缴费月份（1–12）</span>
+          <input id="af-1m" type="number" inputmode="decimal" min="1" max="12" step="1" value="3"></label>
+        <label class="f"><span>车险 每年（元）</span>
+          <input id="af-2" type="number" inputmode="decimal" min="0" step="100" value="5000"></label>
+        <label class="f"><span>车险 缴费月份（1–12）</span>
+          <input id="af-2m" type="number" inputmode="decimal" min="1" max="12" step="1" value="9"></label>
+        <label class="f"><span>保险（寿险/重疾）每年（元）</span>
+          <input id="af-3" type="number" inputmode="decimal" min="0" step="100" value="12000"></label>
+        <label class="f"><span>保险 缴费月份（1–12）</span>
+          <input id="af-3m" type="number" inputmode="decimal" min="1" max="12" step="1" value="6"></label>
+        <label class="f"><span>学费/其它 每年（元）</span>
+          <input id="af-4" type="number" inputmode="decimal" min="0" step="100" value="20000"></label>
+        <label class="f"><span>学费/其它 缴费月份（1–12）</span>
+          <input id="af-4m" type="number" inputmode="decimal" min="1" max="12" step="1" value="8"></label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">每月先划走</span><strong id="af-monthly">—</strong><span class="unit">元</span></div>
+        <ul class="kv">
+          <li><span>一年要交的合计</span><b id="af-total">—</b></li>
+          <li><span>最大的一笔</span><b id="af-max">—</b></li>
+          <li><span>压力最集中的月份</span><b id="af-peak">—</b></li>
+          <li><span>这个月占全年</span><b id="af-peakamt">—</b></li>
+          <li><span>只在缴费前才准备，要提前</span><b id="af-lead">—</b></li>
+          <li><span>分摊到每天</span><b id="af-check">—</b></li>
+        </ul>
+        <div class="tablebox">
+          <table>
+            <thead><tr><th>项目</th><th>年费</th><th>缴费月</th><th>每月分摊</th></tr></thead>
+            <tbody id="af-body"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="af-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-budget">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f"><span>家庭月收入（税后，元）</span>
+          <input id="bg-income" type="number" inputmode="decimal" min="0" step="1000" value="30000"></label>
+        <label class="f"><span>手里可用现金（含税费，元）</span>
+          <input id="bg-cash" type="number" inputmode="decimal" min="0" step="10000" value="700000"></label>
+        <label class="f"><span>首付比例（%）</span>
+          <input id="bg-down" type="number" inputmode="decimal" min="0" max="100" step="5" value="30"></label>
+        <label class="f"><span>房贷利率（%）</span>
+          <input id="bg-rate" type="number" inputmode="decimal" min="0" step="0.05" value="3.1"></label>
+        <label class="f"><span>贷款年限（年）</span>
+          <input id="bg-years" type="number" inputmode="decimal" min="1" step="1" value="30"></label>
+        <label class="f"><span>月供最高占收入（%）</span>
+          <input id="bg-ratio" type="number" inputmode="decimal" min="5" max="80" step="5" value="40"></label>
+        <label class="f"><span>税费+装修预留（占总价，%）</span>
+          <input id="bg-fee" type="number" inputmode="decimal" min="0" step="0.5" value="5"></label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">能承受的房子总价</span><strong id="bg-total">—</strong><span class="unit">元</span></div>
+        <ul class="kv">
+          <li><span>月供上限（收入的设定比例）</span><b id="bg-paycap">—</b></li>
+          <li><span>按这条月供能贷到</span><b id="bg-loancap">—</b></li>
+          <li><span>受月供约束的最高总价</span><b id="bg-byPay">—</b></li>
+          <li><span>受现金约束的最高总价</span><b id="bg-byCash">—</b></li>
+          <li><span>卡在哪一边</span><b id="bg-bottle">—</b></li>
+          <li><span>首付</span><b id="bg-downamt">—</b></li>
+          <li><span>税费+装修要预留</span><b id="bg-feeamt">—</b></li>
+          <li><span>贷款额 / 月供</span><b id="bg-loan">—</b></li>
+          <li><span>月供占收入</span><b id="bg-share">—</b></li>
+          <li><span>30 年总共付的利息</span><b id="bg-int">—</b></li>
+        </ul>
+        <p class="hint" id="bg-note"></p>
       </div>
     </div>
   </section>
