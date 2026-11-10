@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>财务计算器 · 存款 贷款 组合贷 复利 分期 个税 折扣</title>
-<meta name="description" content="免费的财务计算器：存款利息、贷款月供与还款计划、提前还款省息、商贷+公积金组合贷对比、复利与定投、攒钱目标倒推、信用卡分期真实年化、年化收益换算、通胀购买力、工资与年终奖个税、折扣与单价比较。纯前端计算，不联网、不上传数据。">
+<title>财务计算器 · 存款 贷款 提前还款 复利 个税 到手工资 信用卡 汇率</title>
+<meta name="description" content="免费的财务计算器（15 个模块）：存款利息、贷款月供与还款计划、组合贷、提前还款省息、复利与定投、攒钱目标、分期真实年化、年化收益、通胀购买力、个税与到手工资、租房还是买房、信用卡循环利息、汇率与单位换算。纯前端计算，不联网、不上传数据。">
 <meta name="theme-color" content="#1e3a8a">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231e3a8a'/%3E%3Ctext x='16' y='23' font-size='17' text-anchor='middle' fill='%23fff' font-family='sans-serif'%3E%C2%A5%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="./style.css">
@@ -17,7 +17,7 @@
       <span class="mark">¥</span>
       <div>
         <h1>财务计算器</h1>
-        <p>存款 · 贷款 · 组合贷 · 复利 · 攒钱 · 分期 · 通胀 · 个税 · 折扣</p>
+        <p>存款 · 贷款 · 提前还款 · 复利 · 攒钱 · 分期 · 年化 · 通胀 · 个税 · 到手工资 · 租买 · 信用卡 · 换算</p>
       </div>
     </div>
     <nav class="tabs" id="tabs" role="tablist">
@@ -32,6 +32,10 @@
       <button class="tab" data-tab="inflation" role="tab">通胀购买力</button>
       <button class="tab" data-tab="tax" role="tab">个税测算</button>
       <button class="tab" data-tab="deal" role="tab">折扣单价</button>
+      <button class="tab" data-tab="salary" role="tab">到手工资</button>
+      <button class="tab" data-tab="rentbuy" role="tab">租房还是买房</button>
+      <button class="tab" data-tab="card" role="tab">信用卡利息</button>
+      <button class="tab" data-tab="fx" role="tab">汇率单位</button>
     </nav>
   </div>
 </header>
@@ -608,6 +612,243 @@
           <li><span>差价比例</span><b id="dl-diff">—</b></li>
         </ul>
         <p class="hint" id="dl-note2"></p>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ================= 到手工资 ================= -->
+  <section class="panel" id="panel-salary">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f">
+          <span>税前月薪（元）</span>
+          <input id="sl-gross" type="number" inputmode="decimal" min="0" step="1000" value="25000">
+        </label>
+        <label class="f">
+          <span>五险一金缴费基数（元）</span>
+          <input id="sl-base" type="number" inputmode="decimal" min="0" step="1000" value="25000">
+          <em>一般等于月薪，但有上下限；按工资条上的实际基数填更准</em>
+        </label>
+        <label class="f">
+          <span>公积金个人比例（%）</span>
+          <input id="sl-hf" type="number" inputmode="decimal" min="0" max="12" step="1" value="12">
+          <em>常见 5%–12%，单位同比例缴纳</em>
+        </label>
+        <label class="f">
+          <span>专项附加扣除（元/月）</span>
+          <input id="sl-special" type="number" inputmode="decimal" min="0" step="500" value="2000">
+        </label>
+        <label class="f">
+          <span>算到当年第几个月</span>
+          <input id="sl-month" type="number" inputmode="numeric" min="1" max="12" step="1" value="12">
+          <em>累计预扣法下半年会跳档：选 7 看 7 月当月，选 12 看全年平均</em>
+        </label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big">
+          <span class="k" id="sl-main-label">本月到手</span>
+          <strong id="sl-net">—</strong>
+          <span class="unit">元</span>
+        </div>
+        <ul class="kv">
+          <li><span>五险一金个人部分</span><b id="sl-insurance">—</b></li>
+          <li><span>本月个税（预扣）</span><b id="sl-tax">—</b></li>
+          <li><span>累计已缴个税（到这月）</span><b id="sl-acc-tax">—</b></li>
+          <li><span>全年到手</span><b id="sl-year-net">—</b></li>
+          <li><span>公司另为你缴的社保公积金</span><b id="sl-employer">—</b></li>
+          <li><span>个税 / 税前</span><b id="sl-rate">—</b></li>
+        </ul>
+        <p class="hint" id="sl-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 租房还是买房 ================= -->
+  <section class="panel" id="panel-rentbuy">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f">
+          <span>房价（元）</span>
+          <input id="rb-price" type="number" inputmode="decimal" min="0" step="50000" value="2000000">
+        </label>
+        <label class="f">
+          <span>首付比例（%）</span>
+          <input id="rb-down" type="number" inputmode="decimal" min="0" max="100" step="5" value="30">
+        </label>
+        <label class="f">
+          <span>房贷年利率（%）</span>
+          <input id="rb-rate" type="number" inputmode="decimal" min="0" step="0.05" value="3.1">
+        </label>
+        <label class="f">
+          <span>贷款年限（年）</span>
+          <input id="rb-years" type="number" inputmode="decimal" min="0" step="5" value="30">
+        </label>
+        <label class="f">
+          <span>同地段月租金（元）</span>
+          <input id="rb-rent" type="number" inputmode="decimal" min="0" step="500" value="4000">
+        </label>
+        <label class="f">
+          <span>打算持有几年后比较</span>
+          <input id="rb-hold" type="number" inputmode="decimal" min="1" step="1" value="10">
+        </label>
+        <label class="f">
+          <span>房价年涨幅（%）</span>
+          <input id="rb-growth" type="number" inputmode="decimal" step="0.5" value="2">
+        </label>
+        <label class="f">
+          <span>租金年涨幅（%）</span>
+          <input id="rb-rgrowth" type="number" inputmode="decimal" step="0.5" value="3">
+        </label>
+        <label class="f">
+          <span>理财年化（%）（首付和差额的钱）</span>
+          <input id="rb-invest" type="number" inputmode="decimal" step="0.5" value="2.5">
+        </label>
+        <label class="f">
+          <span>每年持有成本（物业+维修+取暖等，元）</span>
+          <input id="rb-cost" type="number" inputmode="decimal" min="0" step="500" value="5000">
+        </label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big">
+          <span class="k" id="rb-diff-label">十年后净资产差</span>
+          <strong id="rb-diff">—</strong>
+          <span class="unit">元</span>
+        </div>
+        <ul class="kv">
+          <li><span>买房：期末净资产（房产 − 剩余贷款）</span><b id="rb-buy-net">—</b></li>
+          <li><span>租房：期末资产（首付+差额去理财）</span><b id="rb-rent-net">—</b></li>
+          <li><span>首付 / 贷款</span><b id="rb-loan">—</b></li>
+          <li><span>月供 / 月租金 / 月差额</span><b id="rb-monthly">—</b></li>
+          <li><span>期末房子值多少</span><b id="rb-house">—</b></li>
+          <li><span>临界房价年涨幅（低于它租房更划算）</span><b id="rb-breakeven">—</b></li>
+        </ul>
+        <p class="hint" id="rb-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 信用卡利息 ================= -->
+  <section class="panel" id="panel-card">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f">
+          <span>本期账单金额（元）</span>
+          <input id="cd-balance" type="number" inputmode="decimal" min="0" step="500" value="10000">
+        </label>
+        <label class="f">
+          <span>最低还款比例（%）</span>
+          <input id="cd-min" type="number" inputmode="decimal" min="0" max="100" step="1" value="10">
+        </label>
+        <label class="f">
+          <span>日利率（%）</span>
+          <input id="cd-rate" type="number" inputmode="decimal" min="0" step="0.005" value="0.05">
+          <em>信用卡循环利息一般是日息万分之五，即 0.05%</em>
+        </label>
+        <label class="f">
+          <span>每期计息天数</span>
+          <input id="cd-days" type="number" inputmode="numeric" min="1" step="1" value="30">
+        </label>
+      </div>
+
+      <div class="card res">
+        <h2>结果（只还最低还款）</h2>
+        <div class="big">
+          <span class="k">首期利息</span>
+          <strong id="cd-interest">—</strong>
+          <span class="unit">元</span>
+        </div>
+        <ul class="kv">
+          <li><span>折合年化利率</span><b id="cd-apr">—</b></li>
+          <li><span>本期最低还款额</span><b id="cd-min-amt">—</b></li>
+          <li><span>一直只还最低，还清需要</span><b id="cd-months">—</b></li>
+          <li><span>累计利息</span><b id="cd-total-int">—</b></li>
+          <li><span>12 期后仍欠</span><b id="cd-left">—</b></li>
+          <li><span>若这次全额还清可省利息</span><b id="cd-save">—</b></li>
+        </ul>
+        <p class="hint" id="cd-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 汇率 / 单位 ================= -->
+  <section class="panel" id="panel-fx">
+    <div class="cols">
+      <div class="card">
+        <h2>汇率换算</h2>
+        <label class="f">
+          <span>金额</span>
+          <span class="row">
+            <input id="fx-amount" type="number" inputmode="decimal" min="0" step="100" value="1000">
+            <select id="fx-cur">
+              <option value="美元">美元 USD</option>
+              <option value="欧元">欧元 EUR</option>
+              <option value="日元">日元 JPY</option>
+              <option value="港币">港币 HKD</option>
+              <option value="英镑">英镑 GBP</option>
+              <option value="澳元">澳元 AUD</option>
+              <option value="加元">加元 CAD</option>
+              <option value="韩元">韩元 KRW</option>
+              <option value="新币">新币 SGD</option>
+              <option value="泰铢">泰铢 THB</option>
+            </select>
+          </span>
+        </label>
+        <label class="f">
+          <span>汇率：1 外币 = ? 人民币</span>
+          <input id="fx-rate" type="number" inputmode="decimal" min="0" step="0.01" value="7.10">
+          <em>汇率每天变，按你手上银行 App 的实时牌价填</em>
+        </label>
+        <label class="f">
+          <span>换汇手续费 / 点差（%）</span>
+          <input id="fx-fee" type="number" inputmode="decimal" min="0" step="0.1" value="0">
+        </label>
+
+        <h2 class="sub">单位换算</h2>
+        <label class="f">
+          <span>类别</span>
+          <select id="fx-cat">
+            <option value="length" selected>长度</option>
+            <option value="weight">重量</option>
+            <option value="area">面积</option>
+            <option value="volume">体积</option>
+            <option value="temp">温度</option>
+          </select>
+        </label>
+        <label class="f">
+          <span>数值</span>
+          <input id="fx-value" type="number" inputmode="decimal" step="1" value="1">
+        </label>
+        <label class="f">
+          <span>从 / 到</span>
+          <span class="row">
+            <select id="fx-from"></select>
+            <select id="fx-to"></select>
+          </span>
+        </label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big">
+          <span class="k" id="fx-main-label">折合人民币</span>
+          <strong id="fx-main">—</strong>
+          <span class="unit" id="fx-main-unit">元</span>
+        </div>
+        <ul class="kv">
+          <li><span>扣掉手续费后实际到账</span><b id="fx-net">—</b></li>
+          <li><span>反过来：人民币 → 外币</span><b id="fx-rev">—</b></li>
+          <li><span>单位换算结果</span><b id="fx-unit-result">—</b></li>
+          <li><span>换算关系</span><b id="fx-unit-formula">—</b></li>
+        </ul>
+        <p class="hint" id="fx-note"></p>
       </div>
     </div>
   </section>

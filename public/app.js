@@ -638,10 +638,254 @@
   }
 
   /* ---------------- 标签切换 & 事件 ---------------- */
+
+  /* ---------------- 8. 到手工资（累计预扣法） ---------------- */
+  function cumulativeTax(monthlyGross, insuranceMonthly, specialMonthly, months) {
+    var income = monthlyGross * months;
+    var deduct = 5000 * months + insuranceMonthly * months + specialMonthly * months;
+    var taxable = Math.max(0, income - deduct);
+    return taxBy(YEAR_TABLE, taxable);
+  }
+
+  function calcSalary() {
+    var gross = num($("sl-gross"));
+    var base = num($("sl-base")) || gross;
+    var hfRate = num($("sl-hf")) / 100;
+    var special = num($("sl-special"));
+    var month = Math.max(1, Math.min(12, Math.round(num($("sl-month")) || 12)));
+
+    // 个人部分：养老 8% + 医疗 2% + 失业 0.5%，公积金按填写比例
+    var socialRate = 0.08 + 0.02 + 0.005;
+    var insuranceMonthly = base * socialRate + base * hfRate;
+
+    var accTax = cumulativeTax(gross, insuranceMonthly, special, month);
+    var prevTax = cumulativeTax(gross, insuranceMonthly, special, month - 1);
+    var monthTax = accTax - prevTax;
+    var net = gross - insuranceMonthly - monthTax;
+
+    var tax12 = cumulativeTax(gross, insuranceMonthly, special, 12);
+    var yearNet = gross * 12 - insuranceMonthly * 12 - tax12;
+    // 单位缴纳：养老 16% + 医疗含生育约 9.8% + 失业 0.5% + 工伤 0.2%，公积金同比例
+    var employer = base * (0.16 + 0.098 + 0.005 + 0.002) + base * hfRate;
+
+    if (gross <= 0) {
+      ["sl-net", "sl-insurance", "sl-tax", "sl-acc-tax", "sl-year-net", "sl-employer", "sl-rate"].forEach(function (id) { $(id).textContent = "—"; });
+      $("sl-note").textContent = "填税前月薪后自动计算。";
+      return;
+    }
+
+    $("sl-main-label").textContent = month + " 月到手";
+    $("sl-net").textContent = money(net);
+    $("sl-insurance").textContent = yuan(insuranceMonthly);
+    $("sl-tax").textContent = yuan(monthTax);
+    $("sl-acc-tax").textContent = yuan(accTax);
+    $("sl-year-net").textContent = yuan(yearNet);
+    $("sl-employer").textContent = yuan(employer);
+    $("sl-rate").textContent = pct(accTax / (gross * month));
+
+    var note = "按累计预扣法：累计应纳税所得额 = 累计收入 − 累计 5000×月数 − 累计五险一金 − 累计专项附加扣除，再套年度税率表，本月税额 = 本月累计 − 上月累计。";
+    if (month < 12) note += " 所以一年里前面几个月税少、后面月份税多，全年合计和年度汇算结果一致。";
+    note += " 个人比例按养老 8% + 医疗 2% + 失业 0.5% 计，公积金按你填的比例；各地比例和基数上下限不同，以工资条为准。";
+    $("sl-note").textContent = note;
+  }
+
+  /* ---------------- 9. 租房还是买房 ---------------- */
+  function rentBuyAt(g) {
+    var price = num($("rb-price"));
+    var downRate = num($("rb-down")) / 100;
+    var loanRate = num($("rb-rate")) / 100;
+    var loanYears = num($("rb-years"));
+    var rent0 = num($("rb-rent"));
+    var hold = Math.max(1, num($("rb-hold")));
+    var rg = num($("rb-rgrowth")) / 100;
+    var inv = num($("rb-invest")) / 100;
+    var costY = num($("rb-cost"));
+
+    var down = price * downRate;
+    var loan = Math.max(0, price - down);
+    var n = Math.round(loanYears * 12);
+    var i = loanRate / 12;
+    var pay = n > 0 ? annuityPayment(loan, i, n) : 0;
+    var months = Math.round(hold * 12);
+
+    // 期末房产价值与剩余贷款
+    var houseValue = price * Math.pow(1 + g, hold);
+    var k = Math.min(months, n);
+    var balance = 0;
+    if (n > 0 && k < n) {
+      if (i === 0) balance = loan * (1 - k / n);
+      else {
+        var gk = Math.pow(1 + i, k);
+        balance = loan * gk - pay * ((gk - 1) / i);
+      }
+      balance = Math.max(0, balance);
+    }
+    var buyNet = houseValue - balance;
+
+    // 租房：首付拿去理财 + 每月差额（月供+持有成本−租金）也理财
+    var rentNet = down * Math.pow(1 + inv, hold);
+    var im = inv / 12;
+    for (var m = 1; m <= months; m++) {
+      var yr = Math.floor((m - 1) / 12);
+      var rentNow = rent0 * Math.pow(1 + rg, yr);
+      var diff = pay + costY / 12 - rentNow;
+      rentNet += diff * Math.pow(1 + im, months - m);
+    }
+    return { buyNet: buyNet, rentNet: rentNet, down: down, loan: loan, pay: pay, months: months, houseValue: houseValue, balance: balance };
+  }
+
+  function calcRentBuy() {
+    var price = num($("rb-price"));
+    var hold = Math.max(1, num($("rb-hold")));
+    var g = num($("rb-growth")) / 100;
+
+    if (price <= 0) {
+      ["rb-diff", "rb-buy-net", "rb-rent-net", "rb-loan", "rb-monthly", "rb-house", "rb-breakeven"].forEach(function (id) { $(id).textContent = "—"; });
+      $("rb-note").textContent = "填房价后自动比较。";
+      return;
+    }
+
+    var r = rentBuyAt(g);
+    var diff = r.buyNet - r.rentNet;
+
+    $("rb-diff-label").textContent = fmt(hold, 0) + " 年后：买房比租房" + (diff >= 0 ? "多" : "少");
+    $("rb-diff").textContent = money(Math.abs(diff));
+    $("rb-buy-net").textContent = yuan(r.buyNet);
+    $("rb-rent-net").textContent = yuan(r.rentNet);
+    $("rb-loan").textContent = money(r.down) + " / " + money(r.loan) + " 元";
+    $("rb-monthly").textContent = money(r.pay) + " / " + money(num($("rb-rent"))) + " / " + money(r.pay + num($("rb-cost")) / 12 - num($("rb-rent"))) + " 元";
+    $("rb-house").textContent = yuan(r.houseValue);
+
+    // 二分法找临界房价涨幅
+    var lo = -0.3, hi = 0.3, mid;
+    for (var it = 0; it < 80; it++) {
+      mid = (lo + hi) / 2;
+      if (rentBuyAt(mid).buyNet - rentBuyAt(mid).rentNet < 0) lo = mid; else hi = mid;
+    }
+    $("rb-breakeven").textContent = pct((lo + hi) / 2);
+
+    var note = "口径：买房期末净资产 = 期末房价 − 剩余贷款；租房期末资产 = 首付按理财年化滚 " +
+      fmt(hold, 0) + " 年 + 每月(月供+持有成本−租金)的差额同样拿去理财。两边都不算契税、中介费、装修和卖房税费，所以真实结论通常比这里更偏向租房一点。";
+    note += diff >= 0
+      ? " 当前假设下买房更划算，主要看房价涨幅能不能撑住：房价年涨幅低于 " + pct((lo + hi) / 2) + " 时结论会翻转。"
+      : " 当前假设下租房更划算：首付和月供差额拿去理财的钱，比房子升值加上省下的租金更多。把「房价年涨幅」调到 " + pct((lo + hi) / 2) + " 以上才反超。";
+    $("rb-note").textContent = note;
+  }
+
+  /* ---------------- 10. 信用卡循环利息 ---------------- */
+  function calcCard() {
+    var B = num($("cd-balance"));
+    var minRate = num($("cd-min")) / 100;
+    var daily = num($("cd-rate")) / 100;
+    var days = Math.max(1, num($("cd-days")) || 30);
+    var i = daily * days;
+
+    if (B <= 0 || minRate <= 0) {
+      ["cd-interest", "cd-apr", "cd-min-amt", "cd-months", "cd-total-int", "cd-left", "cd-save"].forEach(function (id) { $(id).textContent = "—"; });
+      $("cd-note").textContent = "填账单金额和最低还款比例后自动计算。";
+      return;
+    }
+
+    // 只还最低：未全额还款时全额计息（含已还部分），按月模拟
+    var firstInt = B * i;
+    var minPay = B * minRate;
+    var bal = B + firstInt - minPay;
+    var totalInt = firstInt;
+    var periods = 1;
+    var left12 = bal;
+    while (bal > 0.5 && periods < 1200) {
+      var int = bal * i;
+      var pay = Math.max(bal * minRate, 10);
+      if (pay > bal + int) pay = bal + int;
+      bal = bal + int - pay;
+      totalInt += int;
+      periods++;
+      if (periods === 12) left12 = bal;
+    }
+
+    $("cd-interest").textContent = money(firstInt);
+    $("cd-apr").textContent = pct(daily * 365, 2) + "（日息 " + fmt(daily * 100, 3) + "% × 365）";
+    $("cd-min-amt").textContent = yuan(minPay);
+    $("cd-months").textContent = periods >= 1200 ? "几乎还不完" : periods + " 期（约 " + fmt(periods / 12, 1) + " 年）";
+    $("cd-total-int").textContent = yuan(totalInt);
+    $("cd-left").textContent = yuan(left12);
+    $("cd-save").textContent = yuan(totalInt);
+
+    $("cd-note").textContent = "关键点：只要没在到期还款日前全额还清，就已经不享受免息期——已还的部分也会从消费记账日起按日息计息，" +
+      "所以只还最低还款，利息是按整笔欠款滚的。日息万分之五折合年化 18.25%，比大多数消费贷都贵；" +
+      "能全额还就全额还，实在不行优先考虑账单分期（年化通常 13%–16%），别长期只还最低。";
+  }
+
+  /* ---------------- 11. 汇率 / 单位换算 ---------------- */
+  var UNITS = {
+    length: [["米", 1], ["千米", 1000], ["厘米", 0.01], ["毫米", 0.001], ["英里", 1609.344], ["英尺", 0.3048], ["英寸", 0.0254]],
+    weight: [["千克", 1], ["克", 0.001], ["斤", 0.5], ["两", 0.05], ["磅", 0.45359237], ["盎司", 0.028349523125], ["吨", 1000]],
+    area: [["平方米", 1], ["平方千米", 1e6], ["公顷", 10000], ["亩", 666.6666667], ["平方英尺", 0.09290304]],
+    volume: [["升", 1], ["毫升", 0.001], ["立方米", 1000], ["加仑（美）", 3.785411784]],
+    temp: [["摄氏度 ℃", 1], ["华氏度 ℉", 1], ["开尔文 K", 1]]
+  };
+
+  function fillUnits() {
+    var cat = $("fx-cat").value;
+    var list = UNITS[cat];
+    var html = "";
+    for (var k = 0; k < list.length; k++) html += '<option value="' + k + '">' + list[k][0] + "</option>";
+    $("fx-from").innerHTML = html;
+    $("fx-to").innerHTML = html;
+    $("fx-to").value = String(Math.min(1, list.length - 1));
+  }
+
+  function convertTemp(v, from, to) {
+    // 先转摄氏度
+    var c = from === 0 ? v : from === 1 ? (v - 32) * 5 / 9 : v - 273.15;
+    return to === 0 ? c : to === 1 ? c * 9 / 5 + 32 : c + 273.15;
+  }
+
+  function calcFx() {
+    var amount = num($("fx-amount"));
+    var rate = num($("fx-rate"));
+    var fee = num($("fx-fee")) / 100;
+    var curName = $("fx-cur").value;
+
+    var toCny = amount * rate;
+    var netCny = toCny * (1 - fee);
+    var revForeign = rate > 0 ? amount / rate : 0;
+    var revNet = revForeign * (1 - fee);
+
+    $("fx-main-label").textContent = curName + " → 人民币";
+    $("fx-main").textContent = money(toCny);
+    $("fx-main-unit").textContent = "元";
+    $("fx-net").textContent = money(netCny) + " 元" + (fee > 0 ? "（扣 " + pct(fee) + "）" : "");
+    $("fx-rev").textContent = money(revForeign) + " " + curName + (fee > 0 ? "，实际到手 " + money(revNet) : "");
+
+    // 单位换算
+    var cat = $("fx-cat").value;
+    var list = UNITS[cat];
+    if ($("fx-from").options.length !== list.length) fillUnits();
+    var v = num($("fx-value"));
+    var fi = parseInt($("fx-from").value, 10) || 0;
+    var ti = parseInt($("fx-to").value, 10) || 0;
+    var out, formula;
+    if (cat === "temp") {
+      out = convertTemp(v, fi, ti);
+      formula = list[fi][0] + " → " + list[ti][0];
+    } else {
+      var f = list[fi][1], t = list[ti][1];
+      out = (v * f) / t;
+      formula = "1 " + list[fi][0] + " = " + fmt(f / t, 4) + " " + list[ti][0];
+    }
+    var digits = Math.abs(out) < 1 ? 6 : 2;
+    $("fx-unit-result").textContent = fmt(out, digits) + " " + list[ti][0];
+    $("fx-unit-formula").textContent = formula;
+    $("fx-note").textContent = "汇率这里不联网，需要你按当天银行牌价手填（现汇卖出价更适合算换汇成本）。" +
+      "单位换算里 1 斤 = 500 克、1 亩 = 666.67 平方米、1 码 = 0.9144 米。";
+  }
+
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
-    annual: calcAnnual, inflation: calcInflation, tax: calcTax, deal: calcDeal
+    annual: calcAnnual, inflation: calcInflation, tax: calcTax, deal: calcDeal,
+    salary: calcSalary, rentbuy: calcRentBuy, card: calcCard, fx: calcFx
   };
 
   function activate(name) {
@@ -651,6 +895,8 @@
     for (var j = 0; j < panels.length; j++) panels[j].classList.toggle("is-on", panels[j].id === "panel-" + name);
     if (calcMap[name]) calcMap[name]();
     if (location.hash !== "#" + name) history.replaceState(null, "", "#" + name);
+    var onTab = document.querySelector(".tab.is-on");
+    if (onTab && onTab.scrollIntoView) onTab.scrollIntoView({ block: "nearest", inline: "center" });
   }
 
   $("tabs").addEventListener("click", function (e) {
@@ -685,9 +931,14 @@
     "if-amount", "if-rate", "if-years",
     "tx-income", "tx-insurance", "tx-special", "tx-other", "tx-bonus",
     "dl-price", "dl-discount", "dl-threshold", "dl-off", "dl-qty",
-    "dl-pa", "dl-qa", "dl-ua", "dl-pb", "dl-qb", "dl-ub"
+    "dl-pa", "dl-qa", "dl-ua", "dl-pb", "dl-qb", "dl-ub",
+    "sl-gross", "sl-base", "sl-hf", "sl-special", "sl-month",
+    "rb-price", "rb-down", "rb-rate", "rb-years", "rb-rent", "rb-hold",
+    "rb-growth", "rb-rgrowth", "rb-invest", "rb-cost",
+    "cd-balance", "cd-min", "cd-rate", "cd-days",
+    "fx-amount", "fx-cur", "fx-rate", "fx-fee", "fx-cat", "fx-value", "fx-from", "fx-to"
   ];
-  var KEY = "finance-calc-v3";
+  var KEY = "finance-calc-v4";
 
   function save() {
     try {
@@ -711,6 +962,10 @@
       }
     } catch (err) { /* 忽略损坏数据 */ }
   }
+
+  // 单位下拉随类别变化
+  $("fx-cat").addEventListener("change", function () { fillUnits(); calcFx(); save(); });
+  fillUnits();
 
   /* ---------------- 启动 ---------------- */
   restore();
