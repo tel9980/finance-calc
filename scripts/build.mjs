@@ -3,7 +3,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { execFileSync } from 'node:child_process';
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const PUB = path.join(ROOT, 'public');
@@ -37,12 +36,15 @@ const ALIAS = {
   rentbuy: 'zumaifang zmf', rentyield: 'zushoubi zsb', debitfree: 'haiqian hd'
 };
 
+/* 拼音表来自仓库里的 scripts/pinyin-map.json（已生成、无需 pypinyin，CI 上也能用）。
+   新增模块后要重生成：python3 scripts/pinyin.py public/index.html > scripts/pinyin-map.json */
 let pyMap = {};
-try {
-  const raw = execFileSync('python3', [path.join(ROOT, 'scripts/pinyin.py'), path.join(PUB, 'index.html')], { encoding: 'utf8', maxBuffer: 1 << 22 });
-  pyMap = JSON.parse(raw || '{}');
-} catch (e) {
-  console.warn('拼音表生成失败，搜索退化为文字/英文匹配：' + e.message);
+const pyFile = path.join(ROOT, 'scripts/pinyin-map.json');
+if (fs.existsSync(pyFile)) {
+  try { pyMap = JSON.parse(fs.readFileSync(pyFile, 'utf8')); }
+  catch (e) { console.warn('拼音表读取失败，搜索退化为文字/英文匹配：' + e.message); }
+} else {
+  console.warn('缺少 scripts/pinyin-map.json，拼音搜索不可用');
 }
 
 /* ---------- 2. calcMap 条目 ---------- */
