@@ -9229,22 +9229,56 @@
       + "它减少的是未来支出，不会让账上多出一分钱，所以必须先留足应急金再动手。";
   }
 
+  /* 全量已存值：面板是懒挂载的，只存当前 DOM 会把没挂载模块的值弄丢 */
+  var STORED = {};
+  var PENDING_PARAMS = null;
+  var DEFERRED_TAPS = [];
+
+  /* 面板是懒挂载的：给面板里的元素挂监听时要能等它出现 */
+  function tap(id, ev, fn) {
+    var el = $(id);
+    if (el) el.addEventListener(ev, fn);
+    else DEFERRED_TAPS.push([id, ev, fn]);
+  }
+  function runDeferredTaps() {
+    if (!DEFERRED_TAPS.length) return;
+    var rest = [];
+    for (var i = 0; i < DEFERRED_TAPS.length; i++) {
+      var d = DEFERRED_TAPS[i], el = $(d[0]);
+      if (el) {
+        el.addEventListener(d[1], d[2]);
+        if (d[0] === "fx-cat") fillUnits();
+      } else { rest.push(d); }
+    }
+    DEFERRED_TAPS = rest;
+  }
+
   function save() {
     try {
-      var o = {};
       for (var k = 0; k < FIELDS.length; k++) {
         var el = $(FIELDS[k]);
-        if (el) o[FIELDS[k]] = el.value;
+        if (el) STORED[FIELDS[k]] = el.value;
       }
-      localStorage.setItem(KEY, JSON.stringify(o));
+      localStorage.setItem(KEY, JSON.stringify(STORED));
     } catch (err) { /* 隐私模式忽略 */ }
+  }
+
+  /* 面板挂载后：先把存过的值填回去 */
+  function applyStoredTo(root) {
+    if (!root || !root.querySelectorAll) return;
+    var els = root.querySelectorAll("input,select");
+    for (var i = 0; i < els.length; i++) {
+      var id = els[i].id;
+      if (id && STORED[id] !== undefined) els[i].value = STORED[id];
+    }
   }
 
   function restore() {
     try {
       var raw = localStorage.getItem(KEY);
       if (!raw) return;
-      var o = JSON.parse(raw);
+      var o = JSON.parse(raw) || {};
+      STORED = o;
       for (var k = 0; k < FIELDS.length; k++) {
         var el = $(FIELDS[k]);
         if (el && o[FIELDS[k]] !== undefined && o[FIELDS[k]] !== "") el.value = o[FIELDS[k]];
@@ -9315,8 +9349,8 @@
   });
 
   // 单位下拉随类别变化
-  $("fx-cat").addEventListener("change", function () { fillUnits(); calcFx(); save(); });
-  fillUnits();
+  tap("fx-cat", "change", function () { fillUnits(); calcFx(); save(); });
+  if ($("fx-cat")) fillUnits();
 
   /* ---------------- 置顶 / 分享链接 / 底稿 / 预设 / 主题 ---------------- */
   function hashTarget() {
@@ -9346,8 +9380,9 @@
     return location.origin + location.pathname + "#" + name + (qs ? "?" + qs : "");
   }
 
-  function applyParams(str) {
+  function applyParams(str, replay) {
     if (!str) return;
+    if (!replay) PENDING_PARAMS = PENDING_PARAMS ? PENDING_PARAMS + "&" + str : str;
     str.split("&").forEach(function (kv) {
       var i = kv.indexOf("=");
       if (i < 0) return;
@@ -9582,7 +9617,7 @@
     setTimeout(function () { document.title = "财务计算器 · 个人理财 + 公司财务"; }, 1200);
   });
 
-  if ($("hk-pull")) $("hk-pull").addEventListener("click", function () {
+  tap("hk-pull", "click", function () {
     var o = {};
     try { o = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) {}
     var got = 0;
@@ -9617,9 +9652,9 @@
     flash(this, "已存方案");
   });
 
-  if ($("snap-cmp")) $("snap-cmp").addEventListener("click", function () { runCalc("snaps"); });
+  tap("snap-cmp", "click", function () { runCalc("snaps"); });
 
-  if ($("snap-clear")) $("snap-clear").addEventListener("click", function () {
+  tap("snap-clear", "click", function () {
     var ok = true;
     try { ok = window.confirm("清空全部方案快照？此操作不能撤销。"); } catch (e) {}
     if (!ok) return;
@@ -9684,13 +9719,13 @@
     };
     fr.readAsText(f, "utf-8");
   }
-  if ($("snap-export")) $("snap-export").addEventListener("click", function () {
+  tap("snap-export", "click", function () {
     dlJson("财务计算器-方案快照-" + stamp() + ".json",
       { app: "finance-calc", kind: "snaps", v: 1, at: new Date().toISOString(), snaps: loadSnaps() });
     flash(this, "已导出");
   });
-  if ($("snap-import")) $("snap-import").addEventListener("click", function () { if ($("snap-file")) $("snap-file").click(); });
-  if ($("snap-file")) $("snap-file").addEventListener("change", function () {
+  tap("snap-import", "click", function () { if ($("snap-file")) $("snap-file").click(); });
+  tap("snap-file", "change", function () {
     readJsonFile(this, function (obj) {
       var incoming = (obj && obj.snaps) || (Object.prototype.toString.call(obj) === "[object Array]" ? obj : null);
       if (!incoming || !incoming.length) { window.alert("文件里没有找到方案快照。"); return; }
@@ -9705,7 +9740,7 @@
       flash($("snap-import"), add ? "导入 " + add + " 条" : "没有新方案");
     });
   });
-  if ($("snap-backup")) $("snap-backup").addEventListener("click", function () {
+  tap("snap-backup", "click", function () {
     var data = {};
     FIELDS.forEach(function (f) { var el = $(f); if (el && el.value !== "") data[f] = el.value; });
     var cat = "hot";
@@ -9717,8 +9752,8 @@
     });
     flash(this, "已备份");
   });
-  if ($("snap-restore")) $("snap-restore").addEventListener("click", function () { if ($("bak-file")) $("bak-file").click(); });
-  if ($("bak-file")) $("bak-file").addEventListener("change", function () {
+  tap("snap-restore", "click", function () { if ($("bak-file")) $("bak-file").click(); });
+  tap("bak-file", "change", function () {
     readJsonFile(this, function (obj) {
       if (!obj || obj.app !== "finance-calc" || !obj.kind) { window.alert("这不是财务计算器的备份文件。"); return; }
       var ok = true;
@@ -9740,7 +9775,7 @@
     });
   });
 
-  if ($("snap-png")) $("snap-png").addEventListener("click", function () {
+  tap("snap-png", "click", function () {
     var btn = this, box = $("snap-cmp-body");
     if (!box) return;
     var table = box.closest("table");
@@ -9805,6 +9840,14 @@
       flash(btn, "已导出 PNG");
     }, "image/png");
   });
+
+  /* 面板挂载完成后，把「分享链接带来的参数」补上（之前的 applyParams 找不到元素） */
+  function flushParams() {
+    if (!PENDING_PARAMS) return;
+    var s = PENDING_PARAMS;
+    PENDING_PARAMS = null;
+    applyParams(s, true);
+  }
 
   /* ---------------- 启动 ---------------- */
   restore();

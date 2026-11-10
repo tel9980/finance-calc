@@ -124,6 +124,31 @@ for (const m of core.replace('@@CALCMAP@@', '').matchAll(/^  var ([A-Za-z_$][\w$
 // 运行期注入的名字也要让 chunk 能看到
 ["runCalc", "ensureChunk", "TABS", "CHUNK_OF", "CHUNK_FILES", "calcMap", "CORE_CALC"].forEach(n => coreNames.add(n));
 
+/* ---------- 5.5 面板 HTML：源码在 src/panels.html，按分类切进 chunk（首屏只留 core 面板） ---------- */
+const panelSrc = read(path.join(ROOT, 'src/panels.html'));
+const panelRe = /^ {2,6}<section class="panel( is-on)?" id="panel-([a-z0-9]+)">\n[\s\S]*?^ {2,6}<\/section>\n/gm;
+const panelHtml = {};
+const foundKeys = [];
+let m2;
+while ((m2 = panelRe.exec(panelSrc))) {
+  const key = m2[2];
+  if (panelHtml[key]) throw new Error('重复面板：' + key);
+  panelHtml[key] = m2[0];
+  foundKeys.push(key);
+}
+if (foundKeys.length < 100) throw new Error('面板抓取失败，只拿到 ' + foundKeys.length);
+const coreKeys = new Set(entries.filter(([k, fn]) => !bodies[fn]).map(([k]) => k));
+const panelWrap = {};
+let corePanelsHtml = '';
+for (const key of foundKeys) {
+  if (coreKeys.has(key)) { corePanelsHtml += panelHtml[key]; continue; }
+  const grp = groupOf[key];
+  (panelWrap[grp] = panelWrap[grp] || {})[key] = panelHtml[key];
+}
+const missing = entries.map(([k]) => k).filter(k => !panelHtml[k]);
+if (missing.length) throw new Error('这些模块没有面板：' + missing.join(','));
+console.log('面板：外移 ' + (foundKeys.length - coreKeys.size) + ' 个，留在 HTML 的 core 面板：' + [...coreKeys].join(','));
+
 /* ---------- 6. 生成 chunk 文件 ---------- */
 fs.mkdirSync(ASSETS, { recursive: true });
 const chunkFiles = {};
@@ -137,6 +162,7 @@ for (const grp of groups) {
   const out = '/* 自动生成，勿手改：' + grp + ' 分类模块（点开才下载） */\n'
     + 'const { ' + used.join(', ') + ' } = window.FC;\n\n'
     + code + '\n\n'
+    + (panelWrap[grp] ? 'export const PANELS = ' + JSON.stringify(panelWrap[grp]) + ';\n' : '')
     + 'export default { ' + map + ' };\n';
   const h = hash8(out);
   const name = 'c-' + grp + '.' + h + '.js';
@@ -161,6 +187,25 @@ const runtime = [
   '  var calcMap = {};',
   '  Object.keys(CORE_CALC).forEach(function (k) { calcMap[k] = CORE_CALC[k]; });',
   '  var chunkReady = {};',
+  '  var PANEL_HTML = {}, ACTIVE = null;',
+  '  function mountPanels(grp) {',
+  '    var set = PANEL_HTML[grp];',
+  '    if (!set) return;',
+  '    var host = document.getElementById("panels");',
+  '    if (!host) return;',
+  '    for (var k in set) {',
+  '      if (document.getElementById("panel-" + k)) continue;',
+  '      var box = document.createElement("div");',
+  '      box.innerHTML = set[k];',
+  '      var el = box.firstElementChild;',
+  '      if (!el) continue;',
+  '      host.appendChild(el);',
+  '      applyStoredTo(el);',
+  '      if (el.id === "panel-" + ACTIVE) el.classList.add("is-on");',
+  '    }',
+  '    delete PANEL_HTML[grp];',
+  '    runDeferredTaps();',
+  '  }',
   '  function ensureChunk(grp) {',
   '    if (chunkReady[grp]) return chunkReady[grp];',
   '    var file = CHUNK_FILES[grp];',
@@ -168,6 +213,9 @@ const runtime = [
   '    chunkReady[grp] = import(new URL(file, document.baseURI).href).then(function (mod) {',
   '      var api = (mod && mod.default) ? mod.default : mod;',
   '      Object.keys(api).forEach(function (k) { calcMap[k] = api[k]; });',
+  '      if (mod && mod.PANELS) PANEL_HTML[grp] = mod.PANELS;',
+  '      mountPanels(grp);',
+  '      flushParams();',
   '    }).catch(function (err) {',
   '      chunkReady[grp] = null;',
   '      if (window.console) console.error("chunk 加载失败: " + grp, err);',
@@ -181,7 +229,11 @@ const runtime = [
   '    var pn = document.getElementById("panel-" + name);',
   '    var bgs = pn ? pn.querySelector(".big strong") : null;',
   '    if (bgs && (bgs.textContent === "—" || bgs.textContent === "")) bgs.textContent = "载入中…";',
-  '    return ensureChunk(grp).then(function () { if (calcMap[name]) calcMap[name](); });',
+  '    return ensureChunk(grp).then(function () {',
+  '      mountPanels(grp);',
+  '      flushParams();',
+  '      if (calcMap[name]) calcMap[name]();',
+  '    });',
   '  }',
 ].join('\n');
 core = core.replace('@@CALCMAP@@', runtime);
@@ -195,6 +247,7 @@ const repl = [
   [/if \(calcMap\[p\.module\]\) activate\(p\.module\);/, 'if (TABS[p.module]) activate(p.module);'],
   [/if \(calcMap\[p\.module\]\) calcMap\[p\.module\]\(\);/, 'runCalc(p.module);'],
   [/var startName = calcMap\[st0\.name\] \? st0\.name : "deposit";/, 'var startName = TABS[st0.name] ? st0.name : "deposit";'],
+  [/  function activate\(name\) \{\n/, '  function activate(name) {\n    ACTIVE = name;\n'],
   [/if \(st0\.params\) \{ applyParams\(st0\.params\); if \(calcMap\[startName\]\) calcMap\[startName\]\(\); \}/, 'if (st0.params) { applyParams(st0.params); runCalc(startName); }'],
 ];
 for (const [re, b] of repl) {
@@ -225,6 +278,7 @@ written.push(cssName);
 
 /* ---------- 9. 重写 index.html ---------- */
 let out = html
+  .replace(/<!-- PANELS-CORE:START -->[\s\S]*?<!-- PANELS-CORE:END -->/, '<!-- PANELS-CORE:START -->\n' + corePanelsHtml + '  <!-- PANELS-CORE:END -->')
   .replace(/<link rel="stylesheet" href="\.\/assets\/style\.[^"]*\.css">/, '<link rel="stylesheet" href="./assets/' + cssName + '">')
   .replace(/<script src="\.\/assets\/app\.[^"]*\.js"><\/script>/, '<script src="./assets/' + coreName + '"></script>');
 if (!out.includes('./assets/' + coreName) || !out.includes('./assets/' + cssName)) throw new Error('index.html 引用未替换');
