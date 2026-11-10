@@ -109,7 +109,47 @@ for (let i = 0; i < 24; i++) { mtHref = await page.evaluate(() => { const a = do
 ok(/#bundle\?bxsp-inc=/.test(mtHref), '12 个月小结没有跳到支出结构的链接');
 ok(await page.evaluate(() => { const p = document.getElementById('mt-links'); return !!p && p.offsetParent !== null; }), '小结页的跳转链接被折叠藏起来了');
 
-ok(errs.length === 0, '控制台报错：' + errs.join(' | '));
+/* 数字输入增强：1.5万 简写 / 千分位 / 上下键步进 */
+await page.click('.cat[data-cat="save"]'); await page.click('.tab[data-tab="deposit"]');
+let numReady = false;
+for (let i = 0; i < 24; i++) { numReady = await page.evaluate(() => { const e = document.getElementById('dp-principal'); return !!e && e.classList.contains('num'); }); if (numReady) break; await page.waitForTimeout(250); }
+ok(numReady, '存款面板的数字输入没有增强');
+await page.fill('#dp-principal', '15万'); await page.waitForTimeout(300);
+ok((await page.textContent('#panel-deposit .big strong')) === '3,150.00', '「15万」简写没换算成 150,000');
+await page.locator('#dp-principal').blur(); await page.waitForTimeout(250);
+ok((await page.inputValue('#dp-principal')) === '150,000', '失焦后没有千分位显示');
+await page.focus('#dp-principal'); await page.keyboard.press('ArrowUp'); await page.waitForTimeout(300);
+ok((await page.inputValue('#dp-principal')).replace(/,/g, '') === '151000', '上下键没有按 step 步进');
+
+/* 一页报告：目标反推段 */
+await page.click('.cat[data-cat="family"]'); await page.click('.tab[data-tab="report"]');
+let gText = '';
+for (let i = 0; i < 24; i++) { gText = await page.evaluate(() => { const e = document.getElementById('rp-goaltext'); return e ? e.textContent : ''; }); if (gText) break; await page.waitForTimeout(250); }
+ok(gText.indexOf('每月要存') >= 0 || gText.indexOf('已经达标') >= 0, '目标反推文案没生成（' + gText.slice(0, 40) + '）');
+await page.fill('#rp-goal', '4000000'); await page.waitForTimeout(400);
+const gText2 = await page.textContent('#rp-goaltext');
+ok(/每月要存/.test(gText2), '目标调高后没有反推每月存款额');
+
+/* 贷款 → 提前还款：带参跳转回填 */
+await page.click('.cat[data-cat="loan"]'); await page.click('.tab[data-tab="loan"]');
+let lnHref = '';
+for (let i = 0; i < 24; i++) { lnHref = await page.evaluate(() => { const a = document.querySelector('#ln-links a'); return a ? a.getAttribute('href') : ''; }); if (lnHref) break; await page.waitForTimeout(250); }
+ok(/#prepay\?pp-principal=/.test(lnHref), '贷款面板没有跳到提前还款的链接（' + lnHref + '）');
+await page.evaluate(() => { location.hash = '#prepay?pp-principal=800000&pp-rate=3.9&pp-months=240'; });
+let ppOk = false;
+for (let i = 0; i < 24; i++) { ppOk = await page.evaluate(() => { const e = document.getElementById('pp-principal'); return !!e && e.value.replace(/,/g, '') === '800000' && (document.querySelector('.panel.is-on') || {}).id === 'panel-prepay'; }); if (ppOk) break; await page.waitForTimeout(250); }
+ok(ppOk, '跨模块带参跳转没回填参数或没切面板');
+
+/* 错误自检浮层 */
+await page.evaluate(() => { setTimeout(() => { throw new Error('自检测试'); }, 0); });
+let hasBox = false;
+for (let i = 0; i < 20; i++) { hasBox = await page.evaluate(() => { const e = document.querySelector('.errbox'); return !!e && !e.hidden; }); if (hasBox) break; await page.waitForTimeout(150); }
+ok(hasBox, '出错时没有弹出诊断卡');
+ok((await page.textContent('.errbox')).indexOf('复制诊断信息') >= 0, '诊断卡没有「复制诊断信息」按钮');
+await page.evaluate(() => { const e = document.querySelector('.errbox'); if (e) e.hidden = true; });
+
+const realErrs = errs.filter(x => x.indexOf('自检测试') < 0); /* 错误浮层那条是我们自己抛的 */
+ok(realErrs.length === 0, '控制台报错：' + realErrs.join(' | '));
 console.log(bad.length ? '❌ 失败：\n- ' + bad.join('\n- ') : '✅ 交互项全部通过');
 await browser.close();
 process.exit(bad.length ? 1 : 0);

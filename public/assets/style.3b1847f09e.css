@@ -89,12 +89,12 @@ button{font:inherit;cursor:pointer}
 /* ---------- fields ---------- */
 .f{display:block;margin-bottom:14px}
 .f > span:first-child,.f > .row + span{display:block;font-size:13px;color:var(--ink2);margin-bottom:6px}
-.f input[type=number],.f input[type=date],.f select{
+.f input[type=number],.f input[type=date],.f input.num,.f select{
   width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;
   background:var(--field);font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums;
   transition:border-color .15s,box-shadow .15s;
 }
-.f input[type=number]:focus,.f input[type=date]:focus,.f select:focus{
+.f input[type=number]:focus,.f input[type=date]:focus,.f input.num:focus,.f select:focus{
   outline:none;border-color:var(--accent2);box-shadow:0 0 0 3px rgba(37,99,235,.14);background:var(--field-focus)
 }
 .f em{display:block;font-style:normal;font-size:12px;color:var(--ink3);margin-top:5px}
@@ -355,3 +355,24 @@ p.jump a{display:inline-block;margin:0 8px 0 0;padding:3px 9px;border:1px solid 
 p.jump a:hover{background:#eef2ff;border-color:#93b4f7}
 html[data-theme="dark"] p.jump{color:#a8b6cc}
 html[data-theme="dark"] p.jump a{border-color:#33415c;color:#c7d2fe}
+/* 深色模式对比度微调：次要文字提到 ~7:1（AA/AAA 都过） */
+html[data-theme="dark"]{--ink2:#b8c6da;--ink3:#a5b5ca}
+html[data-theme="dark"] .hint,html[data-theme="dark"] .foot,html[data-theme="dark"] .f em,html[data-theme="dark"] .big .unit{color:#a5b5ca}
+html[data-theme="dark"] .mut{opacity:.8}
+html[data-theme="dark"] tbody td:first-child{color:#a5b5ca}
+html[data-theme="dark"] #q::placeholder{color:#8fa0b6}
+/* 错误自检浮层 */
+.errbox{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);max-width:min(560px,92vw);background:#fff;border:1px solid #fecaca;border-left:4px solid #dc2626;border-radius:12px;padding:12px 14px;z-index:80;box-shadow:0 12px 32px rgba(15,23,42,.22)}
+.errbox b{display:block;font-size:13.5px;color:#b91c1c;margin-bottom:4px}
+.errbox p{margin:0;font-size:12.5px;color:#334155;line-height:1.6;word-break:break-all}
+.errbox .erract{margin-top:9px;display:flex;gap:8px}
+.errbox button{font-size:12.5px;padding:5px 11px;border-radius:8px;border:1px solid #cbd5e1;background:#f8fafc;cursor:pointer}
+.errbox button.pri{background:#1e3a8a;border-color:#1e3a8a;color:#fff}
+html[data-theme="dark"] .errbox{background:#121b28;border-color:#7f1d1d;border-left-color:#f87171}
+html[data-theme="dark"] .errbox p{color:#c9d6e8}
+html[data-theme="dark"] .errbox button{background:#16212f;border-color:#33415c;color:#dbe7ff}
+@media print{.errbox{display:none}}
+/* 一页报告里的「目标反推」段（会打进 PDF） */
+.rpgoal{margin:14px 0 0;padding:11px 13px;background:var(--soft);border:1px solid var(--line);border-radius:10px;font-size:13px;line-height:1.7;color:var(--ink2)}
+.rpgoal:empty{display:none}
+html[data-theme="dark"] .rpgoal{background:#16212f;color:#c9d6e8}

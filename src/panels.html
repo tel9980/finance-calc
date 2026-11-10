@@ -98,6 +98,7 @@
           </table>
         </div>
         <p class="hint" id="hcx-note"></p>
+        <p class="jump" id="hcx-links"></p>
       </div>
     </div>
   </section>
@@ -176,6 +177,11 @@
           <input id="rp-years" type="number" inputmode="numeric" min="1" max="30" step="1" value="30" aria-label="贷款年限">
         </span>
         <em>依次是：年龄 / 房贷利率 % / 贷款年限。评分只看五项硬指标，不含投资能力与收入稳定性。</em>
+        <span class="row">
+          <input id="rp-goal" type="number" inputmode="decimal" min="0" step="50000" value="1000000" aria-label="目标净资产">
+          <input id="rp-gyear" type="number" inputmode="numeric" min="1" max="40" step="1" value="3" aria-label="目标年限（年）">
+        </span>
+        <em>最后一行：目标净资产 / 目标年限（年）——用来反推「每月要存多少」，会一起打进 PDF。</em>
       </div>
       <div class="card res">
         <h2>一页体检报告</h2>
@@ -192,6 +198,7 @@
         <p class="hint" id="rp-mini-note"></p>
         <h2 class="sub">先改这三项（按"缺分 × 好改程度"排）</h2>
         <ol class="pri" id="rp-pri"></ol>
+        <p class="rpgoal" id="rp-goaltext"></p>
         <p class="jump" id="rp-links"></p>
         <p class="hint" id="rp-note"></p>
         <p class="btnrow"><button class="ghost" type="button" id="rp-pdf">导出这份报告（PDF / 打印）</button></p>
@@ -344,6 +351,7 @@
           <li><span>还款期数</span><b id="ln-count">—</b></li>
         </ul>
         <p class="hint" id="ln-note"></p>
+        <p class="jump" id="ln-links"></p>
       </div>
     </div>
 
@@ -453,6 +461,7 @@
       <li><span>扣掉违约金后净省</span><b id="pp-net">—</b></li>
     </ul>
     <p class="hint" id="pp-note"></p>
+        <p class="jump" id="pp-links"></p>
   </div>
     </div>
   </section>
@@ -543,6 +552,7 @@
       <li><span>想在设定年限内攒够，每月需存</span><b id="gl-need">—</b></li>
     </ul>
     <p class="hint" id="gl-note"></p>
+        <p class="jump" id="gl-links"></p>
   </div>
     </div>
   </section>
@@ -908,6 +918,7 @@
       <li><span>临界房价年涨幅（低于它租房更划算）</span><b id="rb-breakeven">—</b></li>
     </ul>
     <p class="hint" id="rb-note"></p>
+        <p class="jump" id="rb-links"></p>
   </div>
     </div>
   </section>
@@ -1969,6 +1980,7 @@
       <li><span>期末卖出到手（扣贷款）</span><b id="ry-exit">—</b></li>
     </ul>
     <p class="hint" id="ry-note"></p>
+        <p class="jump" id="ry-links"></p>
   </div>
     </div>
   </section>

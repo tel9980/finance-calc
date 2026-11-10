@@ -4,9 +4,81 @@
 
   var $ = function (id) { return document.getElementById(id); };
 
+  /* 数字解析：允许千分位、空格，以及 1.5万 / 2k / 3千 / 1亿 这类简写 */
+  function parseNum(v) {
+    if (v === null || v === undefined) return NaN;
+    if (typeof v === "number") return v;
+    var s = String(v).replace(/[\s,，_]/g, "");
+    if (!s) return NaN;
+    var mul = 1;
+    var m = /^(-?(?:\d+(?:\.\d+)?|\.\d+))(万|亿|千|[kKwW])$/.exec(s);
+    if (m) {
+      s = m[1];
+      mul = m[2] === "亿" ? 1e8 : (m[2] === "千" || m[2] === "k" || m[2] === "K") ? 1e3 : 1e4;
+    }
+    var n = parseFloat(s);
+    return isFinite(n) ? n * mul : NaN;
+  }
+
   function num(el, fallback) {
-    var v = parseFloat(el && el.value);
+    var v = parseNum(el && el.value);
     return isFinite(v) ? v : (fallback || 0);
+  }
+
+  /* ---- 数字输入增强：千分位显示、1.5万/2k 简写、上下键步进 ---- */
+  function trimNum(n) {
+    if (!isFinite(n)) return "";
+    return String(Math.round(n * 1e6) / 1e6);
+  }
+  function numKey(e) {
+    if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+    var el = e.target;
+    if (!el || !el.classList || !el.classList.contains("num")) return;
+    var step = Math.abs(parseFloat(el.getAttribute("step"))) || 1;
+    if (e.shiftKey) step *= 10;
+    var cur = parseNum(el.value);
+    if (!isFinite(cur)) cur = 0;
+    var next = e.key === "ArrowUp" ? cur + step : cur - step;
+    var min = parseFloat(el.getAttribute("min")), max = parseFloat(el.getAttribute("max"));
+    if (isFinite(min)) next = Math.max(min, next);
+    if (isFinite(max)) next = Math.min(max, next);
+    e.preventDefault();
+    el.value = trimNum(next);
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+  function numFocus(e) {
+    var el = e.target;
+    if (el && el.classList && el.classList.contains("num")) el.value = el.value.replace(/[,\s]/g, "");
+  }
+  function numBlur(e) {
+    var el = e.target;
+    if (!el || !el.classList || !el.classList.contains("num")) return;
+    var v = parseNum(el.value);
+    if (!isFinite(v)) { el.value = ""; return; }
+    /* 简写先还原成数字，再过千分位显示；小数位按原值保留 */
+    el.value = Math.abs(v) >= 1000 ? v.toLocaleString("zh-CN", { maximumFractionDigits: 6 }) : trimNum(v);
+  }
+  function numInput(e) {
+    var el = e.target;
+    if (!el || !el.classList || !el.classList.contains("num")) return;
+    var clean = el.value.replace(/[^0-9.\-万千亿kKwW,，\s]/g, "");
+    if (clean !== el.value) el.value = clean;
+  }
+  function enhanceNums(root) {
+    var list = (root && root.querySelectorAll ? root : document).querySelectorAll('input[type="number"],input.num');
+    for (var i = 0; i < list.length; i++) {
+      var el = list[i];
+      if (el.getAttribute("data-num")) continue;
+      el.setAttribute("data-num", "1");
+      if (el.type === "number") el.type = "text";
+      el.classList.add("num");
+      if (!el.getAttribute("inputmode")) el.setAttribute("inputmode", "decimal");
+      el.setAttribute("autocomplete", "off");
+      el.addEventListener("keydown", numKey);
+      el.addEventListener("focus", numFocus);
+      el.addEventListener("blur", numBlur);
+      el.addEventListener("input", numInput);
+    }
   }
 
   function fmt(n, digits) {
@@ -135,6 +207,12 @@
     $("ln-ratio").textContent = pct(interest / P);
     $("ln-count").textContent = n + " 期（" + fmt(n / 12, n % 12 === 0 ? 0 : 1) + " 年）";
 
+    if ($("ln-links")) $("ln-links").innerHTML = "接着算："
+      + linkTo("prepay", { "pp-principal": P, "pp-rate": num($("ln-rate")), "pp-months": n }, "提前还款能省多少")
+      + linkTo("loanways", { "lw-balance": P, "lw-rate": num($("ln-rate")), "lw-months": n }, "三种还法对撞")
+      + linkTo("combo", { "cb-commercial": P, "cb-commercial-rate": num($("ln-rate")), "cb-years": Math.round(n / 12) }, "换成组合贷")
+      + linkTo("penalty", { "py-balance": P, "py-rate": num($("ln-rate")), "py-months": n }, "违约金临界点");
+
     $("ln-note").textContent = method === "equal-payment"
       ? "等额本息：每月还款额固定，前期利息占比高、本金还得慢。月供 = 本金×月利率×(1+月利率)^期数 ÷ [(1+月利率)^期数−1]。"
       : "等额本金：每月还的本金固定，利息随剩余本金递减，月供逐月下降。首月最高（" + money(first) +
@@ -224,6 +302,10 @@
     if (net <= 0) note += " 净省为负说明违约金已经盖过省下的利息，这笔提前还款不划算。";
     note += " 提前还款是否收取违约金、每年能还几次，以你的贷款合同和银行当期规定为准。";
     $("pp-note").textContent = note;
+    if ($("pp-links")) $("pp-links").innerHTML = "接着算："
+      + linkTo("penalty", { "py-balance": P, "py-rate": num($("pp-rate")), "py-months": n, "py-lump": prepay }, "扣掉违约金还划算吗")
+      + linkTo("repayvs", { "rv-principal": P, "rv-rate": num($("pp-rate")), "rv-months": n, "rv-cash": prepay }, "还是拿去理财")
+      + linkTo("loanways", { "lw-balance": P, "lw-rate": num($("pp-rate")), "lw-months": n, "lw-lump": prepay }, "缩期限 vs 减月供");
   }
 
   /* ---------------- 4. 复利 / 定投 ---------------- */
@@ -520,6 +602,10 @@
         " 个月后达成 " + money(target) + " 元目标。想更快就两条路：多存（每月多 " + money(Math.max(0, need - pmt)) +
         " 元可在设定年限内达成）或者提高收益率——但收益率越高风险越大，日常攒钱别把收益率当成主要变量。");
     }
+    if ($("gl-links")) $("gl-links").innerHTML = "接着算："
+      + linkTo("compound", { "cp-start": start, "cp-monthly": pmt, "cp-rate": num($("gl-rate")), "cp-years": years }, "放着不动能滚成多少")
+      + linkTo("fire", { "fr-has": start + pmt * 12, "fr-save": pmt }, "离财务自由还有多远")
+      + linkTo("deposit", { "dp-principal": target }, "目标金额存定期能有多少利息");
   }
 
   /* ---------------- 10. 分期真实利率 ---------------- */
@@ -782,6 +868,11 @@
       ? " 当前假设下买房更划算，主要看房价涨幅能不能撑住：房价年涨幅低于 " + pct((lo + hi) / 2) + " 时结论会翻转。"
       : " 当前假设下租房更划算：首付和月供差额拿去理财的钱，比房子升值加上省下的租金更多。把「房价年涨幅」调到 " + pct((lo + hi) / 2) + " 以上才反超。";
     $("rb-note").textContent = note;
+    if ($("rb-links")) $("rb-links").innerHTML = "接着算："
+      + linkTo("housecash", { "hcx-price": price }, "签字当天要备多少现金")
+      + linkTo("rentyield", { "ry-price": price, "ry-rent": num($("rb-rent")) }, "从房东视角看租售比")
+      + linkTo("deed", { "dd-price": price }, "二手房税费多少")
+      + linkTo("budget", { "bg-cash": num($("rb-price")) * num($("rb-down")) / 100 }, "这个首付能撑多贵的房");
   }
 
   /* ---------------- 10. 信用卡循环利息 ---------------- */
@@ -1638,6 +1729,10 @@
           : "并且已经算进每月净收 " + money(rent - pay - cost / 12) + " 元的正现金流。")
       + " 没算契税/中介/装修/卖房税费和空置期的物业费；房价涨幅是最大的变量——把年涨幅调到 0% 再看这个数，就知道租金能不能单独撑起这笔投资。";
     $("ry-note").textContent = note;
+    if ($("ry-links")) $("ry-links").innerHTML = "接着算："
+      + linkTo("rentbuy", { "rb-price": price, "rb-rent": rent }, "换成租客视角比一比")
+      + linkTo("housecash", { "hcx-price": price }, "这套房签字要备多少现金")
+      + linkTo("rentup", { "ru-cur": rent }, "涨租多少值得搬家");
   }
 
   /* ================= 年度汇算退税 ================= */
@@ -8432,6 +8527,32 @@
       + linkTo("insure", { "in-income": inc * 12, "in-expense": need * 12, "in-assets": cash + inv, "in-debt": debt }, "保额够不够")
       + linkTo("yearreport", { "yrp-inc": inc * 12, "yrp-out": need * 12 }, "全年 → 年度报告");
 
+    if ($("rp-goaltext")) {
+      var goalG = Math.max(0, num($("rp-goal"), 0));
+      var gYear = Math.max(1, Math.round(num($("rp-gyear"), 3)));
+      var netG = totalAsset - debt;
+      var needG = goalG - netG;
+      var gi = 0.03 / 12, gn = gYear * 12;
+      var savG = Math.max(0, inc - need - want);
+      var gTxt;
+      if (!(goalG > 0)) {
+        gTxt = "在输入卡最后一行填「目标净资产 / 目标年限」，这里会反推每月要存多少。";
+      } else if (needG <= 0) {
+        gTxt = "目标反推：想 " + gYear + " 年后把净资产做到 " + money(goalG) + " 元——你现在的净资产已经有 "
+          + money(netG) + " 元，已经达标了。把目标调高一点才有参考意义。";
+      } else {
+        var pmtG = needG * gi / (Math.pow(1 + gi, gn) - 1);
+        var monG = Math.ceil(Math.log(1 + needG * gi / Math.max(1, savG)) / Math.log(1 + gi));
+        var yG = Math.floor(monG / 12), rG = monG % 12;
+        gTxt = "目标反推：想 " + gYear + " 年后净资产做到 " + money(goalG) + " 元，现在 " + money(netG)
+          + " 元，还差 " + money(needG) + " 元；按 3% 年化（货基/债基一档）算，每月要存 " + money(pmtG) + " 元。"
+          + (savG > 0
+            ? "按你现在每月存 " + money(savG) + " 元的速度、同样 3% 年化，约要 " + (yG > 0 ? yG + " 年 " : "") + rG + " 个月。"
+            : "你现在每月没有结余，先补现金流再谈目标。");
+      }
+      $("rp-goaltext").textContent = gTxt;
+    }
+
     $("rp-note").textContent = "总分 " + score + "（" + level + "），短板是" + names[worst] + "。"
       + acts[worst] + " 打分只看五项硬指标，不含投资能力与收入稳定性；数据只在本机，点「打印」可存成一页 PDF。";
     drawRpMini();
@@ -8618,6 +8739,11 @@
       tips.push("二手房还可能涉及增值税与个税（满五唯一可免），本表未单列，可把金额并入「评估/公证/工本」。");
       note.textContent = tips.join(" ");
     }
+    if ($("hcx-links")) $("hcx-links").innerHTML = "接着算："
+      + linkTo("deed", { "dd-price": price }, "二手房税费细算")
+      + linkTo("rentbuy", { "rb-price": price }, "买还是租")
+      + linkTo("budget", { "bg-cash": cash }, "这个现金能买多贵")
+      + linkTo("planner", { "pl-price": price }, "买完这套之后的体检");
   }
 
   /* ---------------- 组合规划：买这套房之后 ---------------- */
@@ -9652,7 +9778,7 @@
     "vchk-out", "vchk-inv", "vchk-noinv", "vchk-in", "vchk-cert", "vchk-tr",
     "hk-inc", "hk-age", "hk-need", "hk-want", "hk-cash", "hk-inv", "hk-house", "hk-debt",
     "hk-loan", "hk-prem", "hk-ins",
-    "rp-inc", "rp-need", "rp-want", "rp-cash", "rp-inv", "rp-house", "rp-debt", "rp-loan", "rp-ins", "rp-prem", "rp-age", "rp-rate", "rp-years",
+    "rp-inc", "rp-need", "rp-want", "rp-cash", "rp-inv", "rp-house", "rp-debt", "rp-loan", "rp-ins", "rp-prem", "rp-age", "rp-rate", "rp-years", "rp-goal", "rp-gyear",
     "pl-inc",
     "pl-cash",
     "pl-inv",
@@ -10138,6 +10264,56 @@
       TOAST_T = setTimeout(function () { if (TOAST_EL) TOAST_EL.hidden = true; }, ms || 3600);
     } catch (e) {}
   }
+
+  /* ---- 错误自检：出错时给一张能复制的诊断卡，而不是白屏 ---- */
+  var ERR_BOX = null, ERR_LAST = "";
+  function diagText(msg) {
+    var mod = (document.querySelector(".panel.is-on") || {}).id || "";
+    return "时间：" + new Date().toISOString()
+      + "\n页面：" + location.href
+      + "\n面板：" + mod.replace("panel-", "")
+      + "\n浏览器：" + (navigator.userAgent || "")
+      + "\n视口：" + window.innerWidth + "×" + window.innerHeight
+      + "\n错误：" + msg;
+  }
+  function showErrorBox(msg) {
+    if (!msg) return;
+    ERR_LAST = diagText(msg);
+    if (!ERR_BOX) {
+      ERR_BOX = document.createElement("div");
+      ERR_BOX.className = "errbox";
+      ERR_BOX.setAttribute("role", "alert");
+      var t = document.createElement("b");
+      t.textContent = "这个模块出了点问题";
+      var d = document.createElement("p");
+      d.setAttribute("data-role", "msg");
+      var acts = document.createElement("div");
+      acts.className = "erract";
+      var copy = document.createElement("button");
+      copy.textContent = "复制诊断信息";
+      copy.className = "pri";
+      copy.addEventListener("click", function () {
+        copyText(ERR_LAST).then(function () { copy.textContent = "已复制"; })
+          .catch(function () { copy.textContent = "复制失败，请手动选择"; });
+      });
+      var close = document.createElement("button");
+      close.textContent = "关闭";
+      close.addEventListener("click", function () { if (ERR_BOX) ERR_BOX.hidden = true; });
+      acts.appendChild(copy); acts.appendChild(close);
+      ERR_BOX.appendChild(t); ERR_BOX.appendChild(d); ERR_BOX.appendChild(acts);
+      document.body.appendChild(ERR_BOX);
+    }
+    var mp = ERR_BOX.querySelector('[data-role="msg"]');
+    if (mp) mp.textContent = String(msg).slice(0, 300);
+    ERR_BOX.hidden = false;
+  }
+  window.addEventListener("error", function (e) {
+    if (e && e.message) showErrorBox(e.message + (e.lineno ? "（第 " + e.lineno + " 行）" : ""));
+  });
+  window.addEventListener("unhandledrejection", function (e) {
+    var r = e && e.reason;
+    showErrorBox((r && r.message) || String(r || "未知的异步错误"));
+  });
 
   var QUOTA_WARNED = false;
   function flash(btn, txt) {
@@ -10848,6 +11024,7 @@
   tap("mtg-fill", "click", function () { fillMonthGrid(); });
 
   /* ---------------- 启动 ---------------- */
+  enhanceNums(document);
   restore();
   refreshCounts();
   renderPresets();
