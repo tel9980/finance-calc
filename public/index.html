@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>财务计算器 · 存款 贷款 提前还款 复利 个税</title>
+<meta name="description" content="免费的财务计算器：存款利息、贷款月供与还款计划（等额本息/等额本金）、提前还款省息测算、复利与定投、年化收益换算、通胀购买力、工资与年终奖个税。纯前端计算，不联网、不上传数据。">
+<meta name="theme-color" content="#1e3a8a">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231e3a8a'/%3E%3Ctext x='16' y='23' font-size='17' text-anchor='middle' fill='%23fff' font-family='sans-serif'%3E%C2%A5%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+
+<header class="hd">
+  <div class="hd-in">
+    <div class="brand">
+      <span class="mark">¥</span>
+      <div>
+        <h1>财务计算器</h1>
+        <p>存款 · 贷款 · 提前还款 · 复利 · 年化 · 通胀 · 个税</p>
+      </div>
+    </div>
+    <nav class="tabs" id="tabs" role="tablist">
+      <button class="tab is-on" data-tab="deposit" role="tab">存款利息</button>
+      <button class="tab" data-tab="loan" role="tab">贷款月供</button>
+      <button class="tab" data-tab="prepay" role="tab">提前还款</button>
+      <button class="tab" data-tab="compound" role="tab">复利/定投</button>
+      <button class="tab" data-tab="annual" role="tab">年化换算</button>
+      <button class="tab" data-tab="inflation" role="tab">通胀购买力</button>
+      <button class="tab" data-tab="tax" role="tab">个税测算</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ================= 存款 ================= -->
+  <section class="panel is-on" id="panel-deposit">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f">
+          <span>存款本金（元）</span>
+          <input id="dp-principal" type="number" inputmode="decimal" min="0" step="1000" value="100000">
+        </label>
+        <label class="f">
+          <span>年利率（%）</span>
+          <input id="dp-rate" type="number" inputmode="decimal" min="0" step="0.05" value="1.05">
+          <em>填银行挂牌的年利率，如 1.05 表示 1.05%</em>
+        </label>
+        <label class="f">
+          <span>存款期限</span>
+          <span class="row">
+            <input id="dp-term" type="number" inputmode="decimal" min="0" step="1" value="2">
+            <select id="dp-unit">
+              <option value="year" selected>年</option>
+              <option value="month">个月</option>
+              <option value="day">天</option>
+            </select>
+          </span>
+        </label>
+        <label class="f">
+          <span>计息方式</span>
+          <select id="dp-mode">
+            <option value="simple" selected>单利（整存整取定期）</option>
+            <option value="year">按年复利（利滚利）</option>
+            <option value="month">按月复利</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big">
+          <span class="k">到期利息</span>
+          <strong id="dp-interest">—</strong>
+          <span class="unit">元</span>
+        </div>
+        <ul class="kv">
+          <li><span>本息合计</span><b id="dp-total">—</b></li>
+          <li><span>实际年化（复利口径）</span><b id="dp-real">—</b></li>
+          <li><span>折合每月利息</span><b id="dp-permonth">—</b></li>
+          <li><span>折合每天利息</span><b id="dp-perday">—</b></li>
+        </ul>
+        <p class="hint" id="dp-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 贷款 ================= -->
+  <section class="panel" id="panel-loan">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f">
+          <span>贷款金额（元）</span>
+          <input id="ln-principal" type="number" inputmode="decimal" min="0" step="10000" value="1000000">
+        </label>
+        <label class="f">
+          <span>年利率（%）</span>
+          <input id="ln-rate" type="number" inputmode="decimal" min="0" step="0.05" value="3.1">
+        </label>
+        <label class="f">
+          <span>贷款期限（年）</span>
+          <input id="ln-years" type="number" inputmode="decimal" min="0" step="1" value="30">
+        </label>
+        <label class="f">
+          <span>还款方式</span>
+          <select id="ln-method">
+            <option value="equal-payment" selected>等额本息（每月固定）</option>
+            <option value="equal-principal">等额本金（逐月递减）</option>
+          </select>
+        </label>
+        <label class="f">
+          <span>看首月还是末月？</span>
+          <span class="chk">
+            <label><input type="radio" name="ln-show" value="first" checked> 首月</label>
+            <label><input type="radio" name="ln-show" value="last"> 末月</label>
+          </span>
+        </label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big">
+          <span class="k" id="ln-pay-label">每月月供</span>
+          <strong id="ln-pay">—</strong>
+          <span class="unit">元</span>
+        </div>
+        <ul class="kv">
+          <li><span>还款总额</span><b id="ln-total">—</b></li>
+          <li><span>利息总额</span><b id="ln-interest">—</b></li>
+          <li><span>利息占本金</span><b id="ln-ratio">—</b></li>
+          <li><span>还款期数</span><b id="ln-count">—</b></li>
+        </ul>
+        <p class="hint" id="ln-note"></p>
+      </div>
+    </div>
+
+    <div class="card wide">
+      <h2>还款计划 <button class="ghost" id="ln-toggle" type="button">展开明细</button></h2>
+      <div class="tablebox" id="ln-box" hidden>
+        <table id="ln-table">
+          <thead>
+            <tr><th>期数</th><th>月供</th><th>其中本金</th><th>其中利息</th><th>剩余本金</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 提前还款 ================= -->
+  <section class="panel" id="panel-prepay">
+    <div class="cols">
+      <div class="card">
+        <h2>输入（按等额本息测算）</h2>
+        <label class="f">
+          <span>当前剩余本金（元）</span>
+          <input id="pp-principal" type="number" inputmode="decimal" min="0" step="10000" value="800000">
+        </label>
+        <label class="f">
+          <span>贷款年利率（%）</span>
+          <input id="pp-rate" type="number" inputmode="decimal" min="0" step="0.05" value="3.1">
+        </label>
+        <label class="f">
+          <span>剩余期数（月）</span>
+          <input id="pp-months" type="number" inputmode="decimal" min="0" step="12" value="240">
+        </label>
+        <label class="f">
+          <span>本次提前还款金额（元）</span>
+          <input id="pp-amount" type="number" inputmode="decimal" min="0" step="10000" value="200000">
+        </label>
+        <label class="f">
+          <span>违约金 / 手续费（元，没有填 0）</span>
+          <input id="pp-fee" type="number" inputmode="decimal" min="0" step="100" value="0">
+        </label>
+        <label class="f">
+          <span>银行给的选项</span>
+          <select id="pp-mode">
+            <option value="shorten" selected>缩短期限，月供不变</option>
+            <option value="reduce">减少月供，期限不变</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big">
+          <span class="k" id="pp-main-label">可省利息</span>
+          <strong id="pp-save">—</strong>
+          <span class="unit">元</span>
+        </div>
+        <ul class="kv">
+          <li><span>提前还款前月供</span><b id="pp-oldpay">—</b></li>
+          <li><span>提前还款后月供</span><b id="pp-newpay">—</b></li>
+          <li><span>还款期数变化</span><b id="pp-months-change">—</b></li>
+          <li><span>剩余利息（原来 → 现在）</span><b id="pp-interest">—</b></li>
+          <li><span>扣掉违约金后净省</span><b id="pp-net">—</b></li>
+        </ul>
+        <p class="hint" id="pp-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 复利/定投 ================= -->
+  <section class="panel" id="panel-compound">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f">
+          <span>初始本金（元）</span>
+          <input id="cp-start" type="number" inputmode="decimal" min="0" step="10000" value="100000">
+        </label>
+        <label class="f">
+          <span>每月追加投入（元）</span>
+          <input id="cp-monthly" type="number" inputmode="decimal" min="0" step="500" value="1000">
+        </label>
+        <label class="f">
+          <span>年化收益率（%）</span>
+          <input id="cp-rate" type="number" inputmode="decimal" min="0" step="0.5" value="3">
+        </label>
+        <label class="f">
+          <span>投资年限</span>
+          <input id="cp-years" type="number" inputmode="decimal" min="0" step="1" value="10">
+        </label>
+        <label class="f">
+          <span>投入时点</span>
+          <select id="cp-timing">
+            <option value="end" selected>期末（月底投）</option>
+            <option value="begin">期初（月初投）</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big">
+          <span class="k">期末总额</span>
+          <strong id="cp-fv">—</strong>
+          <span class="unit">元</span>
+        </div>
+        <ul class="kv">
+          <li><span>累计投入本金</span><b id="cp-cost">—</b></li>
+          <li><span>累计收益</span><b id="cp-gain">—</b></li>
+          <li><span>收益 / 本金</span><b id="cp-ratio">—</b></li>
+          <li><span>资金翻倍约需</span><b id="cp-double">—</b></li>
+        </ul>
+        <p class="hint" id="cp-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 年化 ================= -->
+  <section class="panel" id="panel-annual">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f">
+          <span>投入本金（元）</span>
+          <input id="an-start" type="number" inputmode="decimal" min="0" step="1000" value="100000">
+        </label>
+        <label class="f">
+          <span>当前市值 / 到期金额（元）</span>
+          <input id="an-end" type="number" inputmode="decimal" min="0" step="1000" value="106000">
+        </label>
+        <label class="f">
+          <span>持有天数</span>
+          <input id="an-days" type="number" inputmode="decimal" min="0" step="1" value="365">
+        </label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big">
+          <span class="k">复利年化收益率</span>
+          <strong id="an-cagr">—</strong>
+          <span class="unit">%</span>
+        </div>
+        <ul class="kv">
+          <li><span>单利年化</span><b id="an-simple">—</b></li>
+          <li><span>区间总收益率</span><b id="an-return">—</b></li>
+          <li><span>日均收益</span><b id="an-perday">—</b></li>
+          <li><span>年化收益额</span><b id="an-yeargain">—</b></li>
+        </ul>
+        <p class="hint" id="an-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 通胀 ================= -->
+  <section class="panel" id="panel-inflation">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f">
+          <span>金额（元）</span>
+          <input id="if-amount" type="number" inputmode="decimal" min="0" step="10000" value="1000000">
+        </label>
+        <label class="f">
+          <span>年通胀率（%）</span>
+          <input id="if-rate" type="number" inputmode="decimal" min="0" step="0.1" value="2.5">
+          <em>近年国内 CPI 多在 0–3% 区间，可填你实际感受到的涨幅</em>
+        </label>
+        <label class="f">
+          <span>年数</span>
+          <input id="if-years" type="number" inputmode="decimal" min="0" step="1" value="20">
+        </label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big">
+          <span class="k" id="if-main-label">未来购买力</span>
+          <strong id="if-main">—</strong>
+          <span class="unit">元</span>
+        </div>
+        <ul class="kv">
+          <li><span>现在这笔钱的购买力（折今天）</span><b id="if-power">—</b></li>
+          <li><span>想维持同样生活，届时需要</span><b id="if-need">—</b></li>
+          <li><span>购买力累计缩水</span><b id="if-loss">—</b></li>
+          <li><span>购买力年均缩水</span><b id="if-annualloss">—</b></li>
+        </ul>
+        <p class="hint" id="if-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 个税 ================= -->
+  <section class="panel" id="panel-tax">
+    <div class="cols">
+      <div class="card">
+        <h2>输入（综合所得 · 年度）</h2>
+        <label class="f">
+          <span>全年工资薪金收入（税前，元）</span>
+          <input id="tx-income" type="number" inputmode="decimal" min="0" step="10000" value="240000">
+        </label>
+        <label class="f">
+          <span>全年三险一金（个人缴纳部分，元）</span>
+          <input id="tx-insurance" type="number" inputmode="decimal" min="0" step="1000" value="36000">
+        </label>
+        <label class="f">
+          <span>全年专项附加扣除（元）</span>
+          <input id="tx-special" type="number" inputmode="decimal" min="0" step="1000" value="24000">
+          <em>子女教育、住房贷款利息/租金、赡养老人、继续教育、大病医疗、3 岁以下照护等合计</em>
+        </label>
+        <label class="f">
+          <span>全年其他扣除（商业健康险、年金、个人养老金等，元）</span>
+          <input id="tx-other" type="number" inputmode="decimal" min="0" step="1000" value="0">
+        </label>
+        <label class="f">
+          <span>年终奖（元，没有填 0）</span>
+          <input id="tx-bonus" type="number" inputmode="decimal" min="0" step="10000" value="60000">
+        </label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big">
+          <span class="k" id="tx-main-label">全年个税合计</span>
+          <strong id="tx-total">—</strong>
+          <span class="unit">元</span>
+        </div>
+        <ul class="kv">
+          <li><span>应纳税所得额（工资部分）</span><b id="tx-taxable">—</b></li>
+          <li><span>工资部分个税</span><b id="tx-salary-tax">—</b></li>
+          <li><span>年终奖单独计税</span><b id="tx-bonus-solo">—</b></li>
+          <li><span>年终奖并入综合所得（多缴）</span><b id="tx-bonus-merged">—</b></li>
+          <li><span>更划算的方式</span><b id="tx-best">—</b></li>
+          <li><span>税后到手</span><b id="tx-net">—</b></li>
+          <li><span>实际税负率</span><b id="tx-rate">—</b></li>
+        </ul>
+        <p class="hint" id="tx-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <p class="foot">
+    全部计算在你自己的浏览器里完成，不联网、不上传任何数据。结果仅为数学测算，未计手续费、通货膨胀等额外因素；
+    个税按现行综合所得与全年一次性奖金政策估算，实际以扣缴义务人申报与税务机关口径为准。
+    存款保险最高偿付 50 万元（本息合计，同一家银行），理财不等于存款。<br>
+    <span id="ver">财务计算器</span>
+  </p>
+</main>
+
+<script src="./app.js"></script>
+</body>
+</html>

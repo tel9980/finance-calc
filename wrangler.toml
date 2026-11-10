@@ -1,0 +1,15 @@
+name = "finance-calc"
+compatibility_date = "2025-09-01"
+
+# 纯静态站点：Workers Static Assets 直接托管 public/，没有 Worker 代码、没有数据库
+[assets]
+directory = "./public"
+not_found_handling = "single-page-application"
+
+# 自定义域名：部署时自动在 1211.cc.cd 下建 js 子域并签发证书
+[[routes]]
+pattern = "js.1211.cc.cd"
+custom_domain = true
+
+[observability]
+enabled = true
