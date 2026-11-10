@@ -3460,6 +3460,252 @@
       + "含税报价还要考虑客户能否接受、同行的含税口径是否一致（有的报不含税价，比价前统一口径）。";
   }
 
+  function calcTripleDe() {
+    var np = num($("td-np"), 0), da = num($("td-da"), 0);
+    var ar = num($("td-ar"), 0), inv = num($("td-inv"), 0), ap = num($("td-ap"), 0);
+    var cfo = num($("td-cfo"), 0), cfi = num($("td-cfi"), 0), cff = num($("td-cff"), 0);
+    var c0 = num($("td-cash0"), 0), c1 = num($("td-cash1"), 0);
+    var ta = num($("td-ta"), 0), tl = num($("td-tl"), 0), te = num($("td-te"), 0);
+
+    var cfoInd = np + da - ar - inv + ap;
+    var net = cfo + cfi + cff;
+    var c1exp = c0 + net;
+    var tlte = tl + te;
+    var d1 = cfo - cfoInd, d2 = c1 - c1exp, d3 = ta - tlte;
+    var ok1 = Math.abs(d1) < 0.5, ok2 = Math.abs(d2) < 0.5, ok3 = Math.abs(d3) < 0.5;
+
+    $("td-net").textContent = money(net);
+    $("td-cfoind").textContent = yuan(cfoInd);
+    $("td-d1").textContent = ok1 ? "0.00 元（平）" : money(d1) + " 元（不平）";
+    $("td-sum").textContent = yuan(net);
+    $("td-c1").textContent = money(c1exp) + " / " + money(c1) + " 元";
+    $("td-d2").textContent = ok2 ? "0.00 元（平）" : money(d2) + " 元（不平）";
+    $("td-d3").textContent = ok3 ? "0.00 元（平）" : money(d3) + " 元（不平）";
+
+    var bad = [];
+    if (!ok1) bad.push("经营现金流");
+    if (!ok2) bad.push("现金净增加");
+    if (!ok3) bad.push("资产负债表");
+    $("td-verdict").textContent = bad.length === 0
+      ? "三处都平，可以直接交表"
+      : "有 " + bad.length + " 处不平：" + bad.join("、") + "，先查这几处再交表";
+
+    var rows = [
+      ["经营现金流：间接法 vs 表上", cfoInd, cfo, d1, ok1,
+        "差额先看应收/存货/应付的变动有没有漏项，再看有没有把投资、筹资的现金流记进经营"],
+      ["期末现金：期初＋三项 vs 期末", c1exp, c1, d2, ok2,
+        "差额通常是受限资金、票据保证金没剔除，或者内部账户调拨没抵销"],
+      ["资产 = 负债 + 所有者权益", tlte, ta, d3, ok3,
+        "差额多半是本年利润没结转、或者待处理财产损溢还挂着没清"]
+    ];
+    var html = "";
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i];
+      html += "<tr" + (r[4] ? "" : ' style="background:#fdecec"') +
+        "><td>" + r[0] + "</td><td>" + money(r[1]) + "</td><td>" + money(r[2]) +
+        "</td><td>" + money(r[3]) + "</td><td>" + (r[4] ? "平" : "不平") + "</td></tr>";
+    }
+    $("td-body").innerHTML = html;
+
+    var worst = "";
+    if (!ok1) worst = "间接法差 " + money(d1) + " 元（" + rows[0][5] + "）。";
+    else if (!ok2) worst = "期末现金差 " + money(d2) + " 元（" + rows[1][5] + "）。";
+    else if (!ok3) worst = "资产负债表差 " + money(d3) + " 元（" + rows[2][5] + "）。";
+    $("td-note").textContent = worst +
+      "三张表的关系是：净利润经折旧摊销和营运资本变动调成经营现金流，经营＋投资＋筹资＝现金净增加，现金净增加接上期初就是期末；资产永远等于负债加权益。" +
+      "实务里最常见的不平，一是现金流量表用「直接法」填了、附注的间接法没对上，二是本币折算差额和受限资金没单列。" +
+      "这里只验四项主要调整，坏账计提、公允价值变动、投资收益、财务费用这些非付现和筹资性项目要自己补进去。";
+  }
+
+  function calcMultiMargin() {
+    var rows = [], i, q, p, c;
+    for (i = 1; i <= 4; i++) {
+      q = Math.max(0, num($("mm-q" + i), 0));
+      p = Math.max(0, num($("mm-p" + i), 0));
+      c = Math.max(0, num($("mm-c" + i), 0));
+      if (q > 0 && p > 0) {
+        rows.push({ name: "产品 " + i, q: q, p: p, c: c, rev: q * p, gp: q * (p - c) });
+      }
+    }
+    if (!rows.length) {
+      $("mm-margin").textContent = "—";
+      $("mm-total").textContent = "填一个销量再算";
+      $("mm-lag").textContent = "—";
+      $("mm-neg").textContent = "—";
+      $("mm-cut").textContent = "—";
+      $("mm-drag").textContent = "—";
+      $("mm-worst").textContent = "—";
+      $("mm-body").innerHTML = "";
+      $("mm-note").textContent = "至少给一个产品填销量，才能算加权毛利率。";
+      return;
+    }
+
+    var TR = 0, TG = 0;
+    for (i = 0; i < rows.length; i++) { TR += rows[i].rev; TG += rows[i].gp; }
+    var overall = TR > 0 ? TG / TR : 0;
+
+    var lag = [], neg = [];
+    for (i = 0; i < rows.length; i++) {
+      var m = rows[i].rev > 0 ? rows[i].gp / rows[i].rev : 0;
+      rows[i].margin = m;
+      rows[i].share = TR > 0 ? rows[i].rev / TR : 0;
+      if (m < overall - 0.0001) lag.push(rows[i].name + "（" + pct(m) + "）");
+      if (rows[i].gp < -0.005) neg.push(rows[i].name + "（" + pct(m) + "，亏 " + money(-rows[i].gp) + " 元）");
+    }
+
+    var TR2 = 0, TG2 = 0;
+    for (i = 0; i < rows.length; i++) {
+      if (rows[i].gp >= 0) { TR2 += rows[i].rev; TG2 += rows[i].gp; }
+    }
+    var cutMargin = TR2 > 0 ? TG2 / TR2 : 0;
+
+    var big = rows[0];
+    for (i = 1; i < rows.length; i++) if (rows[i].rev > big.rev) big = rows[i];
+
+    $("mm-margin").textContent = pct(overall);
+    $("mm-total").textContent = money(TR) + " / " + money(TG) + " 元";
+    $("mm-lag").textContent = lag.length ? lag.join("、") : "没有，都在综合毛利率之上";
+    $("mm-neg").textContent = neg.length ? neg.join("、") : "没有负毛利产品";
+    $("mm-cut").textContent = neg.length
+      ? money(TR2) + " / " + money(TG2) + " 元 / " + pct(cutMargin)
+      : "没有要剔的，等于全部";
+    $("mm-drag").textContent = neg.length ? fmt((cutMargin - overall) * 100, 2) + " 个百分点" : "0.00 个百分点";
+    $("mm-worst").textContent = big.name + "（占收入 " + pct(big.share) + "，毛利率 " + pct(big.margin) + "）" +
+      (big.margin < overall - 0.0001 ? "，比综合线还低，是拖后腿的" : "，在综合线之上");
+
+    var html = "";
+    for (i = 0; i < rows.length; i++) {
+      var r = rows[i];
+      html += "<tr" + (r.gp < -0.005 ? ' style="background:#fdecec"' : "") + "><td>" + r.name +
+        "</td><td>" + fmt(r.q, 0) + "</td><td>" + money(r.rev) + "</td><td>" + money(r.gp) +
+        "</td><td>" + pct(r.margin) + "</td><td>" + pct(r.share) + "</td></tr>";
+    }
+    html += "<tr><td>合计</td><td>—</td><td>" + money(TR) + "</td><td>" + money(TG) +
+      "</td><td>" + pct(overall) + "</td><td>100.00%</td></tr>";
+    $("mm-body").innerHTML = html;
+
+    $("mm-note").textContent =
+      "综合毛利率是「各产品毛利率按收入加权」，不是简单平均——低毛利产品占比一大，整体就被拖下去，这也是「越卖越忙却越不赚钱」的原因。" +
+      (neg.length ? "负毛利产品（" + neg[0].split("（")[0] + "）每卖一件都在贴钱，要么提价、要么换料降本、要么直接砍掉或改成外购转手。" : "") +
+      "注意这里只算毛利：运费、提成、售后、仓储都还在毛利之下，毛利为正不代表净利为正；砍掉一个产品也只省变动成本，固定费用照旧要摊到剩下产品上。";
+  }
+
+  function calcApTerms() {
+    var amt = Math.max(0, num($("ap-amt"), 0));
+    var disc = Math.max(0, Math.min(50, num($("ap-disc"), 0))) / 100;
+    var d1 = Math.max(0, num($("ap-d1"), 0));
+    var d2 = Math.max(d1 + 1, num($("ap-d2"), 30));
+    var rate = Math.max(0, num($("ap-rate"), 0)) / 100;
+    var gap = d2 - d1;
+
+    var discAmt = amt * disc;
+    var need = amt - discAmt;
+    var ann = disc > 0 && disc < 1 ? (disc / (1 - disc)) * (365 / gap) : NaN;
+    var interest = need * rate * (gap / 365);
+    var netGain = discAmt - interest;
+
+    $("ap-cost").textContent = isFinite(ann) ? pct(ann) : "—";
+    $("ap-discamt").textContent = yuan(discAmt);
+    $("ap-need").textContent = money(need) + " 元 / " + fmt(gap, 0) + " 天";
+    $("ap-int").textContent = yuan(interest);
+    $("ap-net").textContent = money(netGain) + " 元" + (netGain < 0 ? "（早付反而亏）" : "");
+    $("ap-crit").textContent = isFinite(ann) ? pct(ann) : "—";
+
+    if (disc <= 0) {
+      $("ap-verdict").textContent = "没有折扣，谈不上取舍，能拖到信用期就拖到信用期";
+    } else if (netGain > 0) {
+      $("ap-verdict").textContent = "该早付：借 " + fmt(rate * 100, 1) + "% 的钱，换 " + pct(ann) + " 的年化回报，净赚 " + money(netGain) + " 元";
+    } else {
+      $("ap-verdict").textContent = "别早付：资金成本 " + fmt(rate * 100, 1) + "% 已经高过放弃折扣的 " + pct(ann) + "，等到信用期更划算";
+    }
+
+    var rateList = [0, 0.04, 0.06, 0.08, 0.10, 0.12, 0.18, 0.24, 0.36];
+    var html = "";
+    for (var i = 0; i < rateList.length; i++) {
+      var rr = rateList[i];
+      var it = need * rr * (gap / 365);
+      var ng = discAmt - it;
+      var hi = Math.abs(rr - rate) < 0.0005 ? ' style="background:#eef2ff"' : "";
+      html += "<tr" + hi + "><td>" + fmt(rr * 100, 0) + "%</td><td>" + money(it) + "</td><td>" +
+        money(ng) + "</td><td>" + (ng > 0 ? "该早付" : "不该") + "</td></tr>";
+    }
+    $("ap-body").innerHTML = html;
+
+    $("ap-note").textContent =
+      "口诀：放弃折扣的成本 = 折扣率 ÷ (1 − 折扣率) × 365 ÷ (信用期 − 折扣期)，跟借款利率一比就知道该不该借。2/10 net 30 折成年化是 " +
+      (isFinite(ann) ? pct(ann) : "—") + "，这几乎是中国市场上最贵的一笔钱，除非实在借不到，否则一定要拿。" +
+      "早付的钱从哪来也要分清：自有闲钱按机会成本算，借钱按实际利率算，还要看银行能不能在折扣期内放款——赶不上就等于白算。" +
+      "另一头别忘：早付会把自己的现金流提前抽出去，账上本来就紧的话，先看「资金排期」够不够撑过这几天。";
+  }
+
+  function calcAssetLedger() {
+    var cards = [], i, v, l, s, m;
+    for (i = 1; i <= 3; i++) {
+      v = Math.max(0, num($("al-v" + i), 0));
+      l = Math.max(0, num($("al-l" + i), 0));
+      s = Math.max(0, Math.min(50, num($("al-s" + i), 0))) / 100;
+      m = Math.max(0, num($("al-m" + i), 0));
+      if (v > 0 && l > 0) {
+        var life = l * 12;
+        var total = v * (1 - s);
+        var dep = total / life;
+        var acc = Math.min(dep * m, total);
+        var rem = Math.max(0, life - m);
+        cards.push({
+          name: "卡片 " + i, v: v, life: life, years: l, s: s, m: m,
+          dep: rem > 0 ? dep : 0, acc: acc, net: v - acc, rem: rem
+        });
+      }
+    }
+    if (!cards.length) {
+      $("al-month").textContent = "—";
+      $("al-cost").textContent = "填一张卡片再算";
+      $("al-acc").textContent = "—";
+      $("al-net").textContent = "—";
+      $("al-fwd").textContent = "—";
+      $("al-done").textContent = "—";
+      $("al-body").innerHTML = "";
+      $("al-note").textContent = "至少填一张卡片（原值和年限都要大于 0）。";
+      return;
+    }
+
+    var tDep = 0, tCost = 0, tAcc = 0, tNet = 0, fwd = 0, done = [], near = [];
+    for (i = 0; i < cards.length; i++) {
+      var c = cards[i];
+      tDep += c.dep; tCost += c.v; tAcc += c.acc; tNet += c.net;
+      fwd += c.dep * Math.min(12, c.rem);
+      if (c.rem <= 0) done.push(c.name);
+      else if (c.rem < 3) near.push(c.name + "（剩 " + c.rem + " 个月）");
+    }
+
+    $("al-month").textContent = money(tDep);
+    $("al-cost").textContent = yuan(tCost);
+    $("al-acc").textContent = yuan(tAcc);
+    $("al-net").textContent = money(tNet) + " 元 / " + pct(tCost > 0 ? tNet / tCost : 0);
+    $("al-fwd").textContent = yuan(fwd);
+    var dn = [];
+    if (done.length) dn.push("已提足：" + done.join("、"));
+    if (near.length) dn.push("快提足：" + near.join("、"));
+    $("al-done").textContent = dn.length ? dn.join("；") : "没有，都还在正常计提";
+
+    var html = "";
+    for (i = 0; i < cards.length; i++) {
+      var c2 = cards[i];
+      html += "<tr><td>" + c2.name + "</td><td>" + money(c2.v) + "</td><td>" + fmt(c2.years, 0) + " 年</td><td>" +
+        fmt(c2.m, 0) + "</td><td>" + money(c2.dep) + "</td><td>" + money(c2.acc) + "</td><td>" +
+        money(c2.net) + "</td><td>" + fmt(c2.rem, 0) + "</td></tr>";
+    }
+    html += "<tr><td>合计</td><td>" + money(tCost) + "</td><td>—</td><td>—</td><td>" + money(tDep) +
+      "</td><td>" + money(tAcc) + "</td><td>" + money(tNet) + "</td><td>—</td></tr>";
+    $("al-body").innerHTML = html;
+
+    $("al-note").textContent =
+      "直线法：月折旧 = 原值 × (1 − 残值率) ÷ (年限 × 12)，除不尽的尾差放在最后一个月调平（这里没做尾差处理，差了 1–2 分钱是正常的）。" +
+      "税法给的是最低年限（房屋建筑物 20 年、机器设备 10 年、器具家具 5 年、运输工具 4 年、电子设备 3 年），会计上可以按实际耐用年限提，但汇算时要按税法年限调整。" +
+      "已提足的不能再提，处置时要按账面净值转「固定资产清理」，售价与净值的差走「资产处置损益」；" +
+      "残值率 5% 是常见估计，实务里也有直接按 0 提的，一旦定了就要一贯，别一年一变。";
+  }
+
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
@@ -3478,7 +3724,8 @@
     freeperiod: calcFreePeriod, overtime: calcOvertime, rentup: calcRentUp, ev: calcEv,
     vat: calcVat, vatdue: calcVatDue, deprec: calcDeprec, breakeven: calcBreakEven,
     ratios: calcRatios, recon: calcRecon,
-    expense: calcExpense, aging: calcAging, funding: calcFunding, pricing: calcPricing
+    expense: calcExpense, aging: calcAging, funding: calcFunding, pricing: calcPricing,
+    triplede: calcTripleDe, multimargin: calcMultiMargin, apterms: calcApTerms, assetledger: calcAssetLedger
   };
 
   function setCat(cat) {
@@ -3600,9 +3847,13 @@
     "ex-days", "ex-nights", "ex-hotel", "ex-hstd", "ex-meal", "ex-local", "ex-travel", "ex-other",
     "ag-b1", "ag-b2", "ag-b3", "ag-b4", "ag-rates", "ag-have",
     "fg-open", "fg-in", "fg-ind", "fg-a", "fg-ad", "fg-b", "fg-bd", "fg-c", "fg-cd", "fg-d", "fg-dd",
-    "pr-cost", "pr-margin", "pr-vat", "pr-disc", "pr-cust"
+    "pr-cost", "pr-margin", "pr-vat", "pr-disc", "pr-cust",
+    "td-np", "td-da", "td-ar", "td-inv", "td-ap", "td-cfo", "td-cfi", "td-cff", "td-cash0", "td-cash1", "td-ta", "td-tl", "td-te",
+    "mm-q1", "mm-p1", "mm-c1", "mm-q2", "mm-p2", "mm-c2", "mm-q3", "mm-p3", "mm-c3", "mm-q4", "mm-p4", "mm-c4",
+    "ap-amt", "ap-disc", "ap-d1", "ap-d2", "ap-rate",
+    "al-v1", "al-l1", "al-s1", "al-m1", "al-v2", "al-l2", "al-s2", "al-m2", "al-v3", "al-l3", "al-s3", "al-m3"
   ];
-  var KEY = "finance-calc-v17";
+  var KEY = "finance-calc-v18";
   var CAT_KEY = "finance-calc-cat";
 
   /* ---------------- 现金流月历 ---------------- */
