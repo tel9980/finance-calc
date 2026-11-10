@@ -7495,6 +7495,114 @@
       + " 处置这家境外子公司时，累计的折算差额要全部转入当期损益。";
   }
 
+  function calcRebateAcc() {
+    var sales = num($("rba-sales"), 0), rate = num($("rba-rate"), 0) / 100, ach = num($("rba-ach"), 0) / 100;
+    var vc = num($("rba-vc"), 0) / 100;
+    var fee = num($("rba-fee"), 0), promo = num($("rba-promo"), 0), staff = num($("rba-staff"), 0);
+    var reb = sales * rate * ach;
+    var net = sales - reb;
+    var cost = fee + promo + staff;
+    var gpRaw = sales * (1 - vc);
+    var netGp = net * (1 - vc) - cost;
+    var cr = net > 0 ? cost / net : 0;
+    var rg = gpRaw > 0 ? reb / gpRaw : 0;
+    var gm = net > 0 ? netGp / net : 0;
+    var full = sales * rate - reb;
+    $("rba-big").textContent = money(netGp);
+    $("rba-reb").textContent = money(reb) + " 元（按 " + pct(rate, 1) + " × 达成 " + pct(ach, 0) + " 计提）";
+    $("rba-net").textContent = money(net) + " 元";
+    $("rba-cost").textContent = money(cost) + " 元（进场 " + money(fee) + " / 促销 " + money(promo) + " / 人员 " + money(staff) + "）";
+    $("rba-cr").textContent = pct(cr, 2) + "（渠道费用 ÷ 净销售额）";
+    $("rba-rg").textContent = pct(rg, 2) + "（返利 ÷ 毛利 " + money(gpRaw) + "）";
+    $("rba-gm").textContent = pct(gm, 2) + "（原来 " + pct(1 - vc, 2) + "）";
+    $("rba-full").textContent = "若 100% 达成，再多返 " + money(full) + " 元";
+    $("rba-note").textContent = "返利属于可变对价：合同签下去就要按期望值（比例 × 达成概率）冲减收入并计提负债，"
+      + "不能等年底客户来结账才认。计提过头（客户没达成）要转回，但准则要求「极可能不发生重大转回」才敢计，"
+      + "所以保守一点先按达成概率打折更稳。渠道费用要按净销售额看费用率——先减返利再算，"
+      + "否则进场费、促销费的真实占比会被高估；进商场、上平台的生意，渠道费用率 10% 以上很常见，"
+      + "报价时必须把它算进价格里，靠销量摊薄是摊不掉的。";
+  }
+
+  function calcPledgeLoan() {
+    var ar = num($("plg-ar"), 0), ratio = num($("plg-ratio"), 0) / 100;
+    var rate = num($("plg-rate"), 0) / 100, days = Math.max(1, num($("plg-days"), 90));
+    var feeRate = num($("plg-fee"), 0) / 100, fact = num($("plg-fact"), 0) / 100;
+    var amt = ar * ratio;
+    var interest = amt * rate * days / 360;
+    var fee = amt * feeRate;
+    var tot = interest + fee;
+    var real = amt > 0 ? tot / amt * 360 / days : 0;
+    var factCost = ar * fact * days / 360;
+    var diff = factCost - tot;
+    var rest = ar - amt;
+    $("plg-big").textContent = fmt(real * 100, 2);
+    $("plg-amt").textContent = money(amt) + " 元（" + pct(ratio, 0) + " × " + money(ar) + "）";
+    $("plg-int").textContent = money(interest) + " 元";
+    $("plg-feeout").textContent = money(fee) + " 元";
+    $("plg-tot").textContent = money(tot) + " 元";
+    $("plg-factout").textContent = money(factCost) + " 元（按 " + pct(fact, 2) + " 全额计息）";
+    $("plg-diff").textContent = (diff >= 0 ? "保理多花 " : "保理少花 ") + money(Math.abs(diff)) + " 元";
+    $("plg-rest").textContent = money(rest) + " 元（" + pct(1 - ratio, 2) + "）";
+    $("plg-note").textContent = (diff >= 0 ? "这笔业务质押贷款更便宜，省 " + money(diff) + " 元。" : "这笔业务保理反而更便宜，因为保理能按全额融资、把更多应收账款变成现金。")
+      + "两者的差别不只在利率：质押是「借钱」，应收账款还在你账上、要继续催收、要计提坏账，"
+      + "贷款到期必须还；保理是「卖债权」，无追索权保理才能出表（拿到银行的放弃追索确认），"
+      + "有追索权的保理实质仍是融资、不能出表还要确认负债。"
+      + "另外质押率通常 70%–90%，剩下一截仍压在自己身上，客户回款直接进监管账户、挪用会被认定违规。";
+  }
+
+  function calcLabVar() {
+    var qty = num($("lab-qty"), 0), std = num($("lab-std"), 0);
+    var srate = num($("lab-srate"), 0), ah = num($("lab-ah"), 0), arate = num($("lab-arate"), 0);
+    var cap = Math.max(num($("lab-cap"), 0), ah);
+    var stdH = qty * std;
+    var rateVar = (arate - srate) * ah;
+    var effVar = (ah - stdH) * srate;
+    var total = rateVar + effVar;
+    var actCost = ah * arate, stdCost = stdH * srate;
+    var idle = (cap - ah) * srate;
+    $("lab-big").textContent = money(total);
+    $("lab-h").textContent = money(stdH) + " / " + money(ah) + " 小时（" + (ah - stdH > 0 ? "多耗 " : "省 ") + money(Math.abs(ah - stdH)) + "）";
+    $("lab-rate").textContent = (rateVar >= 0 ? "超支 " : "节约 ") + money(Math.abs(rateVar)) + " 元（工资率 " + fmt(arate - srate, 2) + " × 实际 " + money(ah) + "h）";
+    $("lab-eff").textContent = (effVar >= 0 ? "超支 " : "节约 ") + money(Math.abs(effVar)) + " 元（多耗 " + money(ah - stdH) + "h × 标准 " + fmt(srate, 2) + "）";
+    $("lab-use").textContent = pct(ah / cap, 2) + "（实际 " + money(ah) + " ÷ 可用 " + money(cap) + "）";
+    $("lab-eva").textContent = pct(stdH / ah, 2) + "（标准 " + money(stdH) + " ÷ 实际 " + money(ah) + "）";
+    $("lab-idle").textContent = money(idle) + " 元（闲置 " + money(cap - ah) + "h × 标准 " + fmt(srate, 2) + "）";
+    $("lab-note").textContent = "实际人工 " + money(actCost) + " 元，标准 " + money(stdCost) + " 元，差 " + money(total)
+      + " 元 = 工资率差异 " + money(rateVar) + " ＋ 效率差异 " + money(effVar) + "，这两项相加才等于总差异。"
+      + "闲置产能 " + money(idle) + " 元是另一个口径（固定费吸收不足），只说明「人闲着」，"
+      + "已经包含在固定制造费用差异里，别再和上面两项相加，否则重复算账。"
+      + "看差异先分工：工资率差异归人事/薪酬（涨薪、加班、临时工比例），效率差异归车间（工艺、良率、换线），"
+      + "闲置归销售与计划（订单不足、排产不均衡）。";
+  }
+
+  function calcRdCap() {
+    var total = num($("rdc-total"), 0), capR = num($("rdc-cap"), 0) / 100;
+    var years = Math.max(1, num($("rdc-years"), 5)), months = Math.min(12, Math.max(1, num($("rdc-months"), 6)));
+    var tax = num($("rdc-tax"), 0) / 100;
+    var capAmt = total * capR, expAmt = total - capAmt;
+    var amortY = capAmt / years, amortNow = amortY * months / 12;
+    var hit = expAmt + amortNow;
+    var gain = total - hit;
+    var np = gain * (1 - tax);
+    var addBase = expAmt + amortNow * 2;
+    var taxSave = addBase * tax;
+    var left = capAmt - amortNow;
+    $("rdc-big").textContent = money(hit);
+    $("rdc-split").textContent = money(expAmt) + " / " + money(capAmt) + " 元（资本化率 " + pct(capR, 1) + "）";
+    $("rdc-amort").textContent = money(amortNow) + " 元（每年 " + money(amortY) + "，当年摊 " + months + " 个月）";
+    $("rdc-gain").textContent = money(gain) + " 元（全部费用化会是 " + money(total) + "）";
+    $("rdc-np").textContent = money(np) + " 元（税率 " + pct(tax, 0) + "）";
+    $("rdc-add").textContent = money(addBase) + " 元（费用化 " + money(expAmt) + " ＋ 摊销 " + money(amortNow) + " ×2）";
+    $("rdc-taxout").textContent = money(taxSave) + " 元";
+    $("rdc-left").textContent = money(left) + " 元，剩余 " + fmt((years * 12 - months) / 12, 1) + " 年";
+    $("rdc-note").textContent = "资本化的门槛是六个条件同时满足：技术上可行、有使用或出售意图、能带来经济利益、"
+      + "资源充足、支出能可靠计量、开发阶段（研究阶段一律费用化）。实务里最容易出错的是「立项就资本化」——"
+      + "可行性还没验证就转无形资产，属于典型的高估利润。"
+      + "税务上费用化部分可按 100% 加计扣除、资本化部分按 200% 摊销（现行政策，按最新文件执行），"
+      + "所以资本化会推迟加计扣除、也让当期税负先高后低；软件、医药这类项目还要注意摊销年限不短于 10 年（部分情形）"
+      + "与减值测试。资本化只是把利润往后挪，不是凭空多赚 " + money(gain) + " 元。";
+  }
+
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
@@ -7533,6 +7641,7 @@
     commission: calcCommission, capex: calcCapex, pooling: calcPooling, creditlimit: calcCreditLimit,
     contractperf: calcContractPerf, projrev: calcProjRev, creditpolicy: calcCreditPolicy, rateadj: calcRateAdj,
     invfund: calcInvFund, machrate: calcMachRate, govgrant: calcGovGrant, fxtranslate: calcFxTranslate,
+    rebateacc: calcRebateAcc, pledgeloan: calcPledgeLoan, labvar: calcLabVar, rdcap: calcRdCap,
     datemath: calcDatemath, pct3: calcPct3, xlhelp: calcXlHelp, csvrecon: calcCsvRecon,
     contractperf: calcContractPerf, projrev: calcProjRev, creditpolicy: calcCreditPolicy, rateadj: calcRateAdj
   };
@@ -7771,9 +7880,13 @@
     "ifw-cogs", "ifw-d1", "ifw-d2", "ifw-cost", "ifw-hold",
     "mhr-fixed", "mhr-cap", "mhr-act", "mhr-qty",
     "ggr-amt", "ggr-type", "ggr-years", "ggr-tax", "ggr-rate",
-    "fxt-asset", "fxt-liab", "fxt-cap", "fxt-ret0", "fxt-np", "fxt-close", "fxt-avg", "fxt-his", "fxt-open",
+    "fxt-asset", "fxt-liab", "fxt-cap", "fxt-ret0", "fxt-np", "fxt-close", "fxt-avg", "fxt-his", "fxt-open",,
+    "rba-sales", "rba-rate", "rba-ach", "rba-vc", "rba-fee", "rba-promo", "rba-staff",
+    "plg-ar", "plg-ratio", "plg-rate", "plg-days", "plg-fee", "plg-fact",
+    "lab-qty", "lab-std", "lab-srate", "lab-ah", "lab-arate", "lab-cap",
+    "rdc-total", "rdc-cap", "rdc-years", "rdc-months", "rdc-tax"
 ];
-  var KEY = "finance-calc-v37";
+  var KEY = "finance-calc-v38";
   var CAT_KEY = "finance-calc-cat";
 
   /* ---------------- 现金流月历 ---------------- */
