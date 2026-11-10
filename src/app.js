@@ -8696,7 +8696,9 @@
 
   /* ---------------- 家庭支出结构（套餐） ---------------- */
   function calcBundle() {
-    var inc = Math.max(0, num($("bxsp-inc"), 0));
+    var inc1 = Math.max(0, num($("bxsp-inc"), 0));
+    var inc2 = Math.max(0, num($("bxsp-inc2"), 0));
+    var inc = inc1 + inc2;
     var goal = Math.max(0, num($("bxsp-goal"), 25));
     var defs = [
       ["住（房贷/租金）", "bxsp-house", 25, 30],
@@ -8733,6 +8735,7 @@
     if (inc <= 0) score = 0;
     score = Math.max(0, Math.min(100, Math.round(score)));
     if ($("bxsp-big")) $("bxsp-big").textContent = money(total);
+    if ($("bxsp-inall")) $("bxsp-inall").textContent = money(inc) + " 元" + (inc2 > 0 ? "（本人 " + money(inc1) + " + 另一半 " + money(inc2) + "）" : "");
     if ($("bxsp-left")) $("bxsp-left").textContent = money(left) + " 元";
     if ($("bxsp-rate")) $("bxsp-rate").textContent = fmt(rate) + "%";
     if ($("bxsp-year")) $("bxsp-year").textContent = money(left * 12) + " 元";
@@ -8794,6 +8797,60 @@
       + " 全年储蓄率 " + fmt(rate) + "%" + (mode === "monthly" ? "（按逐月真实收入算）" : "（按收入平摊算，切上面「逐月填真实到手」更准）")
       + "；年终奖、十三薪这类不进月收入的钱另外存，别当成月供能力。图上柱高是当月支出，虚线是当月收入。";
     drawnMonthlyChart(incomes, outs);
+    drawMonthCats(outTotal);
+  }
+
+  var MONTH_CATS = [["住（房贷/房租/物业）", "mt-c1", "#1e3a8a"], ["吃（餐饮/日用/超市）", "mt-c2", "#2563eb"],
+    ["教育（学费/培训）", "mt-c3", "#7c3aed"], ["保险", "mt-c4", "#0891b2"], ["交通（车/打车/油）", "mt-c5", "#f97316"], ["其他（医疗/人情/娱乐）", "mt-c6", "#64748b"]];
+
+  function drawMonthCats(outTotal) {
+    var arr = [], i, sum = 0;
+    for (i = 0; i < MONTH_CATS.length; i++) {
+      var v = Math.max(0, num($(MONTH_CATS[i][1]), 0));
+      arr.push({ name: MONTH_CATS[i][0], v: v, color: MONTH_CATS[i][2] });
+      sum += v;
+    }
+    var h = "";
+    for (i = 0; i < arr.length; i++) {
+      h += "<tr><td class=\"tal\">" + arr[i].name + "</td><td>" + money(arr[i].v) + "</td><td>"
+        + fmt(sum > 0 ? arr[i].v / sum * 100 : 0) + "%</td><td>" + money(arr[i].v / 12) + "</td></tr>";
+    }
+    if ($("mt-cat-body")) $("mt-cat-body").innerHTML = h;
+    var cv = $("mt-cat-chart");
+    if (cv && cv.getContext) {
+      var dpr = Math.min(2, window.devicePixelRatio || 1), w = 720, hgt = 120;
+      cv.width = w * dpr; cv.height = hgt * dpr;
+      cv.style.width = "100%"; cv.style.height = "120px";
+      var g = cv.getContext("2d");
+      g.setTransform(1, 0, 0, 1, 0, 0); g.scale(dpr, dpr);
+      g.clearRect(0, 0, w, hgt);
+      var x = 12, bw = w - 24, y0 = 34, bh = 26;
+      if (sum <= 0) {
+        g.fillStyle = "#94a3b8"; g.font = "11px -apple-system,'PingFang SC','Microsoft YaHei',sans-serif";
+        g.textAlign = "center"; g.fillText("填一下上面的分类金额，这里会画出结构条", w / 2, 60);
+      } else {
+        for (i = 0; i < arr.length; i++) {
+          var wPiece = bw * arr[i].v / sum;
+          g.fillStyle = arr[i].color; g.fillRect(x, y0, Math.max(0, wPiece), bh);
+          if (wPiece > 46) {
+            g.fillStyle = "#ffffff"; g.font = "11px -apple-system,'PingFang SC','Microsoft YaHei',sans-serif";
+            g.textAlign = "left"; g.fillText(fmt(arr[i].v / sum * 100) + "%", x + 6, y0 + 17);
+          }
+          x += wPiece;
+        }
+        var lx = 12;
+        g.font = "10.5px -apple-system,'PingFang SC','Microsoft YaHei',sans-serif"; g.textAlign = "left";
+        for (i = 0; i < arr.length; i++) {
+          g.fillStyle = arr[i].color; g.fillRect(lx, y0 + bh + 14, 8, 8);
+          g.fillStyle = "#475569"; g.fillText(arr[i].name.replace(/（.*?）/g, ""), lx + 12, y0 + bh + 22);
+          lx += g.measureText(arr[i].name.replace(/（.*?）/g, "")).width + 34;
+        }
+      }
+    }
+    if ($("mt-cat-note")) $("mt-cat-note").textContent = sum <= 0
+      ? "不填也能用，只是看不到支出结构。填了以后可以对比「住不超过 30%、教育 10–15%」这类经验区间。"
+      : "分类合计 " + money(sum) + " 元，" + (Math.abs(sum - outTotal) < 1 ? "和全年支出对得上。" : "和全年支出（" + money(outTotal) + " 元）差 " + money(Math.abs(sum - outTotal)) + " 元，可能有一次性支出没归类。")
+        + " 结构参考：住 25–30%、吃 15–20%、教育 10–15%、保险 5–10%、交通 5–10%。";
   }
 
   function drawnMonthlyChart(incomes, outs) {
@@ -8825,41 +8882,146 @@
     g.textAlign = "left"; g.fillText("短横线＝当月收入", pad - 4, 12);
   }
 
-  /* ---------------- 年度对比 ---------------- */
+  /* ---------------- 年度对比（最多 5 年） ---------------- */
   function calcYearCmp() {
-    var i1 = Math.max(0, num($("yc-inc1"), 0)), o1 = Math.max(0, num($("yc-out1"), 0)), a1 = Math.max(0, num($("yc-asset1"), 0));
-    var i2 = Math.max(0, num($("yc-inc2"), 0)), o2 = Math.max(0, num($("yc-out2"), 0)), a2 = Math.max(0, num($("yc-asset2"), 0));
-    var l1 = i1 - o1, l2 = i2 - o2;
-    var r1 = i1 > 0 ? l1 / i1 * 100 : 0, r2 = i2 > 0 ? l2 / i2 * 100 : 0;
-    var incG = i1 > 0 ? (i2 / i1 - 1) * 100 : 0, outG = o1 > 0 ? (o2 / o1 - 1) * 100 : 0;
-    var asG = a1 > 0 ? (a2 / a1 - 1) * 100 : 0, dA = a2 - a1;
-    var line = function (name, x1, x2, unit) {
-      var d = x2 - x1;
-      var showP = Math.abs(x1) >= Math.max(1000, Math.abs(x2) * 0.05);
-      var p = showP ? (x2 / x1 - 1) * 100 : 0;
-      return "<tr class=\"" + (d < 0 ? "c-warn" : "") + "\"><td class=\"tal\">" + name + "</td><td>" + money(x1) + (unit || "")
-        + "</td><td>" + money(x2) + (unit || "") + "</td><td>" + (d >= 0 ? "+" : "") + money(d) + (showP ? "（" + (p >= 0 ? "+" : "") + fmt(p) + "%）" : "") + "</td></tr>";
-    };
-    if ($("yc-body")) $("yc-body").innerHTML = line("收入", i1, i2) + line("支出", o1, o2) + line("结余", l1, l2) + line("资产", a1, a2);
+    var ys = [], i;
+    for (i = 1; i <= 5; i++) {
+      var inc = Math.max(0, num($("yc-inc" + i), 0));
+      var out = Math.max(0, num($("yc-out" + i), 0));
+      var ast = Math.max(0, num($("yc-asset" + i), 0));
+      if (inc <= 0 && out <= 0 && ast <= 0) continue;
+      ys.push({ n: i, inc: inc, out: out, asset: ast, left: inc - out, rate: inc > 0 ? (inc - out) / inc * 100 : 0 });
+    }
+    var h = "", j, totalLeft = 0;
+    for (j = 0; j < ys.length; j++) {
+      totalLeft += ys[j].left;
+      h += "<tr class=\"" + (ys[j].left < 0 ? "c-warn" : "") + "\"><td class=\"tal\">第 " + ys[j].n + " 年</td><td>" + money(ys[j].inc)
+        + "</td><td>" + money(ys[j].out) + "</td><td>" + money(ys[j].left) + "</td><td>" + fmt(ys[j].rate) + "%</td><td>" + money(ys[j].asset) + "</td></tr>";
+    }
+    if ($("yc-body")) $("yc-body").innerHTML = h;
+    var f = ys[0] || { inc: 0, out: 0, asset: 0, left: 0, rate: 0 }, L = ys[ys.length - 1] || f;
+    var periods = Math.max(1, ys.length - 1);
+    function cagr(v0, v1) { return v0 > 0 && v1 > 0 ? (Math.pow(v1 / v0, 1 / periods) - 1) * 100 : 0; }
+    var cInc = cagr(f.inc, L.inc), cOut = cagr(f.out, L.out), cAst = cagr(f.asset, L.asset);
+    var dA = L.asset - f.asset;
+    var incG = f.inc > 0 ? (L.inc / f.inc - 1) * 100 : 0, outG = f.out > 0 ? (L.out / f.out - 1) * 100 : 0;
+    var best = null, worst = null;
+    for (j = 0; j < ys.length; j++) {
+      if (!best || ys[j].rate > best.rate) best = ys[j];
+      if (!worst || ys[j].rate < worst.rate) worst = ys[j];
+    }
+    var gap = dA - totalLeft;
     if ($("yc-big")) $("yc-big").textContent = (dA >= 0 ? "+" : "") + money(dA);
+    if ($("yc-inccagr")) $("yc-inccagr").textContent = fmt(cInc) + "%";
+    if ($("yc-outcagr")) $("yc-outcagr").textContent = fmt(cOut) + "%";
+    if ($("yc-assetcagr")) $("yc-assetcagr").textContent = fmt(cAst) + "%";
     if ($("yc-incg")) $("yc-incg").textContent = (incG >= 0 ? "+" : "") + fmt(incG) + "%";
     if ($("yc-outg")) $("yc-outg").textContent = (outG >= 0 ? "+" : "") + fmt(outG) + "%";
-    if ($("yc-left")) $("yc-left").textContent = money(l1) + " → " + money(l2) + " 元";
-    if ($("yc-rate")) $("yc-rate").textContent = fmt(r1) + "% → " + fmt(r2) + "%";
-    if ($("yc-assetg")) $("yc-assetg").textContent = (asG >= 0 ? "+" : "") + fmt(asG) + "%";
-    var gap = dA - l2;
+    if ($("yc-left")) $("yc-left").textContent = money(f.left) + " → " + money(L.left) + " 元";
+    if ($("yc-rate")) $("yc-rate").textContent = fmt(f.rate) + "% → " + fmt(L.rate) + "%";
     if ($("yc-gap")) $("yc-gap").textContent = (gap >= 0 ? "资产多增 " : "资产少增 ") + money(Math.abs(gap)) + " 元";
+    if ($("yc-best")) $("yc-best").textContent = (best ? "第 " + best.n + " 年 " + fmt(best.rate) + "%" : "—")
+      + " / " + (worst ? "第 " + worst.n + " 年 " + fmt(worst.rate) + "%" : "—");
     var focus;
-    if (outG > incG + 0.5) focus = "支出涨得比收入快";
-    else if (r2 < r1) focus = "储蓄率在下滑";
+    if (cOut > cInc + 0.5) focus = "支出涨得比收入快";
+    else if (L.rate < f.rate) focus = "储蓄率在下滑";
     else if (gap < 0) focus = "钱没落在账上（有一次性大额支出）";
-    else focus = "收入和储蓄都在改善，保持";
+    else focus = "收入、储蓄、资产都在向上，保持";
     if ($("yc-focus")) $("yc-focus").textContent = focus;
     if ($("yc-note")) $("yc-note").textContent =
-      "收入涨 " + fmt(incG) + "%、支出涨 " + fmt(outG) + "%，" + (incG > outG ? "剪刀差是正的，这一年是往前走的。" : "支出跑得比收入快，多出来的钱没留住。")
-      + " 资产增加 " + money(dA) + " 元、结余 " + money(l2) + " 元，差 " + money(Math.abs(gap)) + " 元"
-      + (gap >= 0 ? "（差额来自理财收益、公积金或上年结转）。" : "（差额通常是这一年有大额一次性支出，或者资产市值缩水）。")
-      + " 提醒：自住房不算在这里，房贷月供只算支出、不算资产积累。";
+      "看 " + ys.length + " 年：" + (ys.length > 1 ? "收入年均 " + fmt(cInc) + "%、支出年均 " + fmt(cOut) + "%、资产年均 " + fmt(cAst) + "%。" : "只有一年数据，填满 2 年以上才能看趋势。")
+      + " 这几年累计结余 " + money(totalLeft) + " 元，资产实际增加 " + money(dA) + " 元，差 " + money(Math.abs(gap)) + " 元"
+      + (gap >= 0 ? "（来自理财收益、公积金或结转）。" : "（这一年有大额一次性支出，或资产市值缩水）。")
+      + " 提醒：自住房不在资产里，房贷月供只算支出。";
+    drawnYearChart(ys);
+  }
+
+  function drawnYearChart(ys) {
+    var cv = $("yc-chart");
+    if (!cv || !cv.getContext || !ys.length) return;
+    var dpr = Math.min(2, window.devicePixelRatio || 1);
+    var w = 720, hgt = 200;
+    cv.width = w * dpr; cv.height = hgt * dpr;
+    cv.style.width = "100%"; cv.style.height = "200px";
+    var g = cv.getContext("2d");
+    g.setTransform(1, 0, 0, 1, 0, 0); g.scale(dpr, dpr);
+    g.clearRect(0, 0, w, hgt);
+    var padL = 34, padR = 14, padT = 22, base = hgt - 24, max = 0, i;
+    for (i = 0; i < ys.length; i++) max = Math.max(max, ys[i].inc, ys[i].out, ys[i].asset);
+    if (max <= 0) max = 1;
+    var stepX = ys.length > 1 ? (w - padL - padR) / (ys.length - 1) : 0;
+    var series = [
+      { key: "inc", color: "#1e3a8a", label: "收入" },
+      { key: "out", color: "#f97316", label: "支出" },
+      { key: "asset", color: "#16a34a", label: "资产" }
+    ];
+    g.strokeStyle = "#e2e8f0"; g.lineWidth = 1;
+    for (i = 0; i <= 3; i++) {
+      var y = padT + (base - padT) * i / 3;
+      g.beginPath(); g.moveTo(padL, y); g.lineTo(w - padR, y); g.stroke();
+    }
+    for (i = 0; i < ys.length; i++) {
+      g.fillStyle = "#94a3b8"; g.font = "10px -apple-system,'PingFang SC','Microsoft YaHei',sans-serif";
+      g.textAlign = "center"; g.fillText("第" + ys[i].n + "年", padL + i * stepX, hgt - 8);
+    }
+    for (var sIdx = 0; sIdx < series.length; sIdx++) {
+      var s0 = series[sIdx];
+      g.strokeStyle = s0.color; g.lineWidth = 2; g.beginPath();
+      for (i = 0; i < ys.length; i++) {
+        var x = padL + i * stepX, yy = base - (ys[i][s0.key] / max) * (base - padT);
+        if (i === 0) g.moveTo(x, yy); else g.lineTo(x, yy);
+      }
+      g.stroke();
+      g.fillStyle = s0.color;
+      for (i = 0; i < ys.length; i++) {
+        var x2 = padL + i * stepX, y2 = base - (ys[i][s0.key] / max) * (base - padT);
+        g.beginPath(); g.arc(x2, y2, 2.6, 0, Math.PI * 2); g.fill();
+      }
+      g.font = "11px -apple-system,'PingFang SC','Microsoft YaHei',sans-serif"; g.textAlign = "left";
+      g.fillText(s0.label, padL + sIdx * 46, 12);
+    }
+  }
+
+  /* ---------------- 一页纸年度报告 ---------------- */
+  function calcYearReport() {
+    var inc = Math.max(0, num($("yrp-inc"), 0)), out = Math.max(0, num($("yrp-out"), 0));
+    var a0 = Math.max(0, num($("yrp-a0"), 0)), a1 = Math.max(0, num($("yrp-a1"), 0));
+    var cash = Math.max(0, num($("yrp-cash"), 0)), debt = Math.max(0, num($("yrp-debt"), 0));
+    var house = Math.max(0, num($("yrp-house"), 0));
+    var left = inc - out, rate = inc > 0 ? left / inc * 100 : 0;
+    var dA = a1 - a0, ag = a0 > 0 ? dA / a0 * 100 : 0;
+    var net = a1 + house - debt;
+    var lev = (a1 + house) > 0 ? debt / (a1 + house) * 100 : 0;
+    var monOut = out / 12, emg = monOut > 0 ? cash / monOut : 0;
+    var gap = dA - left;
+    if ($("yrp-big")) $("yrp-big").textContent = money(net);
+    if ($("yrp-rate")) $("yrp-rate").textContent = fmt(rate) + "%（结余 " + money(left) + " 元）";
+    if ($("yrp-ag")) $("yrp-ag").textContent = (ag >= 0 ? "+" : "") + fmt(ag) + "%（" + (dA >= 0 ? "+" : "") + money(dA) + " 元）";
+    if ($("yrp-gap")) $("yrp-gap").textContent = (Math.abs(gap) < 1 ? "对得上" : (gap > 0 ? "资产多增 " : "资产少增 ") + money(Math.abs(gap)) + " 元");
+    if ($("yrp-lev")) $("yrp-lev").textContent = fmt(lev) + "%";
+    if ($("yrp-emg")) $("yrp-emg").textContent = fmt(emg, 1) + " 个月";
+    var score = 0;
+    score += rate >= 30 ? 25 : rate >= 20 ? 20 : rate >= 10 ? 12 : rate >= 0 ? 5 : 0;
+    score += emg >= 6 ? 25 : emg >= 4 ? 18 : emg >= 2 ? 10 : 3;
+    score += lev < 30 ? 25 : lev < 50 ? 18 : lev < 70 ? 10 : 3;
+    score += ag >= 10 ? 25 : ag >= 5 ? 18 : ag >= 0 ? 10 : 2;
+    var grade = score >= 85 ? "A（很稳）" : score >= 70 ? "B（健康）" : score >= 55 ? "C（及格）" : "D（要调整）";
+    if ($("yrp-grade")) $("yrp-grade").textContent = grade + " · " + score + " 分";
+    var lines = [];
+    lines.push("这一年你的税后收入 " + money(inc) + " 元，花了 " + money(out) + " 元，"
+      + (left >= 0 ? "存下 " + money(left) + " 元，储蓄率 " + fmt(rate) + "%。" : "超支 " + money(-left) + " 元，储蓄率是负的，先把支出按住再谈投资。"));
+    lines.push("金融资产从 " + money(a0) + " 元到 " + money(a1) + " 元，"
+      + (dA >= 0 ? "增加 " + money(dA) + " 元（" + fmt(ag) + "%）" : "减少 " + money(-dA) + " 元")
+      + (Math.abs(gap) < 1 ? "，和这一年的结余正好对上。" : (gap > 0 ? "，比结余多出 " + money(gap) + " 元，多出来的是理财收益、公积金或上年结转。" : "，比结余少了 " + money(-gap) + " 元，可能有一次性大额支出，或者持仓市值跌了。")));
+    lines.push("手上的现金 " + money(cash) + " 元，按每月花 " + money(monOut) + " 元算，能撑 " + fmt(emg, 1) + " 个月，"
+      + (emg >= 6 ? "应急金已经够了。" : emg >= 3 ? "离 6 个月的安全线还差 " + money(monOut * 6 - cash) + " 元，建议先补这一块。" : "偏薄，遇到失业或大病会很被动，优先级排在投资前面。"));
+    lines.push("负债 " + money(debt) + " 元，负债率 " + fmt(lev) + "%"
+      + (lev < 30 ? "，属于很健康的水平。" : lev < 50 ? "，在可接受范围，但别再加大杠杆。" : lev < 70 ? "，偏高了，新增负债要谨慎。" : "，已经很高，任何收入中断都会立刻变成危机。"));
+    var next = rate >= 30 && emg >= 6 ? "下一年可以把多出来的钱按「应急金 → 保险 → 指数基金/长期定投」的顺序放。" : "下一年的第一件事是把储蓄率提到 20% 以上、应急金补到 6 个月。";
+    lines.push("净资产（含自住房）" + money(net) + " 元。综合评级 " + grade + "。" + next);
+    if ($("yrp-text")) $("yrp-text").innerHTML = lines.map(function (t) { return "<p>" + t + "</p>"; }).join("");
+    if ($("yrp-note")) $("yrp-note").textContent = "储蓄率 " + (rate >= 20 ? "≥20% 算及格" : "低于 20%，偏紧")
+      + "；应急金 6 个月是常用安全线；负债率 50% 是多数家庭的警戒线。自住房计入净资产但不变现，所以别把它当现金流。";
   }
 
   var calcMap = {
@@ -8911,7 +9073,7 @@
     salesallow: calcSalesAllow, lease: calcLease, gpmix: calcGpmix, vatchoose: calcVatChoose,
     datemath: calcDatemath, pct3: calcPct3, xlhelp: calcXlHelp, csvrecon: calcCsvRecon,
     contractperf: calcContractPerf, projrev: calcProjRev, creditpolicy: calcCreditPolicy, rateadj: calcRateAdj,
-    bundle: calcBundle, monthly: calcMonthly, yearcmp: calcYearCmp
+    bundle: calcBundle, monthly: calcMonthly, yearcmp: calcYearCmp, yearreport: calcYearReport
   };
 
   var curCat = "hot", curSub = "";
@@ -9228,9 +9390,11 @@
     "hcx-price", "hcx-dp", "hcx-deed", "hcx-agent", "hcx-fund", "hcx-odd",
     "hcx-deco", "hcx-furn", "hcx-move", "hcx-need", "hcx-cash",
     "bxsp-inc", "bxsp-house", "bxsp-edu", "bxsp-ins", "bxsp-car", "bxsp-food", "bxsp-other", "bxsp-goal", "mt-inc", "mt-m1", "mt-m2", "mt-m3", "mt-m4", "mt-m5", "mt-m6", "mt-m7", "mt-m8", "mt-m9", "mt-m10", "mt-m11", "mt-m12",
-    "mt-mode", "mt-i1", "mt-i2", "mt-i3", "mt-i4", "mt-i5", "mt-i6", "mt-i7", "mt-i8", "mt-i9", "mt-i10", "mt-i11", "mt-i12", "bxsp-save", "yc-inc1", "yc-out1", "yc-asset1", "yc-inc2", "yc-out2", "yc-asset2"
+    "mt-mode", "mt-i1", "mt-i2", "mt-i3", "mt-i4", "mt-i5", "mt-i6", "mt-i7", "mt-i8", "mt-i9", "mt-i10", "mt-i11", "mt-i12", "bxsp-save", "yc-inc1", "yc-out1", "yc-asset1", "yc-inc2", "yc-out2", "yc-asset2",
+    "yc-inc3", "yc-out3", "yc-asset3", "yc-inc4", "yc-out4", "yc-asset4", "yc-inc5", "yc-out5", "yc-asset5", "bxsp-inc2", "mt-c1", "mt-c2", "mt-c3", "mt-c4", "mt-c5", "mt-c6",
+    "yrp-inc", "yrp-out", "yrp-a0", "yrp-a1", "yrp-cash", "yrp-debt", "yrp-house"
 ];
-  var KEY = "finance-calc-v48";
+  var KEY = "finance-calc-v50";
   var CAT_KEY = "finance-calc-cat";
 
   /* ---------------- 现金流月历 ---------------- */
@@ -9976,6 +10140,13 @@
     document.body.appendChild(a2); a2.click(); a2.remove();
     setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
     flash(this, "已导出 CSV");
+  });
+
+  tap("yrp-print", "click", function () {
+    var old = document.title;
+    document.title = "财务计算器-年度财务报告";
+    setTimeout(function () { window.print(); }, 60);
+    setTimeout(function () { document.title = old; }, 1500);
   });
 
   tap("rp-pdf", "click", function () {

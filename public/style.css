@@ -328,3 +328,7 @@ html[data-theme="dark"] .cmpbox{background:#111a28}
 }
 .tag{display:inline-block;font-size:11.5px;padding:1px 7px;border-radius:999px;background:#eef2ff;color:#1e3a8a;vertical-align:2px}
 html[data-theme="dark"] .tag{background:#1d2b45;color:#c7d2fe}
+.yrptext p{margin:0 0 9px;font-size:14px;line-height:1.72;color:#1e293b}
+.yrptext p:last-child{margin-bottom:0}
+html[data-theme="dark"] .yrptext p{color:#d7dce6}
+@media print{.yrptext p{font-size:12.5px;line-height:1.6}}
