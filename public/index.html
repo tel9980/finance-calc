@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>财务计算器 · 存款 贷款 个税 汇算 房贷 社保 退休金 教育金</title>
-<meta name="description" content="免费的财务计算器（35 个模块）：存款利息、贷款月供与还款计划、组合贷、提前还款省息、复利与定投、攒钱目标、分期真实年化、年化收益、通胀购买力、个税与到手工资、租房还是买房、信用卡循环利息、汇率与单位换算、公积金可贷额度、利率调整后月供、二手房交易税费、AA 分摊、退休金测算、卖房换房、公积金月冲年冲、多币种折算、提前还款 vs 理财、教育金、保险保额、买车 vs 打车、年终奖拆分、专项附加扣除、存单阶梯、租售比、年度汇算退税、家庭资产负债、灵活就业社保、社保少缴核查。纯前端计算，不联网、不上传数据。">
+<title>财务计算器 · 存款 贷款 房贷 个税 社保 保单体检 定投 到期日历</title>
+<meta name="description" content="免费的财务计算器（39 个模块）：存款利息、贷款月供与还款计划、组合贷、提前还款省息、复利与定投、攒钱目标、分期真实年化、年化收益、通胀购买力、个税与到手工资、租房还是买房、信用卡循环利息、汇率与单位换算、公积金可贷额度、利率调整后月供、二手房交易税费、AA 分摊、退休金测算、卖房换房、公积金月冲年冲、多币种折算、提前还款 vs 理财、教育金、保险保额、买车 vs 打车、年终奖拆分、专项附加扣除、存单阶梯、租售比、年度汇算退税、家庭资产负债、灵活就业社保、社保少缴核查、三种还法对撞、定投 vs 一次性、保单体检、到期日历。纯前端计算，不联网、不上传数据。">
 <meta name="theme-color" content="#1e3a8a">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231e3a8a'/%3E%3Ctext x='16' y='23' font-size='17' text-anchor='middle' fill='%23fff' font-family='sans-serif'%3E%C2%A5%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="./style.css">
@@ -17,7 +17,7 @@
       <span class="mark">¥</span>
       <div>
         <h1>财务计算器</h1>
-        <p>存款 · 贷款 · 提前还款 · 复利 · 攒钱 · 分期 · 个税 · 汇算退税 · 年终奖 · 扣除 · 到手工资 · 社保 · 退休金 · 教育金 · 保险 · 租买 · 租售比 · 信用卡 · 公积金 · 换房 · AA · 多币种 · 存单阶梯 · 资产负债</p>
+        <p>存款 · 贷款 · 提前还款 · 复利 · 攒钱 · 分期 · 个税 · 汇算退税 · 年终奖 · 扣除 · 到手工资 · 社保 · 退休金 · 教育金 · 保险 · 租买 · 租售比 · 信用卡 · 公积金 · 换房 · AA · 多币种 · 存单阶梯 · 资产负债 · 还法对撞 · 保单体检 · 到期日历</p>
       </div>
     </div>
     <nav class="tabs" id="tabs" role="tablist">
@@ -56,6 +56,10 @@
       <button class="tab" data-tab="balance" role="tab">家庭资产负债</button>
       <button class="tab" data-tab="selfins" role="tab">灵活就业社保</button>
       <button class="tab" data-tab="underpay" role="tab">社保少缴核查</button>
+      <button class="tab" data-tab="loanways" role="tab">三种还法对撞</button>
+      <button class="tab" data-tab="dca" role="tab">定投 vs 一次性</button>
+      <button class="tab" data-tab="checkup" role="tab">保单体检</button>
+      <button class="tab" data-tab="calendar" role="tab">到期日历</button>
     </nav>
   </div>
 </header>
@@ -2043,6 +2047,229 @@
           <li><span>10 年少缴合计</span><b id="up-ten">—</b></li>
         </ul>
         <p class="hint" id="up-note"></p>
+      </div>
+    </div>
+  </section>
+
+
+  <section class="panel" id="panel-loanways">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f">
+          <span>剩余贷款本金（元）</span>
+          <input id="lw-balance" type="number" inputmode="decimal" min="0" step="10000" value="800000">
+        </label>
+        <label class="f">
+          <span>当前年利率（%）</span>
+          <input id="lw-rate" type="number" inputmode="decimal" min="0" step="0.05" value="3.9">
+        </label>
+        <label class="f">
+          <span>剩余还款期数（月）</span>
+          <input id="lw-months" type="number" inputmode="decimal" min="1" step="12" value="240">
+        </label>
+        <label class="f">
+          <span>这次提前还多少（元）</span>
+          <input id="lw-lump" type="number" inputmode="decimal" min="0" step="10000" value="200000">
+        </label>
+        <label class="f">
+          <span>家庭月收入（元，可选）</span>
+          <input id="lw-income" type="number" inputmode="decimal" min="0" step="1000" value="20000">
+        </label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big">
+          <span class="k">缩短期限能省的利息</span>
+          <strong id="lw-saveA">—</strong>
+          <span class="unit">元</span>
+        </div>
+        <ul class="kv">
+          <li><span>原来月供 / 剩余期数</span><b id="lw-base">—</b></li>
+          <li><span>原来还要付的利息</span><b id="lw-baseint">—</b></li>
+          <li><span>A 缩期限：还完只需</span><b id="lw-monthsA">—</b></li>
+          <li><span>A 缩期限：省利息</span><b id="lw-intA">—</b></li>
+          <li><span>B 减月供：新月供</span><b id="lw-payB">—</b></li>
+          <li><span>B 减月供：省利息</span><b id="lw-intB">—</b></li>
+          <li><span>A 比 B 多省</span><b id="lw-diff">—</b></li>
+          <li><span>月供占家庭收入（A / B）</span><b id="lw-ratio">—</b></li>
+          <li><span>每 10 万元提前还款省息（A / B）</span><b id="lw-per">—</b></li>
+        </ul>
+        <p class="hint" id="lw-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-dca">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f">
+          <span>总金额（元）</span>
+          <input id="dc-amount" type="number" inputmode="decimal" min="0" step="10000" value="120000">
+        </label>
+        <label class="f">
+          <span>分几个月投完（月）</span>
+          <input id="dc-months" type="number" inputmode="decimal" min="1" step="1" value="12">
+        </label>
+        <label class="f">
+          <span>预期年化收益（%，期望值）</span>
+          <input id="dc-return" type="number" inputmode="decimal" step="0.5" value="6">
+        </label>
+        <label class="f">
+          <span>年化波动率（%，股基约 15–20）</span>
+          <input id="dc-vol" type="number" inputmode="decimal" min="0" step="1" value="18">
+        </label>
+        <label class="f">
+          <span>投完后继续持有（年）</span>
+          <input id="dc-hold" type="number" inputmode="decimal" min="0" step="1" value="5">
+        </label>
+        <label class="f">
+          <span>未投入资金收益（年化 %，货币基金）</span>
+          <input id="dc-cash" type="number" inputmode="decimal" min="0" step="0.1" value="2">
+        </label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big">
+          <span class="k">定投的期望期末值</span>
+          <strong id="dc-dca">—</strong>
+          <span class="unit">元</span>
+        </div>
+        <ul class="kv">
+          <li><span>一次性买入的期望期末值</span><b id="dc-lump">—</b></li>
+          <li><span>期望差（一次性 − 定投）</span><b id="dc-gap">—</b></li>
+          <li><span>模拟中一次性胜出的概率</span><b id="dc-win">—</b></li>
+          <li><span>定投中位数</span><b id="dc-dcaMed">—</b></li>
+          <li><span>一次性中位数</span><b id="dc-lumpMed">—</b></li>
+          <li><span>定投最差 5% 情形</span><b id="dc-dcaBad">—</b></li>
+          <li><span>一次性最差 5% 情形</span><b id="dc-lumpBad">—</b></li>
+          <li><span>总投入 / 持有总月数</span><b id="dc-info">—</b></li>
+        </ul>
+        <p class="hint" id="dc-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-checkup">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f">
+          <span>家庭年收入（元，税后）</span>
+          <input id="ck-income" type="number" inputmode="decimal" min="0" step="10000" value="300000">
+        </label>
+        <label class="f">
+          <span>家庭年支出（元）</span>
+          <input id="ck-expense" type="number" inputmode="decimal" min="0" step="10000" value="120000">
+        </label>
+        <label class="f">
+          <span>负债余额（元，房贷车贷等）</span>
+          <input id="ck-debt" type="number" inputmode="decimal" min="0" step="10000" value="800000">
+        </label>
+        <label class="f">
+          <span>子女教育金目标（元）</span>
+          <input id="ck-edu" type="number" inputmode="decimal" min="0" step="10000" value="500000">
+        </label>
+        <label class="f">
+          <span>可变现资产（元，存款基金股票）</span>
+          <input id="ck-assets" type="number" inputmode="decimal" min="0" step="10000" value="300000">
+        </label>
+        <label class="f">
+          <span>现有寿险保额（元）</span>
+          <input id="ck-haveLife" type="number" inputmode="decimal" min="0" step="10000" value="500000">
+        </label>
+        <label class="f">
+          <span>现有重疾保额（元）</span>
+          <input id="ck-haveCI" type="number" inputmode="decimal" min="0" step="10000" value="300000">
+        </label>
+        <label class="f">
+          <span>现有意外保额（元）</span>
+          <input id="ck-haveAcc" type="number" inputmode="decimal" min="0" step="10000" value="500000">
+        </label>
+        <label class="f">
+          <span>现在一年交多少保费（元）</span>
+          <input id="ck-premium" type="number" inputmode="decimal" min="0" step="1000" value="8000">
+        </label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big">
+          <span class="k">寿险保额缺口</span>
+          <strong id="ck-lifeGap">—</strong>
+          <span class="unit">元</span>
+        </div>
+        <ul class="kv">
+          <li><span>应配寿险（责任法 / 收入倍数法取高）</span><b id="ck-lifeNeed">—</b></li>
+          <li><span>现有寿险</span><b id="ck-lifeHave">—</b></li>
+          <li><span>应配重疾（3–5 倍年收入）</span><b id="ck-ciNeed">—</b></li>
+          <li><span>重疾缺口</span><b id="ck-ciGap">—</b></li>
+          <li><span>应配意外（约 10 倍年收入）</span><b id="ck-accNeed">—</b></li>
+          <li><span>意外缺口</span><b id="ck-accGap">—</b></li>
+          <li><span>寿险充足度</span><b id="ck-ratio">—</b></li>
+          <li><span>年保费占收入</span><b id="ck-cost">—</b></li>
+        </ul>
+        <p class="hint" id="ck-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-calendar">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f">
+          <span>总金额（元）</span>
+          <input id="cl-total" type="number" inputmode="decimal" min="0" step="10000" value="120000">
+        </label>
+        <label class="f">
+          <span>分几笔（笔）</span>
+          <input id="cl-count" type="number" inputmode="decimal" min="1" max="36" step="1" value="12">
+        </label>
+        <label class="f">
+          <span>每笔间隔（月）</span>
+          <input id="cl-gap" type="number" inputmode="decimal" min="1" step="1" value="1">
+        </label>
+        <label class="f">
+          <span>每笔期限（月）</span>
+          <input id="cl-term" type="number" inputmode="decimal" min="1" step="1" value="12">
+        </label>
+        <label class="f">
+          <span>年利率（%）</span>
+          <input id="cl-rate" type="number" inputmode="decimal" min="0" step="0.05" value="1.9">
+        </label>
+        <label class="f">
+          <span>首笔起存日</span>
+          <input id="cl-start" type="date" value="">
+        </label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big">
+          <span class="k">每笔到期本息</span>
+          <strong id="cl-each">—</strong>
+          <span class="unit">元</span>
+        </div>
+        <ul class="kv">
+          <li><span>每笔本金</span><b id="cl-per">—</b></li>
+          <li><span>首笔到期日</span><b id="cl-first">—</b></li>
+          <li><span>末笔到期日</span><b id="cl-last">—</b></li>
+          <li><span>相邻两笔到期间隔</span><b id="cl-gapdays">—</b></li>
+          <li><span>全部到期覆盖时长</span><b id="cl-span">—</b></li>
+          <li><span>总利息</span><b id="cl-int">—</b></li>
+          <li><span>到期本息合计</span><b id="cl-sum">—</b></li>
+        </ul>
+        <div class="tablebox">
+          <table>
+            <thead><tr><th>期次</th><th>起存日</th><th>到期日</th><th>本金</th><th>利息</th><th>到期本息</th></tr></thead>
+            <tbody id="cl-body"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="cl-note"></p>
       </div>
     </div>
   </section>

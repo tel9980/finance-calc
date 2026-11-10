@@ -58,6 +58,7 @@ button{font:inherit;cursor:pointer}
 .panel{display:none}
 .panel.is-on{display:block}
 .cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+.cols > .card{min-width:0}
 @media (max-width:820px){.cols{grid-template-columns:1fr}}
 
 .card{
@@ -70,12 +71,12 @@ button{font:inherit;cursor:pointer}
 /* ---------- fields ---------- */
 .f{display:block;margin-bottom:14px}
 .f > span:first-child,.f > .row + span{display:block;font-size:13px;color:var(--ink2);margin-bottom:6px}
-.f input[type=number],.f select{
+.f input[type=number],.f input[type=date],.f select{
   width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;
   background:#fbfcfe;font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums;
   transition:border-color .15s,box-shadow .15s;
 }
-.f input[type=number]:focus,.f select:focus{
+.f input[type=number]:focus,.f input[type=date]:focus,.f select:focus{
   outline:none;border-color:var(--accent2);box-shadow:0 0 0 3px rgba(37,99,235,.14);background:#fff
 }
 .f em{display:block;font-style:normal;font-size:12px;color:var(--ink3);margin-top:5px}

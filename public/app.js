@@ -1787,6 +1787,263 @@
       + " 要求补缴社保一般不属劳动仲裁受案范围，走稽核更有效。提醒一句：举报后公司通常会知道，先想好自己的退路。";
   }
 
+
+  /* ---------------- 三种还法对撞 ---------------- */
+  function calcLoanWays() {
+    var P = Math.max(0, num($("lw-balance"), 0));
+    var i = Math.max(0, num($("lw-rate"), 0)) / 100 / 12;
+    var n = months(num($("lw-months"), 0));
+    var L = Math.min(Math.max(0, num($("lw-lump"), 0)), P);
+    var income = Math.max(0, num($("lw-income"), 0));
+
+    var pay = annuityPayment(P, i, n);
+    var baseInt = pay * n - P;
+
+    /* A：月供不变，缩短期限 */
+    var bal = P - L, k = 0, intA = 0, lastA = pay;
+    while (bal > 0.005 && k < 1200) {
+      var ip = bal * i;
+      var pr = pay - ip;
+      if (pr >= bal) { pr = bal; lastA = ip + pr; }
+      intA += ip; bal -= pr; k++;
+    }
+    /* B：期限不变，减少月供 */
+    var payB = annuityPayment(P - L, i, n);
+    var intB = payB * n - (P - L);
+
+    var saveA = Math.max(0, baseInt - intA);
+    var saveB = Math.max(0, baseInt - intB);
+    var diff = saveA - saveB;
+
+    $("lw-saveA").textContent = money(saveA);
+    $("lw-base").textContent = money(pay) + " / " + n + " 期";
+    $("lw-baseint").textContent = yuan(baseInt);
+    $("lw-monthsA").textContent = k + " 期（少 " + Math.max(0, n - k) + " 期，约 " + fmt(Math.max(0, n - k) / 12, 1) + " 年）";
+    $("lw-intA").textContent = yuan(saveA);
+    $("lw-payB").textContent = yuan(payB) + "（每月少 " + money(pay - payB) + "）";
+    $("lw-intB").textContent = yuan(saveB);
+    $("lw-diff").textContent = yuan(diff);
+    $("lw-ratio").textContent = income > 0
+      ? pct(pay / income, 1) + " / " + pct(payB / income, 1)
+      : "填入月收入后显示";
+    if (L > 0) {
+      var unit = L / 100000;
+      $("lw-per").textContent = money(saveA / unit) + " / " + money(saveB / unit);
+    } else {
+      $("lw-per").textContent = "先填提前还款金额";
+    }
+
+    $("lw-note").textContent = L <= 0
+      ? "先填「这次提前还多少」，再比较两种还法。"
+      : "这 " + money(L) + " 元提前还进去，银行给两种选择："
+        + " A 月供不变、期限缩短，还完只需 " + k + " 期（少 " + Math.max(0, n - k) + " 期），省利息 " + money(saveA) + " 元；"
+        + " B 期限不变、月供降到 " + money(payB) + " 元（每月少还 " + money(pay - payB) + "），省利息 " + money(saveB) + " 元。"
+        + " 同样的钱，A 比 B 多省 " + money(diff) + " 元——因为 A 让你更早还完，少背了 " + Math.max(0, n - k) + " 期的利息。"
+        + " 换算成每 10 万元：A 省 " + money(L > 0 ? saveA / (L / 100000) : 0) + "，B 省 " + money(L > 0 ? saveB / (L / 100000) : 0) + "。"
+        + " 三个坑：① 银行柜面默认给的是 B（对它更有利，利息收得更久），要主动说「缩短期限、月供不变」；"
+        + "② 多数银行还款满 1 年后免违约金、有的一年内收 1% 上下，办之前先问清；提前还款通常要求是万元的整数倍、部分银行每年限次数；"
+        + "③ 组合贷先还商贷（利率高那头）。"
+        + " 反方向也要算一遍：如果这笔钱的贷款利率低于你能稳定拿到的理财收益，那提前还款未必划算——上面「提前还款 vs 理财」那个标签同时算了这一面。";
+  }
+
+  /* ---------------- 定投 vs 一次性 ---------------- */
+  function gauss() {
+    var u = 0, v = 0;
+    while (u === 0) u = Math.random();
+    while (v === 0) v = Math.random();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+
+  function percentile(arr, p) {
+    if (!arr.length) return 0;
+    var a = arr.slice().sort(function (x, y) { return x - y; });
+    var idx = (a.length - 1) * p;
+    var lo = Math.floor(idx), hi = Math.ceil(idx);
+    if (lo === hi) return a[lo];
+    return a[lo] + (a[hi] - a[lo]) * (idx - lo);
+  }
+
+  function calcDCA() {
+    var M = Math.max(0, num($("dc-amount"), 0));
+    var n = Math.max(1, months(num($("dc-months"), 12)));
+    var mu = Math.max(-0.99, num($("dc-return"), 6) / 100);
+    var sig = Math.max(0, Math.min(2, num($("dc-vol"), 18) / 100));
+    var c = Math.max(0, num($("dc-cash"), 2) / 100);
+    var hold = Math.max(0, num($("dc-hold"), 0));
+    var T = n + Math.round(hold * 12);
+
+    var expLump = M * Math.pow(1 + mu, T / 12);
+    var expDCA = 0, part = M / n;
+    for (var q = 0; q < n && q < T; q++) {
+      expDCA += part * Math.pow(1 + c, q / 12) * Math.pow(1 + mu, (T - q) / 12);
+    }
+
+    var s = sig / Math.sqrt(12);
+    var m = Math.log(1 + mu) / 12 - s * s / 2;
+    var trials = 2000, wins = 0, lumpVals = [], dcaVals = [];
+    for (var t = 0; t < trials; t++) {
+      var G = new Array(T + 1), cum = 1;
+      G[T] = 1;
+      for (var j = T - 1; j >= 0; j--) {
+        cum *= Math.exp(m + s * gauss());
+        G[j] = cum;
+      }
+      var lump = M * G[0], dca = 0;
+      for (var q2 = 0; q2 < n && q2 < T; q2++) dca += part * Math.pow(1 + c, q2 / 12) * G[q2];
+      lumpVals.push(lump); dcaVals.push(dca);
+      if (lump > dca) wins++;
+    }
+
+    var winRate = wins / trials;
+    $("dc-dca").textContent = money(expDCA);
+    $("dc-lump").textContent = yuan(expLump);
+    $("dc-gap").textContent = yuan(expLump - expDCA);
+    $("dc-win").textContent = pct(winRate, 1);
+    $("dc-dcaMed").textContent = yuan(percentile(dcaVals, 0.5));
+    $("dc-lumpMed").textContent = yuan(percentile(lumpVals, 0.5));
+    $("dc-dcaBad").textContent = yuan(percentile(dcaVals, 0.05));
+    $("dc-lumpBad").textContent = yuan(percentile(lumpVals, 0.05));
+    $("dc-info").textContent = money(M) + " 元 / " + T + " 个月";
+
+    var badGap = percentile(dcaVals, 0.05) - percentile(lumpVals, 0.05);
+    $("dc-note").textContent = "同样 " + money(M) + " 元，" + n + " 个月内分批投完，之后继续持有 " + fmt(hold, 0) + " 年："
+      + " 定投期望 " + money(expDCA) + " 元，一次性期望 " + money(expLump) + " 元，一次性高出 " + money(expLump - expDCA) + " 元。"
+      + " 这不是 bug：钱越早入市，享受上涨的时间越长，定投平均有一半的钱晚了半年进场。"
+      + " 2000 次蒙特卡洛模拟里，一次性有 " + pct(winRate, 1) + " 的概率跑赢定投——期望值和胜率都偏向一次性。"
+      + " 定投换来的不是更高收益，而是更窄的结果分布：看最差 5% 的情形，一次性只剩 " + money(percentile(lumpVals, 0.05))
+      + " 元，定投有 " + money(percentile(dcaVals, 0.05)) + " 元（高 " + money(badGap) + "），"
+      + " 因为定投的后续买入是在跌下来之后发生的。"
+      + " 所以：手里已有一大笔钱、且能承受 30% 以上浮亏的，一次性（或 3–6 个月分批）更合理；靠每月工资结余攒钱的，定投本来就是唯一选项。"
+      + " 参数提醒：预期收益填的是长期年化期望（股基历史 6–8% 是常见假设），波动率 18% 约等于沪深 300 量级、债基 3–5%。"
+      + " 两个可以自己验证的地方：① 把「未投入资金收益」填 0、预期收益也填 0，两边期望值会完全相等"
+      + "——说明零漂移下波动本身不创造收益，这里定投期望高出的那部分全部来自没投出去的钱赚了货基利息；"
+      + " ② 把波动率也填 0，两边退化为纯复利，一次性必然更高。所以别把定投当「提高收益」的工具，它买的是纪律和更窄的下限。";
+  }
+
+  /* ---------------- 保单体检 ---------------- */
+  function calcCheckup() {
+    var inc = Math.max(0, num($("ck-income"), 0));
+    var exp = Math.max(0, num($("ck-expense"), 0));
+    var debt = Math.max(0, num($("ck-debt"), 0));
+    var edu = Math.max(0, num($("ck-edu"), 0));
+    var assets = Math.max(0, num($("ck-assets"), 0));
+    var haveLife = Math.max(0, num($("ck-haveLife"), 0));
+    var haveCI = Math.max(0, num($("ck-haveCI"), 0));
+    var haveAcc = Math.max(0, num($("ck-haveAcc"), 0));
+    var premium = Math.max(0, num($("ck-premium"), 0));
+
+    var needDuty = debt + edu + exp * 10 - assets;
+    var needMult = inc * 10;
+    var lifeNeed = Math.max(0, Math.max(needDuty, needMult));
+    var lifeGap = Math.max(0, lifeNeed - haveLife);
+    var ciLow = inc * 3, ciHigh = inc * 5;
+    var ciGap = Math.max(0, ciLow - haveCI);
+    var accNeed = inc * 10;
+    var accGap = Math.max(0, accNeed - haveAcc);
+
+    $("ck-lifeGap").textContent = money(lifeGap);
+    $("ck-lifeNeed").textContent = yuan(lifeNeed) + "（责任法 " + money(Math.max(0, needDuty)) + " / 收入倍数法 " + money(needMult) + "）";
+    $("ck-lifeHave").textContent = yuan(haveLife);
+    $("ck-ciNeed").textContent = money(ciLow) + " – " + money(ciHigh) + " 元";
+    $("ck-ciGap").textContent = ciGap > 0 ? yuan(ciGap) + "（按 3 倍算）" : "已够（按 3 倍算）";
+    $("ck-accNeed").textContent = yuan(accNeed);
+    $("ck-accGap").textContent = accGap > 0 ? yuan(accGap) : "已够";
+    $("ck-ratio").textContent = lifeNeed > 0 ? pct(Math.min(1.5, haveLife / lifeNeed), 0) : "—";
+    $("ck-cost").textContent = inc > 0 ? pct(premium / inc, 1) + "（建议 5%–10%，纯保障可更低）" : "—";
+
+    $("ck-note").textContent = "家庭年收入 " + money(inc) + "、年支出 " + money(exp) + "。寿险按两种算法取高："
+      + " 责任法 = 负债 " + money(debt) + " + 教育金 " + money(edu) + " + 10 年生活费 " + money(exp * 10) + " − 可变现资产 " + money(assets)
+      + " = " + money(Math.max(0, needDuty)) + "；收入倍数法 = 年收入 × 10 = " + money(needMult) + "，所以应配 " + money(lifeNeed) + "，"
+      + " 现有 " + money(haveLife) + "，缺口 " + money(lifeGap) + " 元。"
+      + " 重疾按 3–5 倍年收入（" + money(ciLow) + "–" + money(ciHigh) + "），因为重疾不是「治病的钱」而是「3–5 年不能拼命工作时的生活费+康复费」，"
+      + " 医疗费由百万医疗险报销，两者别混。意外险保额对齐寿险（约 10 倍年收入），一年几百块就能买到上百万。"
+      + " 现在一年保费 " + money(premium) + "，占收入 " + (inc > 0 ? pct(premium / inc, 1) : "—") + "，家庭总保费控制在 5%–10% 是常见区间，纯保障型能压到 3% 以内。"
+      + " 配置顺序（预算有限就按这个砍）：社保打底 → 百万医疗（几百块、先看健康告知）→ 意外（一年期）→ 定期寿险（保到 60 岁，保额按上面的缺口）→ 重疾 → 教育金/养老金。"
+      + " 三条铁律：先保大人后保小孩；买纯保障、别买「有病赔钱没病返本」的返还型（同样的钱保额只有三分之一）；健康告知一定如实写，"
+      + " 两年不可抗辩条款不等于可以隐瞒。房子、存款、公积金、年金保险都不算「保额」，只算可变现资产，别重复计算。";
+  }
+
+  /* ---------------- 到期日历 ---------------- */
+  function parseDate(str) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec((str || "").trim());
+    if (!m) return null;
+    var d = new Date(+m[1], +m[2] - 1, +m[3]);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  function addMonths(d, monthsToAdd) {
+    var y = d.getFullYear(), mo = d.getMonth() + monthsToAdd, day = d.getDate();
+    var first = new Date(y, mo, 1);
+    var lastDay = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
+    return new Date(first.getFullYear(), first.getMonth(), Math.min(day, lastDay));
+  }
+
+  function fmtDate(d) {
+    var mm = d.getMonth() + 1, dd = d.getDate();
+    return d.getFullYear() + "-" + (mm < 10 ? "0" : "") + mm + "-" + (dd < 10 ? "0" : "") + dd;
+  }
+
+  function calcCalendar() {
+    var total = Math.max(0, num($("cl-total"), 0));
+    var cnt = Math.max(1, Math.min(36, Math.round(num($("cl-count"), 12))));
+    var gap = Math.max(1, months(num($("cl-gap"), 1)));
+    var term = Math.max(1, months(num($("cl-term"), 12)));
+    var rate = Math.max(0, num($("cl-rate"), 0)) / 100;
+    var start = parseDate($("cl-start").value);
+    if (!start) {
+      start = new Date();
+      start = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+      $("cl-start").value = fmtDate(start);
+      save();
+    }
+
+    var per = total / cnt;
+    var interest = per * rate * term / 12;
+
+    var rows = [], body = $("cl-body");
+    body.innerHTML = "";
+    var firstDue = null, lastDue = null;
+    for (var t = 0; t < cnt; t++) {
+      var from = addMonths(start, t * gap);
+      var due = addMonths(from, term);
+      if (t === 0) firstDue = due;
+      lastDue = due;
+      var cells = [(t + 1) + "", fmtDate(from), fmtDate(due), money(per), money(interest), money(per + interest)];
+      var tr = document.createElement("tr");
+      for (var j = 0; j < cells.length; j++) {
+        var td = document.createElement("td");
+        td.textContent = cells[j];
+        tr.appendChild(td);
+      }
+      body.appendChild(tr);
+    }
+
+    var sumInt = interest * cnt;
+    var gapDays = 0;
+    if (cnt > 1) gapDays = Math.round((addMonths(start, gap) - start) / 86400000);
+    var spanDays = Math.round((lastDue - firstDue) / 86400000);
+
+    $("cl-each").textContent = money(per + interest);
+    $("cl-per").textContent = yuan(per);
+    $("cl-first").textContent = fmtDate(firstDue);
+    $("cl-last").textContent = fmtDate(lastDue);
+    $("cl-gapdays").textContent = cnt > 1 ? gapDays + " 天（" + gap + " 个月）" : "只有一笔";
+    $("cl-span").textContent = cnt > 1 ? spanDays + " 天（约 " + fmt(spanDays / 30.44, 1) + " 个月）" : "—";
+    $("cl-int").textContent = yuan(sumInt);
+    $("cl-sum").textContent = yuan(total + sumInt);
+
+    $("cl-note").textContent = "把 " + money(total) + " 拆成 " + cnt + " 笔各 " + money(per) + "，从 " + fmtDate(start)
+      + " 起每 " + gap + " 个月存一笔、每笔存 " + term + " 个月：第一笔 " + fmtDate(firstDue) + " 到期，最后一笔 " + fmtDate(lastDue)
+      + " 到期，此后每 " + (cnt > 1 ? gapDays + " 天" : "—") + "就有一笔钱到期。"
+      + " 每笔利息 " + money(interest) + "，全部到期利息合计 " + money(sumInt) + "，到期本息 " + money(total + sumInt) + " 元。"
+      + " 这么排的意义：既不是把钱全压在一笔定期上（急用就得提前支取、按活期算），也不会出现「好几笔同时到期、到期日全挤在一个月」"
+      + "——那样再投资时点集中，一旦赶上利率下行就一起被压价。均匀错开之后，每隔一段时间都有一笔可续投、可取用。"
+      + " 玩法延展：① 工资到账就存一笔（间隔 1 个月），一年后每月都有一笔到期，等于自己的「月度现金流」；"
+      + " ② 期限设成阶梯（1 年、2 年、3 年各排几笔），兼顾收益和灵活；③ 到期就续存最长可接受期限，收益会逐步追上全存长期。"
+      + " 两个提醒：存款保险对同一家银行本息最高偿付 50 万元，总额超过就分散到不同银行；利率按你能拿到的挂牌价填，"
+      + "中小银行、大额存单通常更高，但要注意是否有「靠档计息」「提前支取按活期」的条款。日期计算按自然月对日、遇到月末自动取当月最后一天。";
+  }
+
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
@@ -1796,7 +2053,8 @@
     pension: calcPension, sell: calcSell, offset: calcOffset, multi: calcMulti,
     repayvs: calcRepayVs, edu: calcEdu, insure: calcInsure, car: calcCar,
     bonus: calcBonus, deduct: calcDeduct, ladder: calcLadder, rentyield: calcRentYield,
-    settle: calcSettle, balance: calcBalance, selfins: calcSelfIns, underpay: calcUnderpay
+    settle: calcSettle, balance: calcBalance, selfins: calcSelfIns, underpay: calcUnderpay,
+    loanways: calcLoanWays, dca: calcDCA, checkup: calcCheckup, calendar: calcCalendar
   };
 
   function activate(name) {
@@ -1859,9 +2117,14 @@
     "rv-principal", "rv-rate", "rv-months", "rv-cash", "rv-invest", "rv-years",
     "ed-age", "ed-go", "ed-cur", "ed-infl", "ed-have", "ed-rate", "ed-monthly",
     "in-income", "in-expense", "in-debt", "in-edu", "in-assets", "in-have", "in-years",
-    "cr-price", "cr-years", "cr-residual", "cr-km", "cr-fc", "cr-oil", "cr-ins", "cr-maint", "cr-park", "cr-taxi"
+    "cr-price", "cr-years", "cr-residual", "cr-km", "cr-fc", "cr-oil", "cr-ins", "cr-maint", "cr-park", "cr-taxi",
+    "lw-balance", "lw-rate", "lw-months", "lw-lump", "lw-income",
+    "dc-amount", "dc-months", "dc-return", "dc-vol", "dc-hold", "dc-cash",
+    "ck-income", "ck-expense", "ck-debt", "ck-edu", "ck-assets",
+    "ck-haveLife", "ck-haveCI", "ck-haveAcc", "ck-premium",
+    "cl-total", "cl-count", "cl-gap", "cl-term", "cl-rate", "cl-start"
   ];
-  var KEY = "finance-calc-v9";
+  var KEY = "finance-calc-v10";
 
   function save() {
     try {
