@@ -2984,6 +2984,286 @@
       + " ③ 电池衰减、换电成本、保险逐年上涨都没算进去，长途多的人还要算上补能时间成本。";
   }
 
+  /* ---------------- 发票价税分离 ---------------- */
+  function calcVat() {
+    var amt = Math.max(0, num($("vt-amount"), 0));
+    var mode = $("vt-mode").value === "net" ? "net" : "gross";
+    var rate = Math.max(0, num($("vt-rate"), 0.13));
+    var sur = Math.min(30, Math.max(0, num($("vt-surtax"), 12))) / 100;
+
+    var net, vat, gross;
+    if (mode === "net") { net = amt; vat = net * rate; gross = net + vat; }
+    else { gross = amt; net = gross / (1 + rate); vat = gross - net; }
+
+    var surAmt = vat * sur;
+    $("vt-vat").textContent = money(vat);
+    $("vt-net").textContent = yuan(net);
+    $("vt-gross").textContent = yuan(gross);
+    $("vt-share").textContent = gross > 0 ? pct(vat / gross) : "—";
+    $("vt-surtax-amt").textContent = yuan(surAmt);
+    $("vt-total-tax").textContent = yuan(vat + surAmt);
+    $("vt-deduct").textContent = yuan(vat);
+
+    var rates = [0.13, 0.09, 0.06, 0.05, 0.03, 0.01];
+    var body = $("vt-body");
+    body.innerHTML = "";
+    for (var i = 0; i < rates.length; i++) {
+      var r = rates[i], n2, v2, g2;
+      if (mode === "net") { n2 = amt; v2 = n2 * r; g2 = n2 + v2; }
+      else { g2 = amt; n2 = g2 / (1 + r); v2 = g2 - n2; }
+      var tr = document.createElement("tr");
+      tr.innerHTML = "<td>" + pct(r, 0) + "</td><td>" + money(n2) + "</td><td>" + money(v2) +
+        "</td><td>" + money(g2) + "</td>";
+      if (Math.abs(r - rate) < 1e-9) tr.style.fontWeight = "650";
+      body.appendChild(tr);
+    }
+
+    $("vt-note").textContent = "公式：不含税 = 含税 ÷ (1 + 税率)，税额 = 不含税 × 税率。开专票的税额对一般纳税人可抵扣，"
+      + "开普票不能抵扣（对方是小规模或免税项目）。附加税费（城建 7% + 教育 3% + 地方教育 2%，市区口径，县城/镇为 5%+3%+2%）按实际缴纳的增值税计征，"
+      + "不是发票上的项目，别把它算进价税合计。小规模纳税人月销售额未超起征点可免征增值税，具体以当期政策与当地税务口径为准。";
+  }
+
+  /* ---------------- 增值税与附加税 ---------------- */
+  function calcVatDue() {
+    var out = Math.max(0, num($("vd-out"), 0));
+    var inn = Math.max(0, num($("vd-in"), 0));
+    var carry = Math.max(0, num($("vd-carry"), 0));
+    var sales = Math.max(0, num($("vd-sales"), 0));
+    var ur = Math.min(20, Math.max(0, num($("vd-urban"), 7))) / 100;
+    var er = Math.min(10, Math.max(0, num($("vd-edu"), 3))) / 100;
+    var lr = Math.min(10, Math.max(0, num($("vd-local"), 2))) / 100;
+
+    var raw = out - inn - carry;
+    var due = Math.max(0, raw);
+    var left = Math.max(0, -raw);
+    var u = due * ur, e = due * er, l = due * lr;
+    var sur = u + e + l;
+
+    $("vd-due").textContent = money(due);
+    $("vd-raw").textContent = yuan(raw);
+    $("vd-left").textContent = yuan(left);
+    $("vd-urban-amt").textContent = yuan(u);
+    $("vd-edu-amt").textContent = yuan(e);
+    $("vd-local-amt").textContent = yuan(l);
+    $("vd-surtax").textContent = yuan(sur);
+    $("vd-total").textContent = yuan(due + sur);
+    $("vd-burden").textContent = sales > 0 ? pct(due / sales) : "—";
+
+    var body = $("vd-body");
+    body.innerHTML = "";
+    var ms = [0, 0.1, 0.2, 0.3, 0.4];
+    for (var i = 0; i < ms.length; i++) {
+      var m = ms[i];
+      var d2 = sales * m * 0.13;
+      var tr = document.createElement("tr");
+      tr.innerHTML = "<td>" + pct(m, 0) + "</td><td>" + money(d2) + "</td><td>" +
+        (sales > 0 ? pct(d2 / sales) : "—") + "</td>";
+      body.appendChild(tr);
+    }
+
+    $("vd-note").textContent = "应交增值税 = 销项 − 进项 − 期初留抵，结果为负就是留抵，结转下期继续抵，不退税（除非符合留抵退税条件）。"
+      + "下表按 13% 税率演示「毛利率越高、增值税税负越重」：税负率 ≈ 税率 × 毛利率，这也是为什么进项票要尽量取全。"
+      + "附加税费以实际缴纳的增值税为计税依据，没有应交增值税就不用交附加。小微企业「六税两费」减半等优惠以当期文件为准。";
+  }
+
+  /* ---------------- 固定资产折旧 ---------------- */
+  function calcDeprec() {
+    var cost = Math.max(0, num($("fa-cost"), 0));
+    var resRate = Math.min(50, Math.max(0, num($("fa-res"), 5))) / 100;
+    var life = Math.max(1, Math.min(40, Math.round(num($("fa-life"), 5))));
+    var method = $("fa-method").value;
+    var used = Math.max(0, Math.round(num($("fa-used"), 0)));
+
+    var resid = cost * resRate;
+    var base = Math.max(0, cost - resid);
+    var yrs = [], y, d, nav;
+
+    if (method === "ddb" && life > 2) {
+      nav = cost;
+      for (y = 1; y <= life - 2; y++) {
+        d = nav * (2 / life);
+        yrs.push(d);
+        nav -= d;
+      }
+      var tail = Math.max(0, nav - resid) / 2;
+      yrs.push(tail);
+      yrs.push(tail);
+    } else if (method === "syd" && life > 1) {
+      var sum = life * (life + 1) / 2;
+      for (y = 1; y <= life; y++) yrs.push(base * (life - y + 1) / sum);
+    } else {
+      for (y = 1; y <= life; y++) yrs.push(base / life);
+    }
+
+    var total = 0, acc = 0, rows = "";
+    var fullY = Math.floor(used / 12), partM = used % 12;
+    var accAt = 0;
+    for (y = 0; y < life; y++) {
+      total += yrs[y];
+      acc += yrs[y];
+      rows += "<tr><td>第 " + (y + 1) + " 年</td><td>" + money(yrs[y]) + "</td><td>" +
+        money(acc) + "</td><td>" + money(Math.max(0, cost - acc)) + "</td></tr>";
+      if (y < fullY) accAt += yrs[y];
+      else if (y === fullY) accAt += yrs[y] * (partM / 12);
+    }
+    $("fa-body").innerHTML = rows;
+
+    var cls = method === "ddb" ? "双倍余额递减" : (method === "syd" ? "年数总和" : "年限平均（直线）");
+    $("fa-month").textContent = money(yrs[0] / 12);
+    $("fa-year").textContent = yuan(yrs[0]);
+    $("fa-total").textContent = yuan(total);
+    $("fa-acc").textContent = yuan(accAt);
+    $("fa-nav").textContent = yuan(Math.max(0, cost - accAt));
+    $("fa-resv").textContent = yuan(resid);
+    $("fa-left").textContent = Math.max(0, life * 12 - used).toLocaleString("zh-CN") + " 个月";
+
+    $("fa-note").textContent = "当前方法：" + cls + "。「每月折旧」按首年折旧额 ÷ 12 折算，加速折旧法下各月金额其实不同，年度表更准。"
+      + "税法最低折旧年限（企业所得税法实施条例）：房屋建筑物 20 年，机器设备等生产设备 10 年，器具家具等 5 年，运输工具 4 年（飞机火车轮船外），电子设备 3 年；"
+      + "会计上可以按实际使用寿命，但汇算清缴时低于税法年限要做纳税调整。折旧当月增加的固定资产当月不提、下月起提，当月减少的当月照提。";
+  }
+
+  /* ---------------- 保本点与目标利润 ---------------- */
+  function calcBreakEven() {
+    var price = Math.max(0, num($("be-price"), 0));
+    var vc = Math.max(0, num($("be-vc"), 0));
+    var fc = Math.max(0, num($("be-fc"), 0));
+    var per = $("be-period").value === "year" ? "年" : "月";
+    var target = Math.max(0, num($("be-target"), 0));
+    var qty = Math.max(0, num($("be-qty"), 0));
+
+    var cm = price - vc;
+    var cmr = price > 0 ? cm / price : 0;
+    var bep = cm > 0 ? fc / cm : Infinity;
+    var tq = cm > 0 ? (fc + target) / cm : Infinity;
+    var profit = qty * cm - fc;
+    var mos = qty > 0 && isFinite(bep) ? (qty - bep) / qty : 0;
+    var dol = profit !== 0 ? qty * cm / profit : Infinity;
+
+    $("be-bep").textContent = isFinite(bep) ? Math.ceil(bep).toLocaleString("zh-CN") : "—";
+    $("be-cm").textContent = yuan(cm);
+    $("be-cmr").textContent = pct(cmr);
+    $("be-beps").textContent = isFinite(bep) ? yuan(bep * price) : "—";
+    $("be-tq").textContent = isFinite(tq) ? Math.ceil(tq).toLocaleString("zh-CN") + " 件" : "—";
+    $("be-ts").textContent = isFinite(tq) ? yuan(tq * price) : "—";
+    $("be-profit").textContent = yuan(profit);
+    $("be-mos").textContent = cm > 0 ? pct(mos) : "—";
+    $("be-dol").textContent = cm > 0 && isFinite(dol) ? fmt(dol, 2) + " 倍" : "—";
+
+    var body = $("be-body");
+    body.innerHTML = "";
+    var picks = [0.6, 0.8, 1, 1.2, 1.4], i, q, tr;
+    for (i = 0; i < picks.length; i++) {
+      q = isFinite(bep) ? Math.round(bep * picks[i]) : 0;
+      tr = document.createElement("tr");
+      tr.innerHTML = "<td>" + q.toLocaleString("zh-CN") + " 件</td><td>" + money(q * price) +
+        "</td><td>" + money(q * cm) + "</td><td>" + money(q * cm - fc) + "</td>";
+      body.appendChild(tr);
+    }
+
+    if (cm <= 0) {
+      $("be-note").textContent = "单价不高于单位变动成本（边际贡献 ≤ 0），每卖一件都在贴钱，卖得越多亏得越多，没有保本销量可言。"
+        + "先把单价、料工费（变动成本）或固定成本这三项之一改到边际贡献为正，再回来看保本点。";
+      return;
+    }
+    $("be-note").textContent = "保本销量 = 固定成本 ÷ 单位边际贡献；目标销量 = （固定成本 + 目标利润）÷ 单位边际贡献。"
+      + "固定成本按" + per + "填写，结果也都是" + per + "口径。安全边际率 = （实际销量 − 保本销量）÷ 实际销量，低于 20% 说明离亏损很近。"
+      + "经营杠杆 = 边际贡献 ÷ 利润，倍数为 3 表示销量降 10%，利润就掉 30%——固定成本越重，杠杆越高。";
+  }
+
+  /* ---------------- 报表体检（杜邦） ---------------- */
+  function calcRatios() {
+    var rev = Math.max(0, num($("rt-rev"), 0));
+    var cogs = Math.max(0, num($("rt-cogs"), 0));
+    var npf = num($("rt-np"), 0);
+    var ca = Math.max(0, num($("rt-ca"), 0));
+    var inv = Math.max(0, num($("rt-inv"), 0));
+    var ar = Math.max(0, num($("rt-ar"), 0));
+    var cl = Math.max(0, num($("rt-cl"), 0));
+    var ta = Math.max(0, num($("rt-ta"), 0));
+    var tl = Math.max(0, num($("rt-tl"), 0));
+    var eq = num($("rt-eq"), 0);
+    if (eq <= 0) eq = ta - tl;
+
+    var gm = rev > 0 ? (rev - cogs) / rev : 0;
+    var nm = rev > 0 ? npf / rev : 0;
+    var cr = cl > 0 ? ca / cl : 0;
+    var qr = cl > 0 ? (ca - inv) / cl : 0;
+    var lev = ta > 0 ? tl / ta : 0;
+    var roa = ta > 0 ? npf / ta : 0;
+    var roe = eq > 0 ? npf / eq : 0;
+    var turn = ta > 0 ? rev / ta : 0;
+    var mult = eq > 0 ? ta / eq : 0;
+    var ard = rev > 0 ? ar / rev * 365 : 0;
+    var invd = cogs > 0 ? inv / cogs * 365 : 0;
+
+    $("rt-roe").textContent = pct(roe);
+    $("rt-gm").textContent = pct(gm);
+    $("rt-nm").textContent = pct(nm);
+    $("rt-cr").textContent = fmt(cr, 2);
+    $("rt-qr").textContent = fmt(qr, 2);
+    $("rt-lev").textContent = pct(lev);
+    $("rt-roa").textContent = pct(roa);
+    $("rt-ard").textContent = fmt(ard, 1) + " 天";
+    $("rt-invd").textContent = fmt(invd, 1) + " 天";
+    $("rt-cycle").textContent = fmt(ard + invd, 1) + " 天";
+
+    var rows = [
+      ["净利率（赚不赚钱）", pct(nm)],
+      ["× 总资产周转率（转得快不快）", fmt(turn, 3) + " 次"],
+      ["× 权益乘数（借了多少杠杆）", fmt(mult, 2) + " 倍"],
+      ["= ROE（股东回报）", pct(nm * turn * mult)]
+    ];
+    var html = "";
+    for (var i = 0; i < rows.length; i++) {
+      html += "<tr><td>" + rows[i][0] + "</td><td>" + rows[i][1] + "</td></tr>";
+    }
+    $("rt-body").innerHTML = html;
+
+    $("rt-note").textContent = "杜邦恒等式：ROE = 净利率 × 总资产周转率 × 权益乘数，三条路都能把 ROE 做上去，但靠加杠杆风险最大。"
+      + "周转天数按 365 天算：应收账款周转天数 = 平均应收 ÷ 营业收入 × 365，存货周转天数 = 平均存货 ÷ 营业成本 × 365（用期末数会失真，有条件用期初期末平均）。"
+      + "各行业基准差异极大（超市流动比率低于 1 也正常，重工业 2 以上才稳），这里不给标准值，只给你自己的数。";
+  }
+
+  /* ---------------- 银行余额调节 ---------------- */
+  function calcRecon() {
+    var book = num($("rc-book"), 0);
+    var bank = num($("rc-bank"), 0);
+    var a = Math.max(0, num($("rc-a"), 0));
+    var b = Math.max(0, num($("rc-b"), 0));
+    var c = Math.max(0, num($("rc-c"), 0));
+    var d = Math.max(0, num($("rc-d"), 0));
+
+    var s1 = book + c - d;
+    var s2 = bank + a - b;
+    var diff = s1 - s2;
+
+    $("rc-final").textContent = money(s1);
+    $("rc-side1").textContent = yuan(s1);
+    $("rc-side2").textContent = yuan(s2);
+    $("rc-diff").textContent = yuan(diff);
+    $("rc-net").textContent = yuan(c - d);
+    $("rc-verdict").textContent = Math.abs(diff) < 0.005 ? "两边相等，调节表平，可存档"
+      : "不平，差 " + money(Math.abs(diff)) + " 元，要逐笔查";
+
+    var rows = [
+      ["企业已收、银行未收（在途支票 / 未到账）", "加在银行对账单侧", a],
+      ["企业已付、银行未付（开出未兑付支票）", "减在银行对账单侧", b],
+      ["银行已收、企业未收（托收、利息、退款）", "加在企业账面侧", c],
+      ["银行已付、企业未付（手续费、代扣）", "减在企业账面侧", d]
+    ];
+    var html = "";
+    for (var i = 0; i < rows.length; i++) {
+      html += "<tr><td>" + rows[i][0] + "</td><td>" + rows[i][1] + "</td><td>" +
+        money(rows[i][2]) + "</td></tr>";
+    }
+    $("rc-body").innerHTML = html;
+
+    $("rc-note").textContent = "调节思路：企业账面余额加「银行已收企业未收」、减「银行已付企业未付」，得到调节后余额；"
+      + "银行对账单余额加「企业已收银行未收」、减「企业已付银行未付」，得到同一个数。两边相等说明账没记错。"
+      + "不平的常见原因：一方记账金额错、漏记一笔、把收款方记错，或银行扣了年费/短信费没入账。调节表只解决「时间差」，"
+      + "真记错的必须做凭证更正，不能靠调节表抹平。";
+  }
+
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
@@ -2999,7 +3279,9 @@
     debtfree: calcDebtFree, fire: calcFire, annualfee: calcAnnualFee, budget: calcBudget,
     zhuan: calcZhuan, medins: calcMedins, childcost: calcChild, ppension: calcPPA,
     fundlimit: calcFundLimit, emergency: calcEmergency, rule503020: calcRule, debtmerge: calcDebtMerge,
-    freeperiod: calcFreePeriod, overtime: calcOvertime, rentup: calcRentUp, ev: calcEv
+    freeperiod: calcFreePeriod, overtime: calcOvertime, rentup: calcRentUp, ev: calcEv,
+    vat: calcVat, vatdue: calcVatDue, deprec: calcDeprec, breakeven: calcBreakEven,
+    ratios: calcRatios, recon: calcRecon
   };
 
   function setCat(cat) {
@@ -3026,6 +3308,11 @@
   $("tabs").addEventListener("click", function (e) {
     var t = e.target.closest(".tab");
     if (t) activate(t.dataset.tab);
+  });
+
+  window.addEventListener("hashchange", function () {
+    var n = location.hash.replace("#", "");
+    if (n && calcMap[n]) activate(n);
   });
 
   $("cats").addEventListener("click", function (e) {
@@ -3106,9 +3393,15 @@
     "ot-salary", "ot-days", "ot-wd", "ot-rest", "ot-hol", "ot-leave", "ot-sick", "ot-sickrate",
     "ru-cur", "ru-new", "ru-cost", "ru-alt", "ru-years",
     "ev-km", "ev-oil", "ev-price", "ev-kwh", "ev-eprice", "ev-p1", "ev-p2", "ev-years",
-    "ev-res1", "ev-res2", "ev-m1", "ev-m2", "ev-i1", "ev-i2"
+    "ev-res1", "ev-res2", "ev-m1", "ev-m2", "ev-i1", "ev-i2",
+    "vt-amount", "vt-mode", "vt-rate", "vt-surtax",
+    "vd-out", "vd-in", "vd-carry", "vd-sales", "vd-urban", "vd-edu", "vd-local",
+    "fa-cost", "fa-res", "fa-life", "fa-method", "fa-used",
+    "be-price", "be-vc", "be-fc", "be-period", "be-target", "be-qty",
+    "rt-rev", "rt-cogs", "rt-np", "rt-ca", "rt-inv", "rt-ar", "rt-cl", "rt-ta", "rt-tl", "rt-eq",
+    "rc-book", "rc-bank", "rc-a", "rc-b", "rc-c", "rc-d"
   ];
-  var KEY = "finance-calc-v15";
+  var KEY = "finance-calc-v16";
   var CAT_KEY = "finance-calc-cat";
 
   /* ---------------- 现金流月历 ---------------- */

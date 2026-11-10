@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>财务计算器 · 常用 存款 贷款 房贷 个税 社保 现金流 59 个模块</title>
-<meta name="description" content="免费的财务计算器（59 个模块，按分类＋常用分组）：存款利息、贷款月供与还款计划、组合贷、提前还款省息、复利与定投、攒钱目标、分期真实年化、年化收益、通胀购买力、个税与到手工资、租房还是买房、信用卡循环利息、汇率与单位换算、公积金可贷额度、信用卡免息期、加班费与请假、涨租还是搬家、油车还是电车、利率调整后月供、二手房交易税费、AA 分摊、退休金测算、卖房换房、公积金月冲年冲、多币种折算、提前还款 vs 理财、教育金、保险保额、买车 vs 打车、年终奖拆分、专项附加扣除、存单阶梯、租售比、年度汇算退税、家庭资产负债、灵活就业社保、社保少缴核查、三种还法对撞、定投 vs 一次性、保单体检、到期日历、现金流月历、0 利率真实成本、风险测评与资产配置、提前还款违约金临界点、多笔债务先还哪笔、FIRE 财务自由、年缴费用分摊、买房预算反推、商转公、医保报销、养娃成本、个人养老金账户、公积金缴存额度、应急金、50/30/20 收入分配、债务置换。纯前端计算，不联网、不上传数据。">
+<title>财务计算器 · 个人理财 + 公司财务 65 个模块</title>
+<meta name="description" content="免费的财务计算器（65 个模块，按分类＋常用分组）：存款利息、贷款月供与还款计划、组合贷、提前还款省息、复利与定投、攒钱目标、分期真实年化、年化收益、通胀购买力、个税与到手工资、租房还是买房、信用卡循环利息、汇率与单位换算、公积金可贷额度、信用卡免息期、加班费与请假、涨租还是搬家、油车还是电车、利率调整后月供、二手房交易税费、AA 分摊、退休金测算、卖房换房、公积金月冲年冲、多币种折算、提前还款 vs 理财、教育金、保险保额、买车 vs 打车、年终奖拆分、专项附加扣除、存单阶梯、租售比、年度汇算退税、家庭资产负债、灵活就业社保、社保少缴核查、三种还法对撞、定投 vs 一次性、保单体检、到期日历、现金流月历、0 利率真实成本、风险测评与资产配置、提前还款违约金临界点、多笔债务先还哪笔、FIRE 财务自由、年缴费用分摊、买房预算反推、商转公、医保报销、养娃成本、个人养老金账户、公积金缴存额度、应急金、50/30/20 收入分配、债务置换；公司财务岗：发票价税分离、增值税与附加税测算、固定资产折旧（含加速折旧）、保本点与目标利润、报表体检与杜邦分解、银行余额调节表。纯前端计算，不联网、不上传数据。">
 <meta name="theme-color" content="#1e3a8a">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231e3a8a'/%3E%3Ctext x='16' y='23' font-size='17' text-anchor='middle' fill='%23fff' font-family='sans-serif'%3E%C2%A5%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="./style.css">
@@ -17,7 +17,7 @@
       <span class="mark">¥</span>
       <div>
         <h1>财务计算器</h1>
-        <p>存款 · 贷款 · 提前还款 · 复利 · 攒钱 · 分期 · 个税 · 汇算退税 · 年终奖 · 到手工资 · 社保 · 退休金 · 教育金 · 保险 · 租买 · 租售比 · 信用卡 · 公积金 · 换房 · 多币种 · 存单阶梯 · 资产负债 · 还法对撞 · 保单体检 · 到期日历 · 现金流月历 · 风险配置 · 债务优先级 · FIRE · 年缴分摊 · 买房预算 · 商转公 · 医保报销 · 养娃 · 个人养老金 · 公积金额度 · 应急金 · 收入分配 · 债务置换 · 免息期 · 加班费 · 涨租搬家 · 油电对比</p>
+        <p>存款 · 贷款 · 提前还款 · 复利 · 攒钱 · 分期 · 个税 · 汇算退税 · 年终奖 · 到手工资 · 社保 · 退休金 · 教育金 · 保险 · 租买 · 租售比 · 信用卡 · 公积金 · 换房 · 多币种 · 存单阶梯 · 资产负债 · 还法对撞 · 保单体检 · 到期日历 · 现金流月历 · 风险配置 · 债务优先级 · FIRE · 年缴分摊 · 买房预算 · 商转公 · 医保报销 · 养娃 · 个人养老金 · 公积金额度 · 应急金 · 收入分配 · 债务置换 · 免息期 · 加班费 · 涨租搬家 · 油电对比 · 价税分离 · 增值税 · 折旧 · 保本点 · 报表体检 · 余额调节</p>
       </div>
     </div>
     <nav class="cats" id="cats" role="tablist" aria-label="分类">
@@ -28,6 +28,7 @@
       <button class="cat" data-cat="tax" role="tab">工资税费社保</button>
       <button class="cat" data-cat="family" role="tab">家庭规划</button>
       <button class="cat" data-cat="life" role="tab">日常消费</button>
+      <button class="cat" data-cat="acct" role="tab">公司财务</button>
     </nav>
     <nav class="tabs" id="tabs" role="tablist">
       <button class="tab is-on" data-tab="deposit" data-cat="save hot" role="tab">存款利息</button>
@@ -89,6 +90,12 @@
       <button class="tab" data-tab="overtime" data-cat="tax" role="tab">加班费与请假</button>
       <button class="tab" data-tab="rentup" data-cat="house" role="tab">涨租 vs 搬家</button>
       <button class="tab" data-tab="ev" data-cat="life" role="tab">油车 vs 电车</button>
+      <button class="tab" data-tab="vat" data-cat="acct" role="tab">发票价税分离</button>
+      <button class="tab" data-tab="vatdue" data-cat="acct" role="tab">增值税与附加</button>
+      <button class="tab" data-tab="deprec" data-cat="acct" role="tab">固定资产折旧</button>
+      <button class="tab" data-tab="breakeven" data-cat="acct" role="tab">保本点与目标利润</button>
+      <button class="tab" data-tab="ratios" data-cat="acct" role="tab">报表体检（杜邦）</button>
+      <button class="tab" data-tab="recon" data-cat="acct" role="tab">银行余额调节</button>
     </nav>
   </div>
 </header>
@@ -3106,6 +3113,276 @@
           </table>
         </div>
         <p class="hint" id="ev-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-vat">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f"><span>金额（元）</span>
+          <input id="vt-amount" type="number" inputmode="decimal" min="0" step="100" value="113000"></label>
+        <label class="f"><span>这个金额是</span>
+          <select id="vt-mode">
+            <option value="gross" selected>含税价（发票价税合计）</option>
+            <option value="net">不含税价（销售额）</option>
+          </select></label>
+        <label class="f"><span>税率 / 征收率</span>
+          <select id="vt-rate">
+            <option value="0.13" selected>13% —— 货物、加工修理修配、有形动产租赁</option>
+            <option value="0.09">9% —— 交通运输、建筑、不动产、农产品、邮电</option>
+            <option value="0.06">6% —— 现代服务、金融、生活服务、无形资产</option>
+            <option value="0.05">5% —— 简易计税（不动产销售/出租等）</option>
+            <option value="0.03">3% —— 小规模纳税人征收率</option>
+            <option value="0.01">1% —— 小规模减按征收</option>
+          </select></label>
+        <label class="f"><span>附加税费合计（% 的增值税，城建 7 + 教育 3 + 地方教育 2）</span>
+          <input id="vt-surtax" type="number" inputmode="decimal" min="0" max="30" step="1" value="12"></label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">税额</span><strong id="vt-vat">—</strong><span class="unit">元</span></div>
+        <ul class="kv">
+          <li><span>不含税金额（收入 / 成本）</span><b id="vt-net">—</b></li>
+          <li><span>价税合计（含税）</span><b id="vt-gross">—</b></li>
+          <li><span>税额占含税价</span><b id="vt-share">—</b></li>
+          <li><span>城建及附加（按上面的比例）</span><b id="vt-surtax-amt">—</b></li>
+          <li><span>这笔业务实际税负（税 + 附加）</span><b id="vt-total-tax">—</b></li>
+          <li><span>一般纳税人可抵扣进项（拿到专票时）</span><b id="vt-deduct">—</b></li>
+        </ul>
+        <div class="tablebox">
+          <table>
+            <thead><tr><th>税率</th><th>不含税</th><th>税额</th><th>含税</th></tr></thead>
+            <tbody id="vt-body"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="vt-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-vatdue">
+    <div class="cols">
+      <div class="card">
+        <h2>输入（本期）</h2>
+        <label class="f"><span>销项税额（元，开出去的发票）</span>
+          <input id="vd-out" type="number" inputmode="decimal" min="0" step="1000" value="130000"></label>
+        <label class="f"><span>进项税额（元，收到的专票认证抵扣）</span>
+          <input id="vd-in" type="number" inputmode="decimal" min="0" step="1000" value="78000"></label>
+        <label class="f"><span>期初留抵税额（元，上期没抵完结转的）</span>
+          <input id="vd-carry" type="number" inputmode="decimal" min="0" step="1000" value="5000"></label>
+        <label class="f"><span>本期不含税销售额（元，算税负率用）</span>
+          <input id="vd-sales" type="number" inputmode="decimal" min="0" step="10000" value="1000000"></label>
+        <label class="f"><span>城市维护建设税 / 教育费附加 / 地方教育附加（%）</span>
+          <div class="row">
+            <input id="vd-urban" type="number" inputmode="decimal" min="0" max="20" step="1" value="7">
+            <input id="vd-edu" type="number" inputmode="decimal" min="0" max="10" step="1" value="3">
+            <input id="vd-local" type="number" inputmode="decimal" min="0" max="10" step="1" value="2">
+          </div></label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">本期应交增值税</span><strong id="vd-due">—</strong><span class="unit">元</span></div>
+        <ul class="kv">
+          <li><span>销项 − 进项 − 期初留抵</span><b id="vd-raw">—</b></li>
+          <li><span>期末留抵（结转下期）</span><b id="vd-left">—</b></li>
+          <li><span>城建税</span><b id="vd-urban-amt">—</b></li>
+          <li><span>教育费附加</span><b id="vd-edu-amt">—</b></li>
+          <li><span>地方教育附加</span><b id="vd-local-amt">—</b></li>
+          <li><span>附加税费合计</span><b id="vd-surtax">—</b></li>
+          <li><span>本期要交出去的钱（税 + 附加）</span><b id="vd-total">—</b></li>
+          <li><span>增值税税负率（应交 ÷ 销售额）</span><b id="vd-burden">—</b></li>
+        </ul>
+        <div class="tablebox">
+          <table>
+            <thead><tr><th>毛利率</th><th>应交增值税</th><th>税负率</th></tr></thead>
+            <tbody id="vd-body"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="vd-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-deprec">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f"><span>固定资产原值（元，含税价按入账价值填）</span>
+          <input id="fa-cost" type="number" inputmode="decimal" min="0" step="1000" value="100000"></label>
+        <label class="f"><span>预计净残值率（%）</span>
+          <input id="fa-res" type="number" inputmode="decimal" min="0" max="50" step="1" value="5"></label>
+        <label class="f"><span>折旧年限（年）</span>
+          <input id="fa-life" type="number" inputmode="decimal" min="1" max="40" step="1" value="5"></label>
+        <label class="f"><span>折旧方法</span>
+          <select id="fa-method">
+            <option value="straight" selected>年限平均法（直线法，最常用）</option>
+            <option value="ddb">双倍余额递减法</option>
+            <option value="syd">年数总和法</option>
+          </select></label>
+        <label class="f"><span>已计提月数（算当前净值用）</span>
+          <input id="fa-used" type="number" inputmode="decimal" min="0" step="1" value="0"></label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">每月折旧</span><strong id="fa-month">—</strong><span class="unit">元</span></div>
+        <ul class="kv">
+          <li><span>首年折旧额</span><b id="fa-year">—</b></li>
+          <li><span>应计提折旧总额</span><b id="fa-total">—</b></li>
+          <li><span>已累计折旧（按月数）</span><b id="fa-acc">—</b></li>
+          <li><span>当前账面净值</span><b id="fa-nav">—</b></li>
+          <li><span>预计净残值</span><b id="fa-resv">—</b></li>
+          <li><span>还剩多少个月</span><b id="fa-left">—</b></li>
+        </ul>
+        <div class="tablebox">
+          <table>
+            <thead><tr><th>年度</th><th>年折旧</th><th>累计折旧</th><th>期末净值</th></tr></thead>
+            <tbody id="fa-body"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="fa-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-breakeven">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f"><span>单价（元，不含税）</span>
+          <input id="be-price" type="number" inputmode="decimal" min="0" step="1" value="100"></label>
+        <label class="f"><span>单位变动成本（元，材料 + 计件工资 + 运费等）</span>
+          <input id="be-vc" type="number" inputmode="decimal" min="0" step="1" value="60"></label>
+        <label class="f"><span>固定成本总额（房租、工资、折旧等）</span>
+          <input id="be-fc" type="number" inputmode="decimal" min="0" step="1000" value="20000"></label>
+        <label class="f"><span>固定成本是</span>
+          <select id="be-period">
+            <option value="month" selected>每月的</option>
+            <option value="year">每年的</option>
+          </select></label>
+        <label class="f"><span>目标利润（元，同期）</span>
+          <input id="be-target" type="number" inputmode="decimal" min="0" step="1000" value="10000"></label>
+        <label class="f"><span>当前销量（件 / 期）</span>
+          <input id="be-qty" type="number" inputmode="decimal" min="0" step="10" value="800"></label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">保本销量（不赚不亏）</span><strong id="be-bep">—</strong><span class="unit">件/期</span></div>
+        <ul class="kv">
+          <li><span>单位边际贡献</span><b id="be-cm">—</b></li>
+          <li><span>边际贡献率</span><b id="be-cmr">—</b></li>
+          <li><span>保本销售额</span><b id="be-beps">—</b></li>
+          <li><span>达成目标利润要卖</span><b id="be-tq">—</b></li>
+          <li><span>对应销售额</span><b id="be-ts">—</b></li>
+          <li><span>当前利润</span><b id="be-profit">—</b></li>
+          <li><span>安全边际率（还能掉多少量）</span><b id="be-mos">—</b></li>
+          <li><span>经营杠杆（利润对销量的敏感度）</span><b id="be-dol">—</b></li>
+        </ul>
+        <div class="tablebox">
+          <table>
+            <thead><tr><th>销量</th><th>收入</th><th>边际贡献</th><th>利润</th></tr></thead>
+            <tbody id="be-body"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="be-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-ratios">
+    <div class="cols">
+      <div class="card">
+        <h2>输入（本期，单位：元）</h2>
+        <label class="f"><span>营业收入</span>
+          <input id="rt-rev" type="number" inputmode="decimal" min="0" step="10000" value="10000000"></label>
+        <label class="f"><span>营业成本</span>
+          <input id="rt-cogs" type="number" inputmode="decimal" min="0" step="10000" value="7000000"></label>
+        <label class="f"><span>净利润</span>
+          <input id="rt-np" type="number" inputmode="decimal" min="0" step="10000" value="1000000"></label>
+        <label class="f"><span>流动资产 / 其中存货</span>
+          <div class="row">
+            <input id="rt-ca" type="number" inputmode="decimal" min="0" step="10000" value="4000000">
+            <input id="rt-inv" type="number" inputmode="decimal" min="0" step="10000" value="1200000">
+          </div></label>
+        <label class="f"><span>应收账款 / 流动负债</span>
+          <div class="row">
+            <input id="rt-ar" type="number" inputmode="decimal" min="0" step="10000" value="1500000">
+            <input id="rt-cl" type="number" inputmode="decimal" min="0" step="10000" value="2500000">
+          </div></label>
+        <label class="f"><span>总资产 / 总负债</span>
+          <div class="row">
+            <input id="rt-ta" type="number" inputmode="decimal" min="0" step="10000" value="9000000">
+            <input id="rt-tl" type="number" inputmode="decimal" min="0" step="10000" value="5000000">
+          </div></label>
+        <label class="f"><span>所有者权益（不填则按 总资产 − 总负债）</span>
+          <input id="rt-eq" type="number" inputmode="decimal" min="0" step="10000" value="4000000"></label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">净资产收益率 ROE</span><strong id="rt-roe">—</strong><span class="unit"></span></div>
+        <ul class="kv">
+          <li><span>毛利率</span><b id="rt-gm">—</b></li>
+          <li><span>净利率</span><b id="rt-nm">—</b></li>
+          <li><span>流动比率（≥2 偏稳，<1 偏紧）</span><b id="rt-cr">—</b></li>
+          <li><span>速动比率（≥1 较安全）</span><b id="rt-qr">—</b></li>
+          <li><span>资产负债率</span><b id="rt-lev">—</b></li>
+          <li><span>总资产报酬率 ROA</span><b id="rt-roa">—</b></li>
+          <li><span>应收账款周转天数</span><b id="rt-ard">—</b></li>
+          <li><span>存货周转天数</span><b id="rt-invd">—</b></li>
+          <li><span>营业周期（应收 + 存货）</span><b id="rt-cycle">—</b></li>
+        </ul>
+        <div class="tablebox">
+          <table>
+            <thead><tr><th>杜邦分解</th><th>数值</th></tr></thead>
+            <tbody id="rt-body"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="rt-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-recon">
+    <div class="cols">
+      <div class="card">
+        <h2>输入（月末，单位：元）</h2>
+        <label class="f"><span>企业银行存款日记账余额</span>
+          <input id="rc-book" type="number" inputmode="decimal" min="0" step="100" value="152300"></label>
+        <label class="f"><span>银行对账单余额</span>
+          <input id="rc-bank" type="number" inputmode="decimal" min="0" step="100" value="167200"></label>
+        <label class="f"><span>企业已收、银行未收（收到支票还没进账）</span>
+          <input id="rc-a" type="number" inputmode="decimal" min="0" step="100" value="8000"></label>
+        <label class="f"><span>企业已付、银行未付（开出支票对方还没取）</span>
+          <input id="rc-b" type="number" inputmode="decimal" min="0" step="100" value="3200"></label>
+        <label class="f"><span>银行已收、企业未收（托收货款、利息入账）</span>
+          <input id="rc-c" type="number" inputmode="decimal" min="0" step="100" value="20400"></label>
+        <label class="f"><span>银行已付、企业未付（手续费、代扣水电）</span>
+          <input id="rc-d" type="number" inputmode="decimal" min="0" step="100" value="700"></label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">调节后余额（两边应一致）</span><strong id="rc-final">—</strong><span class="unit">元</span></div>
+        <ul class="kv">
+          <li><span>企业侧：账面 + 银行已收未收 − 银行已付未付</span><b id="rc-side1">—</b></li>
+          <li><span>银行侧：对账单 + 企业已收未收 − 企业已付未付</span><b id="rc-side2">—</b></li>
+          <li><span>两边差额（0 = 平）</span><b id="rc-diff">—</b></li>
+          <li><span>未达账项净额</span><b id="rc-net">—</b></li>
+          <li><span>结论</span><b id="rc-verdict">—</b></li>
+        </ul>
+        <div class="tablebox">
+          <table>
+            <thead><tr><th>未达账项</th><th>调节哪一边</th><th>金额</th></tr></thead>
+            <tbody id="rc-body"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="rc-note"></p>
       </div>
     </div>
   </section>
