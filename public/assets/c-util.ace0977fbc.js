@@ -1,5 +1,5 @@
 /* 自动生成，勿手改：util 分类模块（点开才下载） */
-const { $, CAT_KEY, CMP_KEY, CURS, DIVISOR, FAV_KEY, FIELDS, KEY, MONTH_TABLE, PRE_KEY, THEME_KEY, UNITS, XL_ROWS, YEAR_TABLE, activate, addMonths, annuityPV, annuityPayment, applyFilter, applyParams, bizAdd, bonusSoloTax, buildLoanSchedule, buildShare, calcLoan, cnUpper, combineTax, convertTemp, copyText, cumulativeTax, curCat, currentSnap, favList, fillUnits, flash, fmt, fmtDate, fx, gauss, hashTarget, isFav, leftAfter, loadCmpA, loanRows, money, monthToDate, monthlyIRR, months, npvDiff, num, numOf, panelEls, panelParams, parseAmounts, parseDate, pct, percentile, presets, quickOf, rateOf, refreshCounts, renderLoanTable, renderPresets, rentBuyAt, restore, save, saveCmpA, saveFav, savePresets, savedCat, setCat, setSub, setTheme, snapshot, st0, startName, taxBy, yuan, zOf } = window.FC;
+const { $, CAT_KEY, CHUNK_FILES, CHUNK_OF, CMP_KEY, CORE_CALC, CURS, DIVISOR, FAV_KEY, FIELDS, KEY, MONTH_TABLE, PRE_KEY, SNAP_KEY, SNAP_PICK, TABS, THEME_KEY, UNITS, XL_ROWS, YEAR_TABLE, activate, addMonths, annuityPV, annuityPayment, applyFilter, applyParams, bizAdd, bonusSoloTax, buildLoanSchedule, buildShare, calcLoan, calcMap, cnUpper, combineTax, convertTemp, copyText, cumulativeTax, curCat, currentSnap, ensureChunk, favList, fillUnits, flash, fmt, fmtAt, fmtDate, fx, gauss, hashTarget, isFav, leftAfter, loadCmpA, loadSnaps, loanRows, makeSnap, money, monthToDate, monthlyIRR, months, npvDiff, num, numOf, panelEls, panelParams, parseAmounts, parseDate, pct, percentile, presets, quickOf, rateOf, refreshCounts, renderLoanTable, renderPresets, renderSnapCompare, renderSnapList, rentBuyAt, restore, runCalc, save, saveCmpA, saveFav, savePresets, saveSnaps, savedCat, setCat, setSub, setTheme, snapNameOf, snapshot, st0, startName, taxBy, yuan, zOf } = window.FC;
 
   function calcNumWords() {
     var v = num($("nw-amount"), 0);
@@ -150,6 +150,11 @@ const { $, CAT_KEY, CMP_KEY, CURS, DIVISOR, FAV_KEY, FIELDS, KEY, MONTH_TABLE, P
     $("gu-note").textContent = "招聘谈薪最常被问的一句：「到手 2 万，税前要多少？」按月度预扣表反推，本例税前约 2.60 万，公司实际成本还要加单位社保公积金约 25%。注意：社保有缴费基数上下限（各地不同，这里按工资全额算），年终奖若单独计税会让全年税负不同；谈 offer 时说的「总包」要问清是否含单位社保、是否含年终奖。";
   }
 
+  function calcSnaps() {
+    renderSnapList();
+    renderSnapCompare();
+  }
+
   function calcDatemath() {
     var d = parseDate($("dtm-date").value);
     var mo = Math.round(num($("dtm-months"), 0)), dy = Math.round(num($("dtm-days"), 0));
@@ -243,4 +248,4 @@ const { $, CAT_KEY, CMP_KEY, CURS, DIVISOR, FAV_KEY, FIELDS, KEY, MONTH_TABLE, P
         + "最后才是真正的错账或漏记。同金额多笔按出现顺序配对，所以明细顺序不影响结果。";
   }
 
-export default { numwords: calcNumWords, duedate: calcDueDate, workday: calcWorkDay, cagr: calcCagr, apportion: calcApportion, grossup: calcGrossUp, datemath: calcDatemath, pct3: calcPct3, xlhelp: calcXlHelp, csvrecon: calcCsvRecon };
+export default { numwords: calcNumWords, duedate: calcDueDate, workday: calcWorkDay, cagr: calcCagr, apportion: calcApportion, grossup: calcGrossUp, snaps: calcSnaps, datemath: calcDatemath, pct3: calcPct3, xlhelp: calcXlHelp, csvrecon: calcCsvRecon };

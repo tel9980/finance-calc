@@ -121,6 +121,9 @@ const coreNames = new Set();
 for (const m of core.replace('@@CALCMAP@@', '').matchAll(/^  function ([A-Za-z_$][\w$]*)\s*\(/gm)) coreNames.add(m[1]);
 for (const m of core.replace('@@CALCMAP@@', '').matchAll(/^  var ([A-Za-z_$][\w$]*)/gm)) coreNames.add(m[1]);
 
+// 运行期注入的名字也要让 chunk 能看到
+["runCalc", "ensureChunk", "TABS", "CHUNK_OF", "CHUNK_FILES", "calcMap", "CORE_CALC"].forEach(n => coreNames.add(n));
+
 /* ---------- 6. 生成 chunk 文件 ---------- */
 fs.mkdirSync(ASSETS, { recursive: true });
 const chunkFiles = {};

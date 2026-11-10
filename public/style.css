@@ -282,3 +282,15 @@ html[data-theme="dark"] .ghost{background:#16212f;color:#9fc0ff}
   input,select{border:1px solid #bbb !important;background:#fff !important;color:#000 !important}
   .foot{display:block !important;color:#555}
 }
+
+/* 方案快照 / 一页体检报告 */
+.btnrow{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 10px}
+.btnrow .ghost{padding:7px 14px;font-size:13.5px}
+a.snap-load{color:var(--accent2);text-decoration:underline;text-underline-offset:2px}
+.snap-del{padding:2px 8px;font-size:12px}
+#panel-report .tablebox,#panel-snaps .tablebox{max-height:none}
+#panel-snaps .card.res + .card.res{margin-top:16px}
+@media print{
+  #panel-snaps .btnrow,#panel-snaps .ghost{display:none}
+  #panel-report .card.res,#panel-snaps .card.res{border:0}
+}

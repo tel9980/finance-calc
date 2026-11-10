@@ -8150,6 +8150,46 @@
       + "建议每月固定做这张勾稽表，和开票系统、认证平台、账面三个口径一起对。";
   }
 
+
+  /* ---------------- 方案快照 / 一页体检报告 用到的公共件 ---------------- */
+  var SNAP_KEY = "finance-calc-snaps";
+  var SNAP_PICK = {};   // 勾选状态存内存，避免表格重绘后丢失selected
+
+  function loadSnaps() {
+    var arr = [];
+    try { arr = JSON.parse(localStorage.getItem(SNAP_KEY) || "[]") || []; } catch (e) { arr = []; }
+    return Array.isArray(arr) ? arr : [];
+  }
+
+  function saveSnaps(arr) {
+    try { localStorage.setItem(SNAP_KEY, JSON.stringify(arr.slice(0, 12))); } catch (e) {}
+  }
+
+  function snapNameOf(mod) {
+    var tb = document.querySelector('.tab[data-tab="' + mod + '"]');
+    return tb ? tb.textContent.trim() : mod;
+  }
+
+  function fmtAt(ts) {
+    var d = new Date(ts), z = function (n) { return (n < 10 ? "0" : "") + n; };
+    return (d.getMonth() + 1) + "-" + z(d.getDate()) + " " + z(d.getHours()) + ":" + z(d.getMinutes());
+  }
+
+  /* 把当前面板（模块、名字、主结果、指标、参数）打成一个快照对象 */
+  function makeSnap(name) {
+    var panel = document.querySelector(".panel.is-on");
+    var tab = document.querySelector(".tab.is-on");
+    if (!panel || !tab) return null;
+    var mod = tab.dataset.tab;
+    var rows = snapshot().rows || [];
+    var params = panelEls().map(function (el) {
+      var lab = el.closest("label");
+      var sp = lab ? lab.querySelector("span") : null;
+      return { id: el.id, label: sp ? sp.textContent.trim() : el.id, value: el.value };
+    });
+    return { id: "s" + Date.now(), mod: mod, modName: snapNameOf(mod), name: name || snapNameOf(mod), rows: rows, params: params, at: Date.now() };
+  }
+
   /* ---------------- 家庭财务体检 ---------------- */
   function calcHealth() {
     var inc = Math.max(0, num($("hk-inc"), 0));
@@ -8224,6 +8264,158 @@
       + "所以分数低不等于财务不健康，要看具体是哪一项低。数据只在本机浏览器，不上传。";
   }
 
+  /* ---------------- 一页体检报告 ---------------- */
+  function calcReport() {
+    var inc = Math.max(0, num($("rp-inc"), 0));
+    var need = Math.max(0, num($("rp-need"), 0));
+    var want = Math.max(0, num($("rp-want"), 0));
+    var cash = Math.max(0, num($("rp-cash"), 0));
+    var inv = Math.max(0, num($("rp-inv"), 0));
+    var house = Math.max(0, num($("rp-house"), 0));
+    var debt = Math.max(0, num($("rp-debt"), 0));
+    var loan = Math.max(0, num($("rp-loan"), 0));
+    var ins = Math.max(0, num($("rp-ins"), 0));
+    var prem = Math.max(0, num($("rp-prem"), 0));
+    var age = Math.max(18, num($("rp-age"), 30));
+    var rate = Math.max(0, num($("rp-rate"), 3.1));
+    var years = Math.max(1, Math.round(num($("rp-years"), 30)));
+
+    var save = 0, em = 0, lev = 0, dsr = 0, cover = 0;
+    var saveRate = inc > 0 ? (inc - need - want) / inc : 0;
+    var emMonths = need > 0 ? cash / need : 0;
+    var totalAsset = cash + inv + house;
+    var levRate = totalAsset > 0 ? debt / totalAsset : 0;
+    var dsrRate = inc > 0 ? loan / inc : 0;
+    var needIns = Math.max(0, inc * 12 * 10 + debt - (cash + inv));
+    var coverRate = needIns > 0 ? ins / needIns : 1;
+
+    save = saveRate >= 0.3 ? 20 : saveRate >= 0.2 ? 15 : saveRate >= 0.1 ? 10 : 5;
+    em = emMonths >= 6 ? 20 : emMonths >= 4 ? 15 : emMonths >= 2 ? 10 : 5;
+    lev = levRate < 0.3 ? 20 : levRate < 0.5 ? 15 : levRate < 0.7 ? 10 : 5;
+    dsr = dsrRate < 0.3 ? 20 : dsrRate < 0.4 ? 15 : dsrRate < 0.5 ? 10 : 5;
+    cover = coverRate >= 1 ? 20 : coverRate >= 0.7 ? 15 : coverRate >= 0.4 ? 10 : 5;
+
+    var score = save + em + lev + dsr + cover;
+    var level = score >= 85 ? "优秀" : score >= 70 ? "良好" : score >= 55 ? "及格" : "需要调整";
+
+    var fireTarget = need + want > 0 ? (need + want) * 12 / 0.04 : 0;
+    var fireProg = fireTarget > 0 ? (cash + inv) / fireTarget : 0;
+    var maxPay = inc * 0.4;
+    var loanCap = rate >= 0 && years > 0 ? annuityPV(maxPay, rate / 100 / 12, years * 12) : 0;
+    var ssRate = 0.225;
+    var ss = inc * ssRate;
+    var mTax = taxBy(MONTH_TABLE, Math.max(0, inc - ss - 5000));
+    var net = inc - ss - mTax;
+    var netWorth = totalAsset - debt;
+    var insGap = Math.max(0, needIns - ins);
+
+    var rows = [
+      ["储蓄率", pct(saveRate), save, "≥30%", save],
+      ["应急金储备", fmt(emMonths, 1) + " 个月", em, "≥6 个月", em],
+      ["资产负债率", pct(levRate), lev, "<50%", lev],
+      ["月供收入比", pct(dsrRate), dsr, "<40%", dsr],
+      ["保障覆盖", pct(coverRate), cover, "≥100%", cover]
+    ];
+    var names = ["储蓄率", "应急金储备", "资产负债率", "月供收入比", "保障覆盖"];
+    var acts = [
+      "储蓄率偏低：先把每月自动转出固定金额（工资到账当天划走），目标先到 20%。",
+      "应急金不足：优先把 6 个月刚性支出放进货币基金/活期，别投波动资产。",
+      "负债偏重：优先还高息负债，新增负债前先压降总负债率到 50% 以内。",
+      "月供偏紧：把月供控制在收入 40% 以内，留出收入中断时的缓冲。",
+      "保障缺口：先把寿险/重疾配到「10 倍年收入 + 负债 − 可变现资产」，纯保障型优先。"
+    ];
+    var worst = 0;
+    for (var i = 1; i < rows.length; i++) if (rows[i][2] < rows[worst][2]) worst = i;
+
+    $("rp-big").textContent = fmt(score, 0);
+    $("rp-uni").textContent = "分 · " + level;
+    var kvs = [
+      ["家庭净资产", yuan(netWorth)],
+      ["税后到手（估）", yuan(net) + "/月"],
+      ["应急金缺口", emMonths >= 6 ? "已够 6 个月" : yuan(Math.max(0, need * 6 - cash))],
+      ["保障缺口", insGap > 0 ? yuan(insGap) : "已够"],
+      ["FIRE 目标（4% 提取）", yuan(fireTarget)],
+      ["FIRE 进度", pct(fireProg)],
+      ["月供上限（收入 40%）", yuan(maxPay)],
+      ["按 " + fmt(rate, 2) + "% / " + years + " 年可贷", yuan(loanCap)],
+      ["年保费占收入", pct(inc > 0 ? prem / (inc * 12) : 0)]
+    ];
+    var kvHtml = "";
+    for (var k = 0; k < kvs.length; k++) kvHtml += "<li><span>" + kvs[k][0] + "</span><b>" + kvs[k][1] + "</b></li>";
+    $("rp-kv").innerHTML = kvHtml;
+
+    var html = "";
+    for (var r = 0; r < rows.length; r++) {
+      var cls = rows[r][2] <= 10 ? " class=\"c-warn\"" : "";
+      html += "<tr" + cls + "><td class=\"tal\">" + rows[r][0] + "</td><td>" + rows[r][1] + "</td><td>" + rows[r][2] + " / 20</td><td>" + rows[r][3] + "</td></tr>";
+    }
+    $("rp-body").innerHTML = html;
+    $("rp-note").textContent = "总分 " + score + "（" + level + "），短板是" + names[worst] + "。"
+      + acts[worst] + " 打分只看五项硬指标，不含投资能力与收入稳定性；数据只在本机，点「打印」可存成一页 PDF。";
+  }
+
+  /* ---------------- 方案快照 ---------------- */
+  function calcSnaps() {
+    renderSnapList();
+    renderSnapCompare();
+  }
+
+  /* 只重绘列表（存/删/清空时用） */
+  function renderSnapList() {
+    var arr = loadSnaps();
+    var tb = $("snap-body");
+    if (!tb) return;
+    if (!arr.length) {
+      tb.innerHTML = "<tr><td class=\"tal\" colspan=\"5\">还没有快照。先到任意模块调好参数，点顶部「＋ 存方案」。</td></tr>";
+      $("snap-count").textContent = "0";
+      return;
+    }
+    var h = "";
+    for (var i = 0; i < arr.length; i++) {
+      var s = arr[i];
+      var main = s.rows && s.rows.length ? s.rows[0][1] : "—";
+      h += "<tr><td><input type=\"checkbox\" class=\"snap-pick\" data-id=\"" + s.id + "\"" + (SNAP_PICK[s.id] ? " checked" : "") + " aria-label=\"选择方案\"></td>"
+        + "<td class=\"tal\"><a href=\"#" + s.mod + "\" class=\"snap-load\" data-id=\"" + s.id + "\">" + s.modName + "</a></td>"
+        + "<td class=\"tal\">" + (s.name || "") + "</td>"
+        + "<td>" + main + "</td><td>" + fmtAt(s.at) + " <button type=\"button\" class=\"ghost sm snap-del\" data-id=\"" + s.id + "\">删</button></td></tr>";
+    }
+    tb.innerHTML = h;
+    $("snap-count").textContent = String(arr.length);
+  }
+
+  /* 只重绘对比表（勾选变化时用，不动列表，避免勾选被重绘吃掉） */
+  function renderSnapCompare() {
+    window.__snapCompare = renderSnapCompare;
+    var arr = loadSnaps();
+    var box = $("snap-cmp-body");
+    if (!box) return;
+    if (!arr.length) { box.innerHTML = ""; return; }
+    var picked = Object.keys(SNAP_PICK).filter(function (k) { return SNAP_PICK[k]; });
+    var sel = arr.filter(function (x) { return picked.indexOf(x.id) >= 0; }).slice(0, 3);
+    if (sel.length < 2) {
+      box.innerHTML = "<tr><td class=\"tal\" colspan=\"4\">勾选 2–3 个方案就能并排比（最多 3 个）。</td></tr>";
+      $("snap-note").textContent = "快照存在本机，最多 12 条；点模块名可以带着当时的参数回到那个模块继续调。";
+      return;
+    }
+    var labels = [];
+    sel.forEach(function (s) {
+      (s.rows || []).forEach(function (r) { if (labels.indexOf(r[0]) < 0) labels.push(r[0]); });
+    });
+    var head = "<tr><th class=\"tal\">指标</th>";
+    sel.forEach(function (s) { head += "<th>" + s.modName + " · " + (s.name || "") + "</th>"; });
+    var body = "";
+    labels.forEach(function (lab) {
+      body += "<tr><td class=\"tal\">" + lab + "</td>";
+      sel.forEach(function (s) {
+        var hit = (s.rows || []).filter(function (r) { return r[0] === lab; })[0];
+        body += "<td>" + (hit ? hit[1] : "—") + "</td>";
+      });
+      body += "</tr>";
+    });
+    box.innerHTML = head + "</tr>" + body;
+    $("snap-note").textContent = "已选 " + sel.length + " 个方案并排对比（最多 3 个）。点「导出 CSV」可以把这张表存下来。";
+  }
+
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
@@ -8267,6 +8459,7 @@
     welfare: calcWelfare, inputout: calcInputOut, stampduty: calcStampDuty, assetdisp: calcAssetDisp,
     headcount: calcHeadcount, markroi: calcMarkRoi, rdproject: calcRdProject, intsvc: calcIntSvc,
     accrual: calcAccrual, cfconsol: calcCfConsol, exportcheck: calcExportCheck, vatcheck: calcVatCheck,
+    report: calcReport, snaps: calcSnaps,
     healthcheck: calcHealth,
     salesallow: calcSalesAllow, lease: calcLease, gpmix: calcGpmix, vatchoose: calcVatChoose,
     datemath: calcDatemath, pct3: calcPct3, xlhelp: calcXlHelp, csvrecon: calcCsvRecon,
@@ -8392,6 +8585,7 @@
     var panel = e.target.closest(".panel");
     if (!panel) return;
     var name = panel.id.replace("panel-", "");
+    if (name === "snaps") return;   // 方案快照面板没有输入，勾选走 change 事件
     if (calcMap[name]) calcMap[name]();
     save();
   });
@@ -8533,9 +8727,10 @@
     "exc-usd", "exc-fx", "exc-inv", "exc-rec", "exc-rate", "exc-credit",
     "vchk-out", "vchk-inv", "vchk-noinv", "vchk-in", "vchk-cert", "vchk-tr",
     "hk-inc", "hk-age", "hk-need", "hk-want", "hk-cash", "hk-inv", "hk-house", "hk-debt",
-    "hk-loan", "hk-prem", "hk-ins"
+    "hk-loan", "hk-prem", "hk-ins",
+    "rp-inc", "rp-need", "rp-want", "rp-cash", "rp-inv", "rp-house", "rp-debt", "rp-loan", "rp-ins", "rp-prem", "rp-age", "rp-rate", "rp-years"
 ];
-  var KEY = "finance-calc-v43";
+  var KEY = "finance-calc-v44";
   var CAT_KEY = "finance-calc-cat";
 
   /* ---------------- 现金流月历 ---------------- */
@@ -9171,6 +9366,63 @@
       try { navigator.serviceWorker.register("./sw.js").catch(function () {}); } catch (e) {}
     });
   }
+
+
+  /* ---------------- 方案快照：按钮与行内交互 ---------------- */
+  if ($("btn-snap")) $("btn-snap").addEventListener("click", function () {
+    var tab = document.querySelector(".tab.is-on");
+    var def = tab ? tab.textContent.trim() : "方案";
+    var nm = "";
+    try { nm = window.prompt("给这个方案起个名（可留空）", def) || ""; } catch (e) { nm = ""; }
+    var s = makeSnap(nm.trim() || def);
+    if (!s) return;
+    var arr = loadSnaps();
+    arr.unshift(s);
+    saveSnaps(arr);
+    runCalc("snaps");
+    flash(this, "已存方案");
+  });
+
+  if ($("snap-cmp")) $("snap-cmp").addEventListener("click", function () { runCalc("snaps"); });
+
+  if ($("snap-clear")) $("snap-clear").addEventListener("click", function () {
+    var ok = true;
+    try { ok = window.confirm("清空全部方案快照？此操作不能撤销。"); } catch (e) {}
+    if (!ok) return;
+    saveSnaps([]);
+    SNAP_PICK = {};
+    runCalc("snaps");
+    flash(this, "已清空");
+  });
+
+  document.addEventListener("click", function (e) {
+    var del = e.target.closest ? e.target.closest(".snap-del") : null;
+    if (del) {
+      var id = del.dataset.id;
+      delete SNAP_PICK[id];
+      saveSnaps(loadSnaps().filter(function (x) { return x.id !== id; }));
+      runCalc("snaps");
+      return;
+    }
+    var load = e.target.closest ? e.target.closest(".snap-load") : null;
+    if (load) {
+      var snap = loadSnaps().filter(function (x) { return x.id === load.dataset.id; })[0];
+      if (!snap) return;
+      activate(snap.mod);
+      var q = (snap.params || []).filter(function (p) { return p.id && p.value !== ""; })
+        .map(function (p) { return encodeURIComponent(p.id) + "=" + encodeURIComponent(p.value); }).join("&");
+      if (q) applyParams(q);
+      runCalc(snap.mod);
+      return;
+    }
+  });
+
+  document.addEventListener("change", function (e) {
+    if (e.target && e.target.classList && e.target.classList.contains("snap-pick")) {
+      SNAP_PICK[e.target.dataset.id] = e.target.checked;
+      if (window.__snapCompare) window.__snapCompare(); else runCalc("snaps");
+    }
+  });
 
   /* ---------------- 启动 ---------------- */
   restore();

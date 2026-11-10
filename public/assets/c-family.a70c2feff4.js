@@ -1,5 +1,5 @@
 /* 自动生成，勿手改：family 分类模块（点开才下载） */
-const { $, CAT_KEY, CMP_KEY, CURS, DIVISOR, FAV_KEY, FIELDS, KEY, MONTH_TABLE, PRE_KEY, THEME_KEY, UNITS, XL_ROWS, YEAR_TABLE, activate, addMonths, annuityPV, annuityPayment, applyFilter, applyParams, bizAdd, bonusSoloTax, buildLoanSchedule, buildShare, calcLoan, cnUpper, combineTax, convertTemp, copyText, cumulativeTax, curCat, currentSnap, favList, fillUnits, flash, fmt, fmtDate, fx, gauss, hashTarget, isFav, leftAfter, loadCmpA, loanRows, money, monthToDate, monthlyIRR, months, npvDiff, num, numOf, panelEls, panelParams, parseAmounts, parseDate, pct, percentile, presets, quickOf, rateOf, refreshCounts, renderLoanTable, renderPresets, rentBuyAt, restore, save, saveCmpA, saveFav, savePresets, savedCat, setCat, setSub, setTheme, snapshot, st0, startName, taxBy, yuan, zOf } = window.FC;
+const { $, CAT_KEY, CHUNK_FILES, CHUNK_OF, CMP_KEY, CORE_CALC, CURS, DIVISOR, FAV_KEY, FIELDS, KEY, MONTH_TABLE, PRE_KEY, SNAP_KEY, SNAP_PICK, TABS, THEME_KEY, UNITS, XL_ROWS, YEAR_TABLE, activate, addMonths, annuityPV, annuityPayment, applyFilter, applyParams, bizAdd, bonusSoloTax, buildLoanSchedule, buildShare, calcLoan, calcMap, cnUpper, combineTax, convertTemp, copyText, cumulativeTax, curCat, currentSnap, ensureChunk, favList, fillUnits, flash, fmt, fmtAt, fmtDate, fx, gauss, hashTarget, isFav, leftAfter, loadCmpA, loadSnaps, loanRows, makeSnap, money, monthToDate, monthlyIRR, months, npvDiff, num, numOf, panelEls, panelParams, parseAmounts, parseDate, pct, percentile, presets, quickOf, rateOf, refreshCounts, renderLoanTable, renderPresets, renderSnapCompare, renderSnapList, rentBuyAt, restore, runCalc, save, saveCmpA, saveFav, savePresets, saveSnaps, savedCat, setCat, setSub, setTheme, snapNameOf, snapshot, st0, startName, taxBy, yuan, zOf } = window.FC;
 
   function calcEdu() {
     var age = Math.max(0, Math.min(17, num($("ed-age"), 3)));
@@ -569,4 +569,93 @@ const { $, CAT_KEY, CMP_KEY, CURS, DIVISOR, FAV_KEY, FIELDS, KEY, MONTH_TABLE, P
       + " 另外「还房贷本金」算储蓄不算支出——它是把钱从左口袋换到右口袋（换成房子权益），别把它塞进必需支出里，否则你的储蓄率会被低估。";
   }
 
-export default { edu: calcEdu, insure: calcInsure, balance: calcBalance, checkup: calcCheckup, cashflow: calcCashflow, riskalloc: calcRiskAlloc, fire: calcFire, annualfee: calcAnnualFee, childcost: calcChild, emergency: calcEmergency, rule503020: calcRule };
+  function calcReport() {
+    var inc = Math.max(0, num($("rp-inc"), 0));
+    var need = Math.max(0, num($("rp-need"), 0));
+    var want = Math.max(0, num($("rp-want"), 0));
+    var cash = Math.max(0, num($("rp-cash"), 0));
+    var inv = Math.max(0, num($("rp-inv"), 0));
+    var house = Math.max(0, num($("rp-house"), 0));
+    var debt = Math.max(0, num($("rp-debt"), 0));
+    var loan = Math.max(0, num($("rp-loan"), 0));
+    var ins = Math.max(0, num($("rp-ins"), 0));
+    var prem = Math.max(0, num($("rp-prem"), 0));
+    var age = Math.max(18, num($("rp-age"), 30));
+    var rate = Math.max(0, num($("rp-rate"), 3.1));
+    var years = Math.max(1, Math.round(num($("rp-years"), 30)));
+
+    var save = 0, em = 0, lev = 0, dsr = 0, cover = 0;
+    var saveRate = inc > 0 ? (inc - need - want) / inc : 0;
+    var emMonths = need > 0 ? cash / need : 0;
+    var totalAsset = cash + inv + house;
+    var levRate = totalAsset > 0 ? debt / totalAsset : 0;
+    var dsrRate = inc > 0 ? loan / inc : 0;
+    var needIns = Math.max(0, inc * 12 * 10 + debt - (cash + inv));
+    var coverRate = needIns > 0 ? ins / needIns : 1;
+
+    save = saveRate >= 0.3 ? 20 : saveRate >= 0.2 ? 15 : saveRate >= 0.1 ? 10 : 5;
+    em = emMonths >= 6 ? 20 : emMonths >= 4 ? 15 : emMonths >= 2 ? 10 : 5;
+    lev = levRate < 0.3 ? 20 : levRate < 0.5 ? 15 : levRate < 0.7 ? 10 : 5;
+    dsr = dsrRate < 0.3 ? 20 : dsrRate < 0.4 ? 15 : dsrRate < 0.5 ? 10 : 5;
+    cover = coverRate >= 1 ? 20 : coverRate >= 0.7 ? 15 : coverRate >= 0.4 ? 10 : 5;
+
+    var score = save + em + lev + dsr + cover;
+    var level = score >= 85 ? "优秀" : score >= 70 ? "良好" : score >= 55 ? "及格" : "需要调整";
+
+    var fireTarget = need + want > 0 ? (need + want) * 12 / 0.04 : 0;
+    var fireProg = fireTarget > 0 ? (cash + inv) / fireTarget : 0;
+    var maxPay = inc * 0.4;
+    var loanCap = rate >= 0 && years > 0 ? annuityPV(maxPay, rate / 100 / 12, years * 12) : 0;
+    var ssRate = 0.225;
+    var ss = inc * ssRate;
+    var mTax = taxBy(MONTH_TABLE, Math.max(0, inc - ss - 5000));
+    var net = inc - ss - mTax;
+    var netWorth = totalAsset - debt;
+    var insGap = Math.max(0, needIns - ins);
+
+    var rows = [
+      ["储蓄率", pct(saveRate), save, "≥30%", save],
+      ["应急金储备", fmt(emMonths, 1) + " 个月", em, "≥6 个月", em],
+      ["资产负债率", pct(levRate), lev, "<50%", lev],
+      ["月供收入比", pct(dsrRate), dsr, "<40%", dsr],
+      ["保障覆盖", pct(coverRate), cover, "≥100%", cover]
+    ];
+    var names = ["储蓄率", "应急金储备", "资产负债率", "月供收入比", "保障覆盖"];
+    var acts = [
+      "储蓄率偏低：先把每月自动转出固定金额（工资到账当天划走），目标先到 20%。",
+      "应急金不足：优先把 6 个月刚性支出放进货币基金/活期，别投波动资产。",
+      "负债偏重：优先还高息负债，新增负债前先压降总负债率到 50% 以内。",
+      "月供偏紧：把月供控制在收入 40% 以内，留出收入中断时的缓冲。",
+      "保障缺口：先把寿险/重疾配到「10 倍年收入 + 负债 − 可变现资产」，纯保障型优先。"
+    ];
+    var worst = 0;
+    for (var i = 1; i < rows.length; i++) if (rows[i][2] < rows[worst][2]) worst = i;
+
+    $("rp-big").textContent = fmt(score, 0);
+    $("rp-uni").textContent = "分 · " + level;
+    var kvs = [
+      ["家庭净资产", yuan(netWorth)],
+      ["税后到手（估）", yuan(net) + "/月"],
+      ["应急金缺口", emMonths >= 6 ? "已够 6 个月" : yuan(Math.max(0, need * 6 - cash))],
+      ["保障缺口", insGap > 0 ? yuan(insGap) : "已够"],
+      ["FIRE 目标（4% 提取）", yuan(fireTarget)],
+      ["FIRE 进度", pct(fireProg)],
+      ["月供上限（收入 40%）", yuan(maxPay)],
+      ["按 " + fmt(rate, 2) + "% / " + years + " 年可贷", yuan(loanCap)],
+      ["年保费占收入", pct(inc > 0 ? prem / (inc * 12) : 0)]
+    ];
+    var kvHtml = "";
+    for (var k = 0; k < kvs.length; k++) kvHtml += "<li><span>" + kvs[k][0] + "</span><b>" + kvs[k][1] + "</b></li>";
+    $("rp-kv").innerHTML = kvHtml;
+
+    var html = "";
+    for (var r = 0; r < rows.length; r++) {
+      var cls = rows[r][2] <= 10 ? " class=\"c-warn\"" : "";
+      html += "<tr" + cls + "><td class=\"tal\">" + rows[r][0] + "</td><td>" + rows[r][1] + "</td><td>" + rows[r][2] + " / 20</td><td>" + rows[r][3] + "</td></tr>";
+    }
+    $("rp-body").innerHTML = html;
+    $("rp-note").textContent = "总分 " + score + "（" + level + "），短板是" + names[worst] + "。"
+      + acts[worst] + " 打分只看五项硬指标，不含投资能力与收入稳定性；数据只在本机，点「打印」可存成一页 PDF。";
+  }
+
+export default { edu: calcEdu, insure: calcInsure, balance: calcBalance, checkup: calcCheckup, cashflow: calcCashflow, riskalloc: calcRiskAlloc, fire: calcFire, annualfee: calcAnnualFee, childcost: calcChild, emergency: calcEmergency, rule503020: calcRule, report: calcReport };
