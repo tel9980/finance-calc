@@ -5500,6 +5500,212 @@
       + "安全库存只覆盖提前期内的需求波动，供应商交期不稳、涨价囤货、旺季备货都要另外算；服务水平从 95% 提到 99%，安全库存要涨四成。";
   }
 
+  /* ===== 销售提成方案对比 ===== */
+  function calcCommission() {
+    var sales = Math.max(0, num($("cm-sales"), 0));
+    var ret = Math.min(1, Math.max(0, num($("cm-ret"), 0) / 100));
+    var gm = Math.min(1, Math.max(0, num($("cm-gm"), 0) / 100));
+    var sr = Math.max(0, num($("cm-sr"), 0)) / 100;
+    var gr = Math.max(0, num($("cm-gr"), 0)) / 100;
+    var achv = Math.max(0, num($("cm-achv"), 100)) / 100;
+    var cash = Math.min(1, Math.max(0, num($("cm-cash"), 100) / 100));
+
+    var base = sales * (1 - ret);
+    var gross = base * gm;
+    var c1 = base * sr;
+    var c2 = gross * gr;
+    var coeff = achv < 0.8 ? 0.5 : achv < 1 ? 1 : achv < 1.2 ? 1.2 : 1.5;
+    var crit = gr > 0 ? sr / gr : 0;
+
+    $("cm-big").textContent = money(c2);
+    $("cm-c1").textContent = yuan(c1);
+    $("cm-gap").textContent = (c1 - c2 >= 0 ? "" : "销售额法少付 ") + money(Math.abs(c1 - c2)) + " 元";
+    $("cm-crit").textContent = pct(crit, 2) + "（毛利率高于它，按毛利提对销售更有利）";
+    $("cm-coeff").textContent = fmt(coeff, 1) + "（完成率 " + pct(achv, 0) + "）";
+    $("cm-cashout").textContent = money(c1 * coeff * cash) + " / " + money(c2 * coeff * cash) + " 元";
+    $("cm-share").textContent = gross > 0 ? pct(c1 / gross, 2) : "—";
+    $("cm-base").textContent = yuan(base) + "（退货 " + pct(ret, 0) + "）";
+
+    var gms = [0.2, gm, 0.3, 0.35, 0.4], seen = {}, html = "";
+    for (var i = 0; i < gms.length; i++) {
+      var g = Math.round(gms[i] * 1000) / 1000;
+      if (seen[g]) continue;
+      seen[g] = 1;
+      var a = base * sr, b = base * g * gr, d = b - a;
+      var cls = Math.abs(g - gm) < 0.0005 ? ' class="c-info"' : (d < 0 ? ' class="c-warn"' : "");
+      html += "<tr" + cls + "><td>" + pct(g, 0) + "</td><td>" + money(a) + "</td><td>" + money(b) + "</td><td>"
+        + (d >= 0 ? "+" : "") + money(d) + "</td></tr>";
+    }
+    $("cm-body").innerHTML = html;
+
+    $("cm-note").textContent = "按销售额提成的毛病很简单：打折、赊账、卖高毛利还是低毛利，销售拿的钱差不多，"
+      + "所以他会默认选择「最容易签下来」的方式，而那通常是最不赚钱的方式。按毛利提成把这一层对齐了——降价自己吃亏，"
+      + "但销售会开始挑客户、也和公司抢定价权，所以常见做法是「毛利提成为主 + 销售额门槛（完成率系数）保底」。"
+      + "提成按回款发放是最有效的风控，滞销赊账的提成拖着不发，比任何制度都好使。";
+  }
+
+  /* ===== 固定资产投决 ===== */
+  function calcCapex() {
+    var inv = Math.max(0, num($("cpx-inv"), 0));
+    var cf = num($("cpx-cf"), 0);
+    var yrs = Math.max(1, Math.min(50, Math.round(num($("cpx-years"), 1))));
+    var r = Math.max(0, num($("cpx-rate"), 0)) / 100;
+    var rv = Math.max(0, num($("cpx-rv"), 0));
+
+    var flows = [], i;
+    for (i = 0; i < yrs; i++) flows.push(cf);
+    flows[yrs - 1] += rv;
+
+    var pv = 0, cum = 0, cumD = 0, pb = 0, dpb = 0, prev = 0, prevD = 0, html = "";
+    html += "<tr><td>0</td><td>−" + money(inv) + "</td><td>−" + money(inv) + "</td><td>−" + money(inv) + "</td></tr>";
+    for (i = 0; i < yrs; i++) {
+      var d = flows[i] / Math.pow(1 + r, i + 1);
+      pv += d;
+      prev = cum; cum += flows[i];
+      prevD = cumD; cumD += d;
+      if (!pb && cum >= inv) pb = i + (inv - prev) / (flows[i] || 1) + 0;
+      if (!dpb && cumD >= inv) dpb = i + (inv - prevD) / (d || 1) + 0;
+      html += "<tr><td>" + (i + 1) + "</td><td>" + money(flows[i]) + "</td><td>" + money(d) + "</td><td>" + money(cumD - inv) + "</td></tr>";
+    }
+    var npv = pv - inv;
+    var pi = inv > 0 ? pv / inv : 0;
+
+    var lo = -0.99, hi = 5, k;
+    for (k = 0; k < 200; k++) {
+      var mid = (lo + hi) / 2, s = -inv;
+      for (i = 0; i < yrs; i++) s += flows[i] / Math.pow(1 + mid, i + 1);
+      if (s > 0) lo = mid; else hi = mid;
+    }
+    var irr = (lo + hi) / 2;
+    var pvifa = r > 0 ? (1 - Math.pow(1 + r, -yrs)) / r : yrs;
+
+    $("cpx-big").textContent = (npv >= 0 ? "" : "−") + money(Math.abs(npv));
+    $("cpx-irr").textContent = pct(irr, 2);
+    $("cpx-pi").textContent = fmt(pi, 4);
+    $("cpx-pb").textContent = pb ? fmt(pb, 2) + " 年" : "项目期内收不回";
+    $("cpx-dpb").textContent = dpb ? fmt(dpb, 2) + " 年" : "按 " + pct(r, 1) + " 折现收不回";
+    $("cpx-pvifa").textContent = fmt(pvifa, 6) + "（" + yrs + " 年，" + pct(r, 1) + "）";
+    $("cpx-verdict").textContent = npv > 0 && irr > r
+      ? "可投：NPV " + money(npv) + " 元，IRR 高出折现率 " + fmt((irr - r) * 100, 2) + " 个百分点"
+      : npv <= 0 ? "别投：按 " + pct(r, 1) + " 折现是亏的" : "临界：IRR 没超过折现率，谨慎";
+    $("cpx-body").innerHTML = html;
+
+    $("cpx-note").textContent = "三个指标各管一件事：NPV 管「值多少钱」（绝对值，可加总），IRR 管「赚多快」（比率，方便跟资金成本比），"
+      + "回收期只管「多久能拿回本」——它把回收期之后的钱全当不存在，所以短平快项目会被高估。"
+      + "现金流要用「税后 + 加回折旧」，别直接拿利润当现金流；营运资金占用和后期大修要算进去。"
+      + "残值别拍脑袋定高，处置时的税费也会吃掉一部分。";
+  }
+
+  /* ===== 资金归集与内部借款 ===== */
+  function calcPooling() {
+    var idle = Math.max(0, num($("pool-idle"), 0));
+    var sa = Math.max(0, num($("pool-a"), 0));
+    var sb = Math.max(0, num($("pool-b"), 0));
+    var inR = Math.max(0, num($("pool-in"), 0)) / 100;
+    var outR = Math.max(0, num($("pool-out"), 0)) / 100;
+    var demand = Math.max(0, num($("pool-demand"), 0)) / 100;
+    var pr = Math.min(1, Math.max(0, num($("pool-rate"), 100) / 100));
+    var wealth = Math.max(0, num($("pool-wealth"), 0)) / 100;
+    var equity = Math.max(0, num($("pool-equity"), 0));
+
+    var pooled = idle * pr;
+    var loans = Math.min(pooled, sa + sb);
+    var want = sa + sb;
+    var intIn = loans * inR;
+    var save = loans * outR - loans * demand;
+    var rest = Math.max(0, pooled - loans);
+    var restIncome = rest * wealth;
+    var total = save + restIncome;
+    var ratio = equity > 0 ? loans / equity : 0;
+    var cap = equity * 2;
+
+    $("pool-big").textContent = (total >= 0 ? "" : "−") + money(Math.abs(total));
+    $("pool-pooled").textContent = yuan(pooled) + "（可归集 " + pct(pr, 0) + "）";
+    $("pool-loans").textContent = yuan(loans) + (loans < want ? "（缺口 " + money(want - loans) + " 元仍要外部融资）" : "（缺口已全覆盖）");
+    $("pool-int").textContent = yuan(intIn) + "（A " + money(sa * inR) + " / B " + money(sb * inR) + "）";
+    $("pool-rest").textContent = yuan(restIncome) + "（闲置 " + money(rest) + " 元 × " + pct(wealth, 1) + "）";
+    $("pool-all").textContent = yuan(total) + " / " + pct(idle > 0 ? total / idle : 0, 2);
+    $("pool-ratio").textContent = fmt(ratio, 2) + " 倍（上限 2 倍，即 " + money(cap) + " 元）";
+    $("pool-verdict").textContent = ratio <= 2
+      ? "利息可全额税前扣除"
+      : "超债资比：超额 " + money(loans - cap) + " 元对应利息不得扣除";
+
+    var rows = [
+      ["母公司归集闲置资金", money(pooled), "—", "转入资金池"],
+      ["子公司 A 内部借款", money(Math.min(sa, loans)), pct(inR, 2), money(Math.min(sa, loans) * inR)],
+      ["子公司 B 内部借款", money(Math.min(sb, Math.max(0, loans - sa))), pct(inR, 2), money(Math.min(sb, Math.max(0, loans - sa)) * inR)],
+      ["对照：外部流贷同额", money(loans), pct(outR, 2), money(loans * outR)],
+      ["剩余资金理财", money(rest), pct(wealth, 2), money(restIncome)]
+    ];
+    var html = "";
+    for (var i = 0; i < rows.length; i++) {
+      html += "<tr" + (i === 3 ? ' class="c-warn"' : (i === 4 ? ' class="c-info"' : "")) + "><td class=\"tal\">" + rows[i][0]
+        + "</td><td>" + rows[i][1] + "</td><td>" + rows[i][2] + "</td><td>" + rows[i][3] + "</td></tr>";
+    }
+    $("pool-body").innerHTML = html;
+
+    $("pool-note").textContent = "资金池的收益不是「子公司付的利息」——那笔钱在集团合并报表里会互相抵销，等于没赚。真正赚的是"
+      + "「子公司少付外部利息 − 母公司闲置资金本来能赚的那点活期」，本例差额主要来自这个利差。"
+      + "税务上要盯两点：一是关联方借款利息必须符合独立交易原则（利率要有可比依据、要有借款合同和资金流水），"
+      + "二是债资比 2:1（金融企业 5:1）超限部分利息不得扣除。另外资金池要做成「委托贷款」或持牌财务公司模式，"
+      + "直接划转在部分地区和银行会被认定为无真实交易背景。";
+  }
+
+  /* ===== 客户信用额度核定 ===== */
+  function calcCreditLimit() {
+    var buy = Math.max(0, num($("crl-buy"), 0));
+    var term = Math.max(0, num($("crl-term"), 0));
+    var vat = Math.max(0, num($("crl-vat"), 0)) / 100;
+    var gm = Math.min(1, Math.max(0, num($("crl-gm"), 0) / 100));
+    var netw = Math.max(0, num($("crl-netw"), 0));
+    var lev = Math.min(1, Math.max(0, num($("crl-lev"), 0) / 100));
+    var late = Math.max(0, num($("crl-late"), 0));
+    var cost = Math.max(0, num($("crl-cost"), 0)) / 100;
+
+    var ar = buy * (1 + vat) / 365 * term;
+    var arCost = ar * cost;
+    var gross = buy * gm;
+    var mult = arCost > 0 ? gross / arCost : 0;
+
+    var c1 = buy * 0.2, c2 = netw * 0.1, c3 = ar * 1.2;
+    var limit = Math.min(c1, c2, c3);
+
+    var score = 100;
+    if (lev > 0.7) score -= 20; else if (lev >= 0.6) score -= 10;
+    score -= Math.floor(late / 2) * 10;
+    if (late >= 3) score -= 10;
+    var pd = 0.01 + late * 0.01 + (lev > 0.7 ? 0.02 : 0);
+    var el = limit * pd;
+
+    $("crl-big").textContent = money(limit);
+    $("crl-ar").textContent = yuan(ar) + "（含税销售 ÷ 365 × " + fmt(term, 0) + " 天）";
+    $("crl-cost2").textContent = yuan(arCost);
+    $("crl-mult").textContent = fmt(mult, 2) + " 倍" + (mult < 5 ? "（薄，扛不住拖欠）" : "（厚，值得放）");
+    $("crl-score").textContent = fmt(Math.max(0, score), 0) + " 分（负债率 " + pct(lev, 0) + "，逾期 " + fmt(late, 0) + " 次）";
+    $("crl-pd").textContent = pct(pd, 2);
+    $("crl-el").textContent = yuan(el);
+    $("crl-verdict").textContent = gross > el * 5
+      ? "可放：" + fmt(mult, 1) + " 倍毛利覆盖，预期损失只占毛利 " + pct(gross > 0 ? el / gross : 0, 2)
+      : "谨慎：预期损失已接近毛利，要求预付或提供担保/信保";
+
+    var rows = [
+      ["年采购额的 20%", money(buy) + " × 20%", money(c1)],
+      ["客户净资产的 10%", money(netw) + " × 10%", money(c2)],
+      ["账期占用的 1.2 倍", money(ar) + " × 1.2", money(c3)],
+      ["取最小 → 建议额度", "min(以上三项)", money(limit)]
+    ];
+    var html = "";
+    for (var i = 0; i < rows.length; i++) {
+      html += "<tr" + (i === 3 ? ' class="c-info"' : "") + "><td class=\"tal\">" + rows[i][0] + "</td><td class=\"tal\">" + rows[i][1] + "</td><td>" + rows[i][2] + "</td></tr>";
+    }
+    $("crl-body").innerHTML = html;
+
+    $("crl-note").textContent = "额度不是拍出来的，是三条硬约束里最小的那条：他一年能买多少（20%）、他自己有多少底子（净资产 10%）、"
+      + "以及他占你多少钱（应收占用的 1.2 倍）。真正决定赚不赚的是「毛利 ÷ 占用成本」——"
+      + "毛利薄的生意，一笔坏账能吃掉好几单的利润。放账期前先查两样：涉诉与被执行记录、有没有拖欠别家的货款。"
+      + "有条件的话，要求客户提供担保、投保信用险，或者做有追索权保理，把风险先转移出去再谈额度。";
+  }
+
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
@@ -5527,7 +5733,8 @@
     factoring: calcFactoring, deadstock: calcDeadStock, aptalk: calcApTalk, cash13: calcCash13,
     bill: calcBill, loanreal: calcLoanReal, collect: calcCollect, mgmtpack: calcMgmtPack,
     settleway: calcSettleWay, creditline: calcCreditLine, impair: calcImpair, fxgain: calcFxGain,
-    taxburden: calcTaxBurden, sens: calcSens, consol: calcConsol, eoq: calcEoq
+    taxburden: calcTaxBurden, sens: calcSens, consol: calcConsol, eoq: calcEoq,
+    commission: calcCommission, capex: calcCapex, pooling: calcPooling, creditlimit: calcCreditLimit
   };
 
   function setCat(cat) {
@@ -5682,9 +5889,10 @@
     "crd-sales", "crd-net", "crd-coll", "crd-collrate", "crd-creditrate", "crd-guar", "crd-used", "crd-need",
     "im-cost", "im-price", "im-finish", "im-sell", "im-had", "im-up", "im-tax",
     "fxg-usd", "fxg-signed", "fxg-book", "fxg-spot", "fxg-spread", "fxg-fwd",
-"tbr-sales", "tbr-out", "tbr-in", "tbr-begin", "tbr-prev", "tbr-ind", "tbr-surch", "sens-rev", "sens-vr", "sens-fix", "sens-shock", "sens-target", "cons-pm-rev", "cons-sub-rev", "cons-inter", "cons-pm-np", "cons-sub-np", "cons-unreal", "cons-mi", "cons-inv", "cons-sub-net", "cons-rec", "eoq-d", "eoq-k", "eoq-h", "eoq-day", "eoq-sd", "eoq-lt", "eoq-svc", "eoq-moq"
+"tbr-sales", "tbr-out", "tbr-in", "tbr-begin", "tbr-prev", "tbr-ind", "tbr-surch", "sens-rev", "sens-vr", "sens-fix", "sens-shock", "sens-target", "cons-pm-rev", "cons-sub-rev", "cons-inter", "cons-pm-np", "cons-sub-np", "cons-unreal", "cons-mi", "cons-inv", "cons-sub-net", "cons-rec", "eoq-d", "eoq-k", "eoq-h", "eoq-day", "eoq-sd", "eoq-lt", "eoq-svc", "eoq-moq",
+"cm-sales", "cm-ret", "cm-gm", "cm-sr", "cm-gr", "cm-achv", "cm-cash", "cpx-inv", "cpx-cf", "cpx-years", "cpx-rate", "cpx-rv", "pool-idle", "pool-a", "pool-b", "pool-in", "pool-out", "pool-demand", "pool-rate", "pool-wealth", "pool-equity", "crl-buy", "crl-term", "crl-vat", "crl-gm", "crl-netw", "crl-lev", "crl-late", "crl-cost"
 ];
-  var KEY = "finance-calc-v26";
+  var KEY = "finance-calc-v27";
   var CAT_KEY = "finance-calc-cat";
 
   /* ---------------- 现金流月历 ---------------- */
