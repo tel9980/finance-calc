@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>财务计算器 · 存款 贷款 提前还款 公积金额度 二手房税费 到手工资</title>
-<meta name="description" content="免费的财务计算器（19 个模块）：存款利息、贷款月供与还款计划、组合贷、提前还款省息、复利与定投、攒钱目标、分期真实年化、年化收益、通胀购买力、个税与到手工资、租房还是买房、信用卡循环利息、汇率与单位换算、公积金可贷额度、利率调整后月供、二手房交易税费、AA 分摊。纯前端计算，不联网、不上传数据。">
+<title>财务计算器 · 存款 贷款 提前还款 退休金 到手工资 二手房税费</title>
+<meta name="description" content="免费的财务计算器（23 个模块）：存款利息、贷款月供与还款计划、组合贷、提前还款省息、复利与定投、攒钱目标、分期真实年化、年化收益、通胀购买力、个税与到手工资、租房还是买房、信用卡循环利息、汇率与单位换算、公积金可贷额度、利率调整后月供、二手房交易税费、AA 分摊、退休金测算、卖房换房、公积金月冲年冲、多币种折算。纯前端计算，不联网、不上传数据。">
 <meta name="theme-color" content="#1e3a8a">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231e3a8a'/%3E%3Ctext x='16' y='23' font-size='17' text-anchor='middle' fill='%23fff' font-family='sans-serif'%3E%C2%A5%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="./style.css">
@@ -17,7 +17,7 @@
       <span class="mark">¥</span>
       <div>
         <h1>财务计算器</h1>
-        <p>存款 · 贷款 · 组合贷 · 提前还款 · 复利 · 攒钱 · 分期 · 个税 · 到手工资 · 租买 · 信用卡 · 公积金 · 房贷重定价 · 二手房税费 · AA 分摊</p>
+        <p>存款 · 贷款 · 组合贷 · 提前还款 · 复利 · 攒钱 · 分期 · 个税 · 到手工资 · 退休金 · 租买 · 信用卡 · 公积金 · 房贷重定价 · 换房 · AA · 多币种</p>
       </div>
     </div>
     <nav class="tabs" id="tabs" role="tablist">
@@ -40,6 +40,10 @@
       <button class="tab" data-tab="lpr" role="tab">利率调整月供</button>
       <button class="tab" data-tab="deed" role="tab">二手房税费</button>
       <button class="tab" data-tab="split" role="tab">AA 分摊</button>
+      <button class="tab" data-tab="pension" role="tab">退休金测算</button>
+      <button class="tab" data-tab="sell" role="tab">卖房换房</button>
+      <button class="tab" data-tab="offset" role="tab">公积金对冲</button>
+      <button class="tab" data-tab="multi" role="tab">多币种折算</button>
     </nav>
   </div>
 </header>
@@ -1103,6 +1107,251 @@
           <li><span>收款合计核对</span><b id="sp-check">—</b></li>
         </ul>
         <p class="hint" id="sp-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-pension">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f">
+          <span>当地上年度月社平工资（元）</span>
+          <input id="pn-avg" type="number" inputmode="decimal" min="0" step="100" value="8000">
+        </label>
+        <label class="f">
+          <span>本人平均缴费指数（0.6–3）</span>
+          <input id="pn-index" type="number" inputmode="decimal" min="0.1" max="5" step="0.05" value="1">
+        </label>
+        <label class="f">
+          <span>累计缴费年限（年）</span>
+          <input id="pn-years" type="number" inputmode="decimal" min="0" step="1" value="30">
+        </label>
+        <label class="f">
+          <span>个人账户余额（元）</span>
+          <input id="pn-balance" type="number" inputmode="decimal" min="0" step="1000" value="200000">
+        </label>
+        <label class="f">
+          <span>退休年龄</span>
+          <select id="pn-age">
+            <option value="50">50 岁（计发 195 期）</option>
+            <option value="55">55 岁（计发 170 期）</option>
+            <option value="60" selected>60 岁（计发 139 期）</option>
+            <option value="65">65 岁（计发 101 期）</option>
+          </select>
+        </label>
+        <label class="f">
+          <span>期望退休后每月开支（元）</span>
+          <input id="pn-expense" type="number" inputmode="decimal" min="0" step="500" value="6000">
+        </label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big">
+          <span class="k">预计每月养老金</span>
+          <strong id="pn-total">—</strong>
+          <span class="unit">元</span>
+        </div>
+        <ul class="kv">
+          <li><span>基础养老金</span><b id="pn-base">—</b></li>
+          <li><span>个人账户养老金</span><b id="pn-acc">—</b></li>
+          <li><span>退休前缴费工资（社平×指数）</span><b id="pn-wage">—</b></li>
+          <li><span>养老金替代率</span><b id="pn-replace">—</b></li>
+          <li><span>每年可领</span><b id="pn-year">—</b></li>
+          <li><span>个人账户计发月数</span><b id="pn-months">—</b></li>
+          <li><span>每月缺口（期望开支 − 养老金）</span><b id="pn-gap">—</b></li>
+          <li><span>缺口需自备（按 25 倍年缺口）</span><b id="pn-need">—</b></li>
+        </ul>
+        <p class="hint" id="pn-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-sell">
+    <div class="cols">
+      <div class="card">
+        <h2>卖旧房</h2>
+        <label class="f">
+          <span>现房成交价（元）</span>
+          <input id="sv-price" type="number" inputmode="decimal" min="0" step="10000" value="2000000">
+        </label>
+        <label class="f">
+          <span>剩余贷款本金（元）</span>
+          <input id="sv-loan" type="number" inputmode="decimal" min="0" step="10000" value="800000">
+        </label>
+        <label class="f">
+          <span>增值税及附加（%，满 2 年多为 0）</span>
+          <input id="sv-vat" type="number" inputmode="decimal" min="0" step="0.1" value="0">
+        </label>
+        <label class="f">
+          <span>个人所得税（%，满五唯一为 0）</span>
+          <input id="sv-it" type="number" inputmode="decimal" min="0" step="0.1" value="1">
+        </label>
+        <label class="f">
+          <span>中介费（%）</span>
+          <input id="sv-agent" type="number" inputmode="decimal" min="0" step="0.1" value="2">
+        </label>
+        <label class="f">
+          <span>其他卖方费用（%，评估/担保等）</span>
+          <input id="sv-other" type="number" inputmode="decimal" min="0" step="0.1" value="0.3">
+        </label>
+        <h2 class="sub">换新房</h2>
+        <label class="f">
+          <span>新房总价（元）</span>
+          <input id="sv-new" type="number" inputmode="decimal" min="0" step="10000" value="3000000">
+        </label>
+        <label class="f">
+          <span>首付比例（%）</span>
+          <input id="sv-down" type="number" inputmode="decimal" min="0" max="100" step="1" value="30">
+        </label>
+        <label class="f">
+          <span>新贷款利率（年，%）</span>
+          <input id="sv-rate" type="number" inputmode="decimal" min="0" step="0.05" value="3.1">
+        </label>
+        <label class="f">
+          <span>新贷款年限（年）</span>
+          <input id="sv-years" type="number" inputmode="numeric" min="1" max="40" step="1" value="30">
+        </label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big">
+          <span class="k">卖房到手净额</span>
+          <strong id="sv-net">—</strong>
+          <span class="unit">元</span>
+        </div>
+        <ul class="kv">
+          <li><span>卖方税费合计</span><b id="sv-tax">—</b></li>
+          <li><span>其中增值税及附加</span><b id="sv-vat-amt">—</b></li>
+          <li><span>其中个人所得税</span><b id="sv-it-amt">—</b></li>
+          <li><span>其中中介费</span><b id="sv-agent-amt">—</b></li>
+          <li><span>其中其他费用</span><b id="sv-other-amt">—</b></li>
+          <li><span>税费占成交价</span><b id="sv-tax-ratio">—</b></li>
+          <li><span>新房首付需要</span><b id="sv-dpay">—</b></li>
+          <li><span>资金缺口（负数即结余）</span><b id="sv-gap">—</b></li>
+          <li><span>新贷款金额</span><b id="sv-nloan">—</b></li>
+          <li><span>新贷款月供</span><b id="sv-mpay">—</b></li>
+        </ul>
+        <p class="hint" id="sv-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-offset">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f">
+          <span>公积金贷款余额（元）</span>
+          <input id="of-principal" type="number" inputmode="decimal" min="0" step="10000" value="800000">
+        </label>
+        <label class="f">
+          <span>贷款利率（年，%）</span>
+          <input id="of-rate" type="number" inputmode="decimal" min="0" step="0.05" value="3.1">
+        </label>
+        <label class="f">
+          <span>剩余期数（月）</span>
+          <input id="of-months" type="number" inputmode="numeric" min="1" step="12" value="240">
+        </label>
+        <label class="f">
+          <span>公积金账户余额（元）</span>
+          <input id="of-acct" type="number" inputmode="decimal" min="0" step="1000" value="50000">
+        </label>
+        <label class="f">
+          <span>每月缴存额（元，可用于还贷部分）</span>
+          <input id="of-dep" type="number" inputmode="decimal" min="0" step="100" value="2400">
+        </label>
+        <label class="f">
+          <span>年冲方式</span>
+          <select id="of-mode">
+            <option value="reduce" selected>减少月供（期限不变）</option>
+            <option value="shrink">缩短期限（月供不变）</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big">
+          <span class="k">年冲比月冲少付利息</span>
+          <strong id="of-save">—</strong>
+          <span class="unit">元</span>
+        </div>
+        <ul class="kv">
+          <li><span>当前月供（未对冲）</span><b id="of-pay">—</b></li>
+          <li><span>月冲：账户资金能用几个月</span><b id="of-runout">—</b></li>
+          <li><span>月冲：贷款期累计利息</span><b id="of-m-int">—</b></li>
+          <li><span>月冲：自己掏的现金合计</span><b id="of-m-cash">—</b></li>
+          <li><span>年冲：贷款结清期数</span><b id="of-y-months">—</b></li>
+          <li><span>年冲：贷款期累计利息</span><b id="of-y-int">—</b></li>
+          <li><span>年冲：自己掏的现金合计</span><b id="of-y-cash">—</b></li>
+          <li><span>年冲：账户资金共冲本金</span><b id="of-y-pre">—</b></li>
+        </ul>
+        <p class="hint" id="of-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-multi">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f">
+          <span>金额</span>
+          <input id="mc-amount" type="number" inputmode="decimal" min="0" step="100" value="10000">
+        </label>
+        <label class="f">
+          <span>这笔钱是哪种货币</span>
+          <select id="mc-cur">
+            <option value="CNY" selected>人民币 CNY</option>
+            <option value="USD">美元 USD</option>
+            <option value="EUR">欧元 EUR</option>
+            <option value="JPY">日元 JPY</option>
+            <option value="HKD">港币 HKD</option>
+            <option value="GBP">英镑 GBP</option>
+          </select>
+        </label>
+        <h2 class="sub">汇率（元 / 1 外币，手动填）</h2>
+        <label class="f">
+          <span>美元 USD</span>
+          <input id="mc-usd" type="number" inputmode="decimal" min="0" step="0.01" value="7.10">
+        </label>
+        <label class="f">
+          <span>欧元 EUR</span>
+          <input id="mc-eur" type="number" inputmode="decimal" min="0" step="0.01" value="7.75">
+        </label>
+        <label class="f">
+          <span>日元 JPY（每 1 日元）</span>
+          <input id="mc-jpy" type="number" inputmode="decimal" min="0" step="0.001" value="0.0475">
+        </label>
+        <label class="f">
+          <span>港币 HKD</span>
+          <input id="mc-hkd" type="number" inputmode="decimal" min="0" step="0.001" value="0.912">
+        </label>
+        <label class="f">
+          <span>英镑 GBP</span>
+          <input id="mc-gbp" type="number" inputmode="decimal" min="0" step="0.01" value="9.05">
+        </label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big">
+          <span class="k">折合人民币</span>
+          <strong id="mc-cny">—</strong>
+          <span class="unit">元</span>
+        </div>
+        <ul class="kv">
+          <li><span>美元 USD</span><b id="mc-usd-out">—</b></li>
+          <li><span>欧元 EUR</span><b id="mc-eur-out">—</b></li>
+          <li><span>日元 JPY</span><b id="mc-jpy-out">—</b></li>
+          <li><span>港币 HKD</span><b id="mc-hkd-out">—</b></li>
+          <li><span>英镑 GBP</span><b id="mc-gbp-out">—</b></li>
+          <li><span>银行卖出价上浮 0.4% 后</span><b id="mc-spread">—</b></li>
+        </ul>
+        <p class="hint" id="mc-note"></p>
       </div>
     </div>
   </section>

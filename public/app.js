@@ -1035,12 +1035,195 @@
       + " 聚餐 AA 里最容易吵的两件事：服务费有没有算进人均、以及有没有人没喝酒/没吃某道菜——后者建议单独把酒水剔除后再按人数分。";
   }
 
+  /* ================= 退休金测算 ================= */
+  var DIVISOR = { 40: 233, 45: 216, 50: 195, 55: 170, 60: 139, 65: 101 };
+
+  function calcPension() {
+    var avg = Math.max(0, num($("pn-avg"), 0));
+    var idx = Math.min(5, Math.max(0.1, num($("pn-index"), 1)));
+    var yrs = Math.max(0, num($("pn-years"), 0));
+    var bal = Math.max(0, num($("pn-balance"), 0));
+    var age = parseInt($("pn-age").value, 10) || 60;
+    var expense = Math.max(0, num($("pn-expense"), 0));
+    var div = DIVISOR[age] || 139;
+
+    var wage = avg * idx;                       // 本人指数化月平均缴费工资
+    var base = (avg + wage) / 2 * yrs * 0.01;   // 基础养老金
+    var acc = bal / div;                        // 个人账户养老金
+    var total = base + acc;
+    var replace = wage > 0 ? total / wage : 0;
+    var gap = expense - total;
+
+    $("pn-total").textContent = money(total);
+    $("pn-base").textContent = yuan(base);
+    $("pn-acc").textContent = yuan(acc);
+    $("pn-wage").textContent = yuan(wage);
+    $("pn-replace").textContent = pct(replace, 2);
+    $("pn-year").textContent = yuan(total * 12);
+    $("pn-months").textContent = div + " 期（" + age + " 岁退休）";
+    $("pn-gap").textContent = gap > 0 ? yuan(gap) : "无缺口，高出 " + money(-gap) + " 元";
+    $("pn-need").textContent = gap > 0 ? yuan(gap * 12 * 25) : "—";
+
+    var note = "算法：基础养老金 =（社平工资 " + money(avg) + " + 指数化工资 " + money(wage) + "）÷ 2 × 缴费年限 "
+      + fmt(yrs, 0) + " 年 × 1% = " + money(base) + "；个人账户养老金 = 账户余额 " + money(bal)
+      + " ÷ 计发月数 " + div + " = " + money(acc) + "；两项相加即每月养老金。"
+      + " 计发月数是国家精算表（60 岁 139、55 岁 170、50 岁 195），账户余额领完后由统筹基金继续按原标准发放，不会停。";
+    if (yrs < 15) note += " 注意：累计缴费不足 15 年不能按月领基础养老金，需延缴或转城乡居民养老保险，个人账户部分可一次性领取。";
+    if (replace > 0 && replace < 0.4) note += " 替代率只有 " + pct(replace, 1) + "，低于国际警戒线 40%，说明光靠社保退休后生活水平会明显下降。";
+    if (gap > 0) note += " 缺口 " + money(gap) + " 元/月，按 25 倍年缺口（约 4% 提取率）粗算，需要在退休时另有 " + money(gap * 12 * 25) + " 元可投资资产。";
+    note += " 未计入过渡性养老金（有视同缴费年限的「中人」会再多一块）、未考虑未来社平工资上涨与养老金年度调整，所以真实金额大概率高于此值。";
+    $("pn-note").textContent = note;
+  }
+
+  /* ================= 卖房换房 ================= */
+  function calcSell() {
+    var price = Math.max(0, num($("sv-price"), 0));
+    var loan = Math.max(0, num($("sv-loan"), 0));
+    var vatR = Math.max(0, num($("sv-vat"), 0)) / 100;
+    var itR = Math.max(0, num($("sv-it"), 0)) / 100;
+    var agentR = Math.max(0, num($("sv-agent"), 0)) / 100;
+    var otherR = Math.max(0, num($("sv-other"), 0)) / 100;
+    var newPrice = Math.max(0, num($("sv-new"), 0));
+    var downR = Math.min(100, Math.max(0, num($("sv-down"), 30))) / 100;
+    var rate = Math.max(0, num($("sv-rate"), 0)) / 100;
+    var years = Math.max(1, Math.min(40, Math.round(num($("sv-years"), 30))));
+
+    var vat = price * vatR, it = price * itR, agent = price * agentR, other = price * otherR;
+    var tax = vat + it + agent + other;
+    var net = price - loan - tax;
+    var dpay = newPrice * downR;
+    var gap = dpay - net;
+    var nloan = Math.max(0, newPrice - dpay);
+    var mpay = annuityPayment(nloan, rate / 12, years * 12);
+
+    $("sv-net").textContent = money(net);
+    $("sv-tax").textContent = yuan(tax);
+    $("sv-vat-amt").textContent = yuan(vat);
+    $("sv-it-amt").textContent = yuan(it);
+    $("sv-agent-amt").textContent = yuan(agent);
+    $("sv-other-amt").textContent = yuan(other);
+    $("sv-tax-ratio").textContent = price > 0 ? pct(tax / price, 2) : "—";
+    $("sv-dpay").textContent = yuan(dpay);
+    $("sv-gap").textContent = gap > 0 ? "还差 " + money(gap) + " 元" : "结余 " + money(-gap) + " 元";
+    $("sv-nloan").textContent = yuan(nloan);
+    $("sv-mpay").textContent = nloan > 0 ? yuan(mpay) + " / 月（" + years * 12 + " 期）" : "全款，无月供";
+
+    $("sv-note").textContent = "卖房到手 = 成交价 " + money(price) + " − 剩余贷款 " + money(loan) + "（必须先还清解押）− 卖方税费 " + money(tax) + " = " + money(net) + "。"
+      + " 换新房首付 " + money(dpay) + "，"
+      + (gap > 0 ? "净额不够，还需再筹 " + money(gap) + " 元" : "净额还有 " + money(-gap) + " 元结余，可补贴税费或装修")
+      + "；新贷 " + money(nloan) + "、按 " + pct(rate, 2) + " 贷 " + years + " 年，月供 " + money(mpay) + "。"
+      + " 实操注意：先卖后买要安排好过渡住处，先买后卖则要看首套/二套认定（多地「认房又认贷」，旧房未过户可能被算二套，首付比例和利率都会上去）；"
+      + "新房还有契税、维修基金、装修等一次性支出，别忘了在结余里扣掉。";
+  }
+
+  /* ================= 公积金对冲：月冲 vs 年冲 ================= */
+  function calcOffset() {
+    var P0 = Math.max(0, num($("of-principal"), 0));
+    var rate = Math.max(0, num($("of-rate"), 0)) / 100;
+    var n0 = Math.max(1, Math.min(600, Math.round(num($("of-months"), 240))));
+    var acct0 = Math.max(0, num($("of-acct"), 0));
+    var dep = Math.max(0, num($("of-dep"), 0));
+    var mode = $("of-mode").value;
+    var r = rate / 12;
+    var pay0 = annuityPayment(P0, r, n0);
+
+    // 月冲：每月账户进钱后先抵月供，本金不提前减少
+    var bal = acct0, principal = P0, interest = 0, usedAcct = 0, cash = 0, m, runout = -1;
+    for (m = 1; m <= n0 && principal > 0.005; m++) {
+      bal += dep;
+      var i = principal * r, p = Math.min(principal, pay0 - i);
+      interest += i; principal -= p;
+      var use = Math.min(bal, pay0);
+      bal -= use; usedAcct += use; cash += pay0 - use;
+      if (runout < 0 && bal < pay0 - 0.005) runout = m;
+    }
+    var mInt = interest, mCash = cash, mMonths = m - 1, mLeft = bal;
+
+    // 年冲：每月自付全额月供，每满 12 个月用账户余额一次性冲本金
+    bal = acct0; principal = P0; interest = 0; cash = 0; var prepaid = 0, mm = 0, left = n0, pay = pay0;
+    while (left > 0 && principal > 0.005 && mm < 1200) {
+      mm++; bal += dep;
+      var i2 = principal * r, p2 = Math.min(principal, pay - i2);
+      interest += i2; principal -= p2; cash += p2 + i2; left--;
+      if (mm % 12 === 0 && left > 0 && bal > 0.005) {
+        var u = Math.min(bal, principal);
+        principal -= u; bal -= u; prepaid += u;
+        if (principal <= 0.005) break;
+        if (mode === "reduce") {
+          pay = annuityPayment(principal, r, left);
+        } else if (principal * r < pay) {
+          var nn = Math.ceil(-Math.log(1 - principal * r / pay) / Math.log(1 + r));
+          left = Math.max(1, nn);
+        }
+      }
+    }
+    var yInt = interest, yCash = cash, yMonths = mm;
+
+    $("of-pay").textContent = yuan(pay0) + " / 月";
+    $("of-runout").textContent = runout > 0 ? "约 " + runout + " 个月（之后自己还）" : "缴存够还，不用自己掏";
+    $("of-m-int").textContent = yuan(mInt);
+    $("of-m-cash").textContent = yuan(mCash);
+    $("of-y-months").textContent = yMonths + " 期" + (yMonths < mMonths ? "（比月冲少 " + (mMonths - yMonths) + " 期）" : "");
+    $("of-y-int").textContent = yuan(yInt);
+    $("of-y-cash").textContent = yuan(yCash);
+    $("of-y-pre").textContent = yuan(prepaid);
+    var save = mInt - yInt;
+    $("of-save").textContent = money(save > 0 ? save : 0);
+
+    $("of-note").textContent = "两种方式用的是同一笔公积金，区别只在「什么时候动本金」："
+      + "月冲是每月拿账户里的钱抵当月月供，本金一点没少，所以利息一分不省（" + money(mInt) + " 元照付），好处是头 " + (runout > 0 ? runout : 0) + " 个月不用掏现金，现金流最松。"
+      + "年冲是每月自己先全额还月供、每年用账户余额一次性冲本金，" + (mode === "reduce" ? "之后月供下降、期限不变" : "之后保持月供、期限缩短")
+      + "，利息只花 " + money(yInt) + " 元，少付 " + money(save) + " 元"
+      + (yMonths < mMonths ? "，还能提前 " + (mMonths - yMonths) + " 期结清" : "") + "。"
+      + " 代价是月供得自己先垫（账户余额 " + money(acct0) + " 只能一年用一次）。"
+      + " 结论：手头现金流紧、刚买房那两年 → 月冲；有稳定收入、想省利息 → 年冲。"
+      + " 各地规则不同（有的城市支持月冲+年冲组合、有的限制首次年冲须满 1 年、冲还贷后账户需保留最低余额），以当地公积金中心为准。";
+  }
+
+  /* ================= 多币种折算 ================= */
+  var CURS = [
+    { k: "USD", name: "美元", id: "mc-usd", out: "mc-usd-out", digits: 2 },
+    { k: "EUR", name: "欧元", id: "mc-eur", out: "mc-eur-out", digits: 2 },
+    { k: "JPY", name: "日元", id: "mc-jpy", out: "mc-jpy-out", digits: 0 },
+    { k: "HKD", name: "港币", id: "mc-hkd", out: "mc-hkd-out", digits: 2 },
+    { k: "GBP", name: "英镑", id: "mc-gbp", out: "mc-gbp-out", digits: 2 }
+  ];
+
+  function calcMulti() {
+    var amt = Math.max(0, num($("mc-amount"), 0));
+    var cur = $("mc-cur").value || "CNY";
+    var rates = {}, cny = amt;
+    for (var i = 0; i < CURS.length; i++) {
+      rates[CURS[i].k] = Math.max(0, num($(CURS[i].id), 0));
+    }
+    if (cur !== "CNY") cny = amt * (rates[cur] || 0);
+
+    $("mc-cny").textContent = money(cny);
+    var parts = [];
+    for (var j = 0; j < CURS.length; j++) {
+      var c = CURS[j], rr = rates[c.k];
+      var v = rr > 0 ? cny / rr : 0;
+      $(c.out).textContent = rr > 0 ? fmt(v, c.digits) + " " + c.name : "请填汇率";
+      if (rr > 0) parts.push(c.name + " " + fmt(v, c.digits));
+    }
+    var spread = cny / 1.004;
+    $("mc-spread").textContent = money(spread) + " 元（少的 " + money(cny - spread) + " 就是点差成本）";
+
+    $("mc-note").textContent = "先把金额统一折成人民币 " + money(cny) + " 元（" + (cur === "CNY" ? "本来就是人民币" : "按你填的 " + cur + " 汇率折算") + "），再按各币种汇率换出去："
+      + (parts.length ? parts.join("、") : "（汇率未填）") + "。"
+      + " 这里的汇率必须你自己填——本页不联网、不取实时行情，写上你能换到的实际价格才有意义。"
+      + " 真实换汇三个损耗点：银行「现汇/现钞」买卖价差（个人购汇按银行卖出价，通常比中间价贵 0.3%–1%）；"
+      + "跨境汇款电报费/手续费（每笔几十到两百元）；境外刷卡走卡组织汇率，Visa/Mastercard 可能再收 0–3% 货币转换费（银联多数免）。"
+      + " 另外个人年度便利化额度是每人每年等值 5 万美元，超过要提供真实用途凭证。";
+  }
+
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
     annual: calcAnnual, inflation: calcInflation, tax: calcTax, deal: calcDeal,
     salary: calcSalary, rentbuy: calcRentBuy, card: calcCard, fx: calcFx,
-    fund: calcFund, lpr: calcLpr, deed: calcDeed, split: calcSplit
+    fund: calcFund, lpr: calcLpr, deed: calcDeed, split: calcSplit,
+    pension: calcPension, sell: calcSell, offset: calcOffset, multi: calcMulti
   };
 
   function activate(name) {
@@ -1095,9 +1278,13 @@
     "fd-balance", "fd-monthly", "fd-ratio", "fd-mult", "fd-years", "fd-rate", "fd-cap", "fd-price",
     "lp-principal", "lp-old", "lp-new", "lp-months", "lp-lpr", "lp-bp",
     "dd-price", "dd-area", "dd-first", "dd-deed", "dd-hold", "dd-vat", "dd-income-tax", "dd-agent", "dd-other", "dd-cost",
-    "sp-total", "sp-people", "sp-fee", "sp-round", "sp-who"
+    "sp-total", "sp-people", "sp-fee", "sp-round", "sp-who",
+    "pn-avg", "pn-index", "pn-years", "pn-balance", "pn-age", "pn-expense",
+    "sv-price", "sv-loan", "sv-vat", "sv-it", "sv-agent", "sv-other", "sv-new", "sv-down", "sv-rate", "sv-years",
+    "of-principal", "of-rate", "of-months", "of-acct", "of-dep", "of-mode",
+    "mc-amount", "mc-cur", "mc-usd", "mc-eur", "mc-jpy", "mc-hkd", "mc-gbp"
   ];
-  var KEY = "finance-calc-v5";
+  var KEY = "finance-calc-v6";
 
   function save() {
     try {
