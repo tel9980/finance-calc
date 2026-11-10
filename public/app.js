@@ -1628,6 +1628,165 @@
     $("ry-note").textContent = note;
   }
 
+  /* ================= 年度汇算退税 ================= */
+  function calcSettle() {
+    var wage = Math.max(0, num($("st2-wage"), 0));
+    var ins = Math.max(0, num($("st2-ins"), 0));
+    var special = Math.max(0, num($("st2-special"), 0));
+    var other = Math.max(0, num($("st2-other"), 0));
+    var withheld = Math.max(0, num($("st2-withheld"), 0));
+
+    var income = wage + other * 0.8;
+    var taxable = Math.max(0, income - 60000 - ins - special);
+    var tax = taxBy(YEAR_TABLE, taxable);
+    var diff = tax - withheld;
+    var rate = 0;
+    for (var i = 0; i < YEAR_TABLE.length; i++) { if (taxable <= YEAR_TABLE[i][0]) { rate = YEAR_TABLE[i][1]; break; } }
+    var real = income > 0 ? tax / income : 0;
+
+    $("st2-diff").textContent = diff <= 0 ? "退税 " + money(-diff) : "补税 " + money(diff);
+    $("st2-diff-unit").textContent = "元";
+    $("st2-income").textContent = yuan(income);
+    $("st2-taxable").textContent = yuan(taxable);
+    $("st2-tax").textContent = yuan(tax);
+    $("st2-pre").textContent = yuan(withheld);
+    $("st2-marginal").textContent = pct(rate, 0);
+    $("st2-real").textContent = pct(real, 2);
+
+    var note = "汇算就是把全年收入合起来重算一遍：综合所得收入额 " + money(income) + " − 起征点 60,000 − 三险一金 "
+      + money(ins) + " − 专项附加扣除 " + money(special) + " = 应纳税所得额 " + money(taxable)
+      + "，对应 " + pct(rate, 0) + " 档，全年应纳税额 " + money(tax) + "；和你已经预扣的 " + money(withheld) + " 一比，"
+      + (diff < 0 ? "国家要退你 " + money(-diff) + " 元。" : (diff > 0 ? "你还要补 " + money(diff) + " 元。" : "正好不补不退。"));
+    if (diff < 0) note += " 常见退税原因：平时没填专项附加扣除、年中换工作或失业导致重复扣除起征点、劳务报酬预扣率（20% 起）高于综合所得税率。";
+    if (diff > 0) note += " 常见补税原因：两处以上工资薪金、多处劳务报酬、年中换工作后新单位重新扣起征点。补税不超过 400 元可免申报，超过要在 6 月 30 日前缴清，逾期有滞纳金。";
+    note += " 别忘了还有两项能抵：个人养老金账户每年 12,000 元、符合条件的公益捐赠（不超应纳税所得额 30%）。专项附加扣除当年没填的，可以在汇算时补填，也能在三年内更正申报。";
+    $("st2-note").textContent = note;
+  }
+
+  /* ================= 家庭资产负债表 ================= */
+  function calcBalance() {
+    var cash = Math.max(0, num($("bl-cash"), 0));
+    var save = Math.max(0, num($("bl-save"), 0));
+    var invest = Math.max(0, num($("bl-invest"), 0));
+    var house = Math.max(0, num($("bl-house"), 0));
+    var car = Math.max(0, num($("bl-car"), 0));
+    var other = Math.max(0, num($("bl-other"), 0));
+    var mortgage = Math.max(0, num($("bl-mortgage"), 0));
+    var mpay = Math.max(0, num($("bl-mpay"), 0));
+    var debt = Math.max(0, num($("bl-debt"), 0));
+    var income = Math.max(0, num($("bl-income"), 0));
+    var expense = Math.max(0, num($("bl-expense"), 0));
+
+    var assets = cash + save + invest + house + car + other;
+    var liab = mortgage + debt;
+    var net = assets - liab;
+    var lev = assets > 0 ? liab / assets : 0;
+    var housePct = assets > 0 ? house / assets : 0;
+    var liquid = cash + save;
+    var burn = expense + mpay;
+    var runway = burn > 0 ? liquid / burn : 0;
+    var dti = income > 0 ? mpay / income : 0;
+    var surplus = income - burn;
+
+    $("bl-net").textContent = money(net);
+    $("bl-assets").textContent = yuan(assets);
+    $("bl-liab").textContent = yuan(liab);
+    $("bl-lev").textContent = pct(lev, 1);
+    $("bl-housepct").textContent = pct(housePct, 1);
+    $("bl-liquid").textContent = yuan(liquid);
+    $("bl-runway").textContent = fmt(runway, 1) + " 个月";
+    $("bl-dti").textContent = pct(dti, 1);
+    $("bl-surplus").textContent = (surplus >= 0 ? "+" : "−") + money(Math.abs(surplus)) + " 元";
+
+    var tags = [];
+    tags.push(lev > 0.5 ? "负债率 " + pct(lev, 0) + " 偏高（> 50%），房价一跌就容易资不抵债" : "负债率 " + pct(lev, 0) + "，在健康区间（≤ 50%）");
+    tags.push(dti > 0.35 ? "月供占收入 " + pct(dti, 0) + "，超过 35% 的红线，遇到降薪会很被动" : "月供占收入 " + pct(dti, 0) + "，压力可控（≤ 35%）");
+    tags.push(runway < 3 ? "应急金只够 " + fmt(runway, 1) + " 个月，低于 3 个月的警戒线" : (runway < 6 ? "应急金 " + fmt(runway, 1) + " 个月，建议补到 6 个月" : "应急金 " + fmt(runway, 1) + " 个月，够用"));
+    if (housePct > 0.7) tags.push("房产占总资产 " + pct(housePct, 0) + "，集中度太高，几乎全部身家押在一套房上");
+    if (surplus < 0) tags.push("每月收支为负，靠消耗存量过日子");
+    $("bl-note").textContent = "净资产 " + money(net) + " = 总资产 " + money(assets) + " − 总负债 " + money(liab) + "。逐项体检：" + tags.join("；") + "。"
+      + " 四个常用健康线：负债率 ≤ 50%、月供/收入 ≤ 35%、应急金 ≥ 6 个月支出、房产占资产 ≤ 70%（超过就是把身家压在一套房上）。"
+      + " 注意房子要按「现在卖得掉的价格」算，不是当年买入价；自住房虽然不产生现金流，但市值减去剩余贷款才是你真正的房产权益。";
+  }
+
+  /* ================= 灵活就业社保 ================= */
+  function calcSelfIns() {
+    var avg = Math.max(1, num($("si-avg"), 8000));
+    var ratio = Math.min(300, Math.max(40, num($("si-ratio"), 60))) / 100;
+    var pr = Math.max(0, num($("si-pension"), 20)) / 100;
+    var mr = Math.max(0, num($("si-med"), 9)) / 100;
+    var yrs = Math.max(1, num($("si-years"), 15));
+    var age = parseInt($("si-age").value, 10) || 60;
+    var div = DIVISOR[age] || 139;
+    var ar = Math.max(0, num($("si-accountrate"), 2)) / 100;
+
+    var base = avg * ratio;
+    var pensionFee = base * pr, medFee = base * mr;
+    var month = pensionFee + medFee;
+    var accMonth = base * 0.08;
+    var year = month * 12;
+    var total = year * yrs;
+    var ann = accMonth * 12;
+    var accBal = ar > 0 ? ann * (Math.pow(1 + ar, yrs) - 1) / ar : ann * yrs;
+
+    var index = base / avg;
+    var basePension = (avg + avg * index) / 2 * yrs * 0.01;
+    var accPension = accBal / div;
+    var pension = basePension + accPension;
+    var payback = pension > 0 ? total / (pension * 12) : 0;
+
+    $("si-month").textContent = money(month);
+    $("si-base").textContent = yuan(base) + "（社平的 " + pct(ratio, 0) + "）";
+    $("si-split").textContent = money(pensionFee) + " / " + money(medFee) + " 元";
+    $("si-accmonth").textContent = yuan(accMonth);
+    $("si-year").textContent = yuan(year);
+    $("si-total").textContent = yuan(total);
+    $("si-accbal").textContent = yuan(accBal);
+    $("si-pension-out").textContent = yuan(pension);
+    $("si-payback").textContent = payback > 0 ? fmt(payback, 1) + " 年" : "—";
+
+    $("si-note").textContent = "灵活就业自己全额缴，基数按社平的 " + pct(ratio, 0) + " = " + money(base) + " 元/月：养老 "
+      + pct(pr, 0) + "（" + money(pensionFee) + "）+ 医疗 " + pct(mr, 0) + "（" + money(medFee) + "）= 每月 " + money(month) + " 元。"
+      + " 关键区别：在职时单位替你出养老 16%，灵活就业这笔全归你自己掏，但只有 8%（" + money(accMonth) + " 元/月）进你个人账户，另外 "
+      + pct(pr - 0.08, 0) + " 进统筹——所以「回本」不能只看个人账户，要算总缴费 ÷ 年养老金 = " + fmt(payback, 1) + " 年。"
+      + " 缴 " + fmt(yrs, 0) + " 年、按记账利率 " + pct(ar, 1) + " 复利，账户攒到 " + money(accBal) + "，加上基础养老金 "
+      + money(basePension) + "，退休每月约 " + money(pension) + " 元。"
+      + " 实操提醒：医保各地费率与是否捆绑不同，有的城市可只缴养老；医保缴满当地规定年限（男 25/女 20 年居多）退休后才能终身免费享受；"
+      + " 就业困难人员/4050 有社保补贴（常见补 2/3），别忘申请；断缴会影响买房买车落户的连续缴费年限。";
+  }
+
+  /* ================= 社保少缴核查 ================= */
+  function calcUnderpay() {
+    var wage = Math.max(0, num($("up-wage"), 0));
+    var base = Math.max(0, num($("up-base"), 0));
+    var pr = Math.max(0, num($("up-personal"), 10.5)) / 100;
+    var cr = Math.max(0, num($("up-company"), 26.5)) / 100;
+    var hf = Math.min(12, Math.max(0, num($("up-hf"), 5))) / 100;
+
+    var diffBase = Math.max(0, wage - base);
+    var pgap = diffBase * pr, cgap = diffBase * cr;
+    var gap = pgap + cgap;
+    var acc = diffBase * 0.08;
+
+    $("up-gap").textContent = money(gap);
+    $("up-diffbase").textContent = yuan(diffBase);
+    $("up-pgap").textContent = yuan(pgap) + " / 月";
+    $("up-cgap").textContent = yuan(cgap) + " / 月";
+    $("up-acc").textContent = yuan(acc) + " / 月";
+    $("up-year").textContent = yuan(gap * 12);
+    $("up-ten").textContent = yuan(gap * 120);
+
+    $("up-note").textContent = "按你的实际工资 " + money(wage) + " 元算，公司只按 " + money(base) + " 元申报，少报基数 "
+      + money(diffBase) + " 元：个人部分每月少缴 " + money(pgap) + "（你到手多一点，但账户少积累）、单位每月少缴 "
+      + money(cgap) + "（本该给你出的钱），合计每月 " + money(gap) + " 元、每年 " + money(gap * 12) + " 元。"
+      + " 公积金按 " + pct(hf, 0) + " 两侧各算，每月还少 " + money(diffBase * hf * 2) + " 元（单位那半边是净损失）。"
+      + " 直接后果：个人账户养老金每月少积累 " + money(acc) + "；医保个人账户少划入、住院报销封顶与大病保险跟着基数走；"
+      + " 生育津贴、失业金、工伤一次性补助、公积金贷款额度（多数城市按缴存基数算）全部被压低。"
+      + " 这是明确的违法行为——《社会保险法》第 60 条要求按本人工资足额申报、不得减免，第 86 条规定可加收滞纳金并处欠缴额 1–3 倍罚款。"
+      + " 维权路径：先留证据（劳动合同、工资流水、工资条、考勤），再向社保费征收机构（现多为税务）或社保稽核部门举报，也可打 12333/12345；"
+      + " 要求补缴社保一般不属劳动仲裁受案范围，走稽核更有效。提醒一句：举报后公司通常会知道，先想好自己的退路。";
+  }
+
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
@@ -1636,7 +1795,8 @@
     fund: calcFund, lpr: calcLpr, deed: calcDeed, split: calcSplit,
     pension: calcPension, sell: calcSell, offset: calcOffset, multi: calcMulti,
     repayvs: calcRepayVs, edu: calcEdu, insure: calcInsure, car: calcCar,
-    bonus: calcBonus, deduct: calcDeduct, ladder: calcLadder, rentyield: calcRentYield
+    bonus: calcBonus, deduct: calcDeduct, ladder: calcLadder, rentyield: calcRentYield,
+    settle: calcSettle, balance: calcBalance, selfins: calcSelfIns, underpay: calcUnderpay
   };
 
   function activate(name) {
@@ -1701,7 +1861,7 @@
     "in-income", "in-expense", "in-debt", "in-edu", "in-assets", "in-have", "in-years",
     "cr-price", "cr-years", "cr-residual", "cr-km", "cr-fc", "cr-oil", "cr-ins", "cr-maint", "cr-park", "cr-taxi"
   ];
-  var KEY = "finance-calc-v8";
+  var KEY = "finance-calc-v9";
 
   function save() {
     try {

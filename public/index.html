@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>财务计算器 · 存款 贷款 退休金 个税 年终奖 教育金 保险保额</title>
-<meta name="description" content="免费的财务计算器（31 个模块）：存款利息、贷款月供与还款计划、组合贷、提前还款省息、复利与定投、攒钱目标、分期真实年化、年化收益、通胀购买力、个税与到手工资、租房还是买房、信用卡循环利息、汇率与单位换算、公积金可贷额度、利率调整后月供、二手房交易税费、AA 分摊、退休金测算、卖房换房、公积金月冲年冲、多币种折算、提前还款 vs 理财、教育金、保险保额、买车 vs 打车、年终奖拆分、专项附加扣除、存单阶梯、租售比。纯前端计算，不联网、不上传数据。">
+<title>财务计算器 · 存款 贷款 个税 汇算 房贷 社保 退休金 教育金</title>
+<meta name="description" content="免费的财务计算器（35 个模块）：存款利息、贷款月供与还款计划、组合贷、提前还款省息、复利与定投、攒钱目标、分期真实年化、年化收益、通胀购买力、个税与到手工资、租房还是买房、信用卡循环利息、汇率与单位换算、公积金可贷额度、利率调整后月供、二手房交易税费、AA 分摊、退休金测算、卖房换房、公积金月冲年冲、多币种折算、提前还款 vs 理财、教育金、保险保额、买车 vs 打车、年终奖拆分、专项附加扣除、存单阶梯、租售比、年度汇算退税、家庭资产负债、灵活就业社保、社保少缴核查。纯前端计算，不联网、不上传数据。">
 <meta name="theme-color" content="#1e3a8a">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231e3a8a'/%3E%3Ctext x='16' y='23' font-size='17' text-anchor='middle' fill='%23fff' font-family='sans-serif'%3E%C2%A5%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="./style.css">
@@ -17,7 +17,7 @@
       <span class="mark">¥</span>
       <div>
         <h1>财务计算器</h1>
-        <p>存款 · 贷款 · 提前还款 · 复利 · 攒钱 · 分期 · 个税 · 年终奖 · 扣除 · 到手工资 · 退休金 · 教育金 · 保险 · 租买 · 租售比 · 信用卡 · 公积金 · 换房 · AA · 多币种 · 存单阶梯</p>
+        <p>存款 · 贷款 · 提前还款 · 复利 · 攒钱 · 分期 · 个税 · 汇算退税 · 年终奖 · 扣除 · 到手工资 · 社保 · 退休金 · 教育金 · 保险 · 租买 · 租售比 · 信用卡 · 公积金 · 换房 · AA · 多币种 · 存单阶梯 · 资产负债</p>
       </div>
     </div>
     <nav class="tabs" id="tabs" role="tablist">
@@ -52,6 +52,10 @@
       <button class="tab" data-tab="deduct" role="tab">专项附加扣除</button>
       <button class="tab" data-tab="ladder" role="tab">存单阶梯</button>
       <button class="tab" data-tab="rentyield" role="tab">租售比</button>
+      <button class="tab" data-tab="settle" role="tab">年度汇算退税</button>
+      <button class="tab" data-tab="balance" role="tab">家庭资产负债</button>
+      <button class="tab" data-tab="selfins" role="tab">灵活就业社保</button>
+      <button class="tab" data-tab="underpay" role="tab">社保少缴核查</button>
     </nav>
   </div>
 </header>
@@ -1837,6 +1841,208 @@
           <li><span>期末卖出到手（扣贷款）</span><b id="ry-exit">—</b></li>
         </ul>
         <p class="hint" id="ry-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-settle">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f">
+          <span>全年工资薪金收入（税前，元）</span>
+          <input id="st2-wage" type="number" inputmode="decimal" min="0" step="1000" value="300000">
+        </label>
+        <label class="f">
+          <span>全年三险一金（个人部分，元）</span>
+          <input id="st2-ins" type="number" inputmode="decimal" min="0" step="1000" value="45000">
+        </label>
+        <label class="f">
+          <span>全年专项附加扣除（元）</span>
+          <input id="st2-special" type="number" inputmode="decimal" min="0" step="1000" value="24000">
+        </label>
+        <label class="f">
+          <span>劳务报酬收入（元，按 80% 计入）</span>
+          <input id="st2-other" type="number" inputmode="decimal" min="0" step="1000" value="0">
+        </label>
+        <label class="f">
+          <span>全年已预扣预缴个税（元，个税 App 可查）</span>
+          <input id="st2-withheld" type="number" inputmode="decimal" min="0" step="100" value="20000">
+        </label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big">
+          <span class="k">汇算结果</span>
+          <strong id="st2-diff">—</strong>
+          <span class="unit" id="st2-diff-unit">元</span>
+        </div>
+        <ul class="kv">
+          <li><span>综合所得收入额</span><b id="st2-income">—</b></li>
+          <li><span>应纳税所得额</span><b id="st2-taxable">—</b></li>
+          <li><span>全年应纳税额</span><b id="st2-tax">—</b></li>
+          <li><span>已预扣预缴</span><b id="st2-pre">—</b></li>
+          <li><span>边际税率（下一个百元要缴的）</span><b id="st2-marginal">—</b></li>
+          <li><span>实际税负率（税 ÷ 收入）</span><b id="st2-real">—</b></li>
+        </ul>
+        <p class="hint" id="st2-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-balance">
+    <div class="cols">
+      <div class="card">
+        <h2>资产（元）</h2>
+        <label class="f"><span>现金 / 活期</span>
+          <input id="bl-cash" type="number" inputmode="decimal" min="0" step="10000" value="50000"></label>
+        <label class="f"><span>存款 / 理财 / 货币基金</span>
+          <input id="bl-save" type="number" inputmode="decimal" min="0" step="10000" value="200000"></label>
+        <label class="f"><span>股票 / 基金 / 保险现金价值</span>
+          <input id="bl-invest" type="number" inputmode="decimal" min="0" step="10000" value="150000"></label>
+        <label class="f"><span>房产市值</span>
+          <input id="bl-house" type="number" inputmode="decimal" min="0" step="10000" value="2000000"></label>
+        <label class="f"><span>车产市值</span>
+          <input id="bl-car" type="number" inputmode="decimal" min="0" step="10000" value="100000"></label>
+        <label class="f"><span>其他资产（股权、收藏等）</span>
+          <input id="bl-other" type="number" inputmode="decimal" min="0" step="10000" value="0"></label>
+        <h2 class="sub">负债与收支</h2>
+        <label class="f"><span>房贷余额</span>
+          <input id="bl-mortgage" type="number" inputmode="decimal" min="0" step="10000" value="800000"></label>
+        <label class="f"><span>房贷月供</span>
+          <input id="bl-mpay" type="number" inputmode="decimal" min="0" step="100" value="4477"></label>
+        <label class="f"><span>其他负债（车贷/消费贷/信用卡）</span>
+          <input id="bl-debt" type="number" inputmode="decimal" min="0" step="10000" value="0"></label>
+        <label class="f"><span>家庭月税后收入</span>
+          <input id="bl-income" type="number" inputmode="decimal" min="0" step="1000" value="30000"></label>
+        <label class="f"><span>家庭月支出（不含月供）</span>
+          <input id="bl-expense" type="number" inputmode="decimal" min="0" step="1000" value="12000"></label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big">
+          <span class="k">净资产</span>
+          <strong id="bl-net">—</strong>
+          <span class="unit">元</span>
+        </div>
+        <ul class="kv">
+          <li><span>总资产</span><b id="bl-assets">—</b></li>
+          <li><span>总负债</span><b id="bl-liab">—</b></li>
+          <li><span>负债率（负债 ÷ 资产）</span><b id="bl-lev">—</b></li>
+          <li><span>房产占总资产</span><b id="bl-housepct">—</b></li>
+          <li><span>能马上动用的钱</span><b id="bl-liquid">—</b></li>
+          <li><span>应急金可支撑月数</span><b id="bl-runway">—</b></li>
+          <li><span>月供 ÷ 月收入</span><b id="bl-dti">—</b></li>
+          <li><span>每月结余</span><b id="bl-surplus">—</b></li>
+        </ul>
+        <p class="hint" id="bl-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-selfins">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f">
+          <span>当地社平工资（元/月）</span>
+          <input id="si-avg" type="number" inputmode="decimal" min="0" step="100" value="8000">
+        </label>
+        <label class="f">
+          <span>缴费基数档次（社平的 %，60–300）</span>
+          <input id="si-ratio" type="number" inputmode="decimal" min="40" max="300" step="10" value="60">
+        </label>
+        <label class="f">
+          <span>养老保险费率（%，灵活就业一般 20）</span>
+          <input id="si-pension" type="number" inputmode="decimal" min="0" step="1" value="20">
+        </label>
+        <label class="f">
+          <span>医疗保险费率（%，含大病）</span>
+          <input id="si-med" type="number" inputmode="decimal" min="0" step="0.5" value="9">
+        </label>
+        <label class="f">
+          <span>计划缴费年限（年）</span>
+          <input id="si-years" type="number" inputmode="decimal" min="1" step="1" value="15">
+        </label>
+        <label class="f">
+          <span>退休年龄</span>
+          <select id="si-age">
+            <option value="55">55 岁（计发 170 期）</option>
+            <option value="60" selected>60 岁（计发 139 期）</option>
+          </select>
+        </label>
+        <label class="f">
+          <span>个人账户记账利率（%）</span>
+          <input id="si-accountrate" type="number" inputmode="decimal" min="0" step="0.1" value="2">
+        </label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big">
+          <span class="k">每月要缴</span>
+          <strong id="si-month">—</strong>
+          <span class="unit">元</span>
+        </div>
+        <ul class="kv">
+          <li><span>缴费基数</span><b id="si-base">—</b></li>
+          <li><span>其中养老 / 医疗</span><b id="si-split">—</b></li>
+          <li><span>每月进个人账户</span><b id="si-accmonth">—</b></li>
+          <li><span>每年要缴</span><b id="si-year">—</b></li>
+          <li><span>缴满年限合计</span><b id="si-total">—</b></li>
+          <li><span>退休时个人账户累计</span><b id="si-accbal">—</b></li>
+          <li><span>预计月养老金</span><b id="si-pension-out">—</b></li>
+          <li><span>回本年限（合计 ÷ 年养老金）</span><b id="si-payback">—</b></li>
+        </ul>
+        <p class="hint" id="si-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-underpay">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f">
+          <span>你的实际月工资（应缴基数，元）</span>
+          <input id="up-wage" type="number" inputmode="decimal" min="0" step="500" value="15000">
+        </label>
+        <label class="f">
+          <span>公司实际申报的基数（元）</span>
+          <input id="up-base" type="number" inputmode="decimal" min="0" step="500" value="6000">
+        </label>
+        <label class="f">
+          <span>个人合计费率（%，养老8+医疗2+失业0.5）</span>
+          <input id="up-personal" type="number" inputmode="decimal" min="0" step="0.5" value="10.5">
+        </label>
+        <label class="f">
+          <span>单位合计费率（%，养老16+医疗9.8+失业0.5+工伤0.2）</span>
+          <input id="up-company" type="number" inputmode="decimal" min="0" step="0.5" value="26.5">
+        </label>
+        <label class="f">
+          <span>公积金比例（%，两侧各）</span>
+          <input id="up-hf" type="number" inputmode="decimal" min="0" max="12" step="1" value="5">
+        </label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big">
+          <span class="k">每月被少缴</span>
+          <strong id="up-gap">—</strong>
+          <span class="unit">元</span>
+        </div>
+        <ul class="kv">
+          <li><span>少报的基数</span><b id="up-diffbase">—</b></li>
+          <li><span>个人少缴（你少扣、也少积累）</span><b id="up-pgap">—</b></li>
+          <li><span>单位少缴（本该给你出的）</span><b id="up-cgap">—</b></li>
+          <li><span>其中个人账户养老金少积累</span><b id="up-acc">—</b></li>
+          <li><span>每年少缴合计</span><b id="up-year">—</b></li>
+          <li><span>10 年少缴合计</span><b id="up-ten">—</b></li>
+        </ul>
+        <p class="hint" id="up-note"></p>
       </div>
     </div>
   </section>
