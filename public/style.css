@@ -41,6 +41,13 @@ button{font:inherit;cursor:pointer}
 .tab:hover{background:rgba(255,255,255,.22)}
 .tab.is-on{background:var(--bg);color:var(--accent);font-weight:650}
 
+/* 手机上 7 个标签排两行，全部可见，不用横向滑动 */
+@media (max-width:660px){
+  .tabs{flex-wrap:wrap;gap:5px;padding-bottom:8px}
+  .tab{border-radius:9px;padding:8px 12px;font-size:13px;flex:1 1 auto;text-align:center}
+  .tab.is-on{box-shadow:0 1px 0 rgba(0,0,0,.04)}
+}
+
 /* ---------- layout ---------- */
 .wrap{max-width:1040px;margin:0 auto;padding:22px 16px 40px}
 .panel{display:none}
