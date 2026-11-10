@@ -6955,6 +6955,216 @@
       + "上市公司持股满 1 年免征、1 个月至 1 年减半，非上市不享受。";
   }
 
+  /* ---------- 金额大写 ---------- */
+  function cnUpper(numRaw) {
+    var D = "零壹贰叁肆伍陆柒捌玖";
+    var U = ["", "拾", "佰", "仟"];
+    var B = ["", "万", "亿", "万亿"];
+    var cents = Math.round(Math.abs(numRaw) * 100);
+    var yuanPart = Math.floor(cents / 100);
+    var jiao = Math.floor((cents % 100) / 10);
+    var fen = cents % 10;
+
+    function four(n) {
+      var s = "";
+      var str = String(n);
+      var zero = false;
+      for (var i = 0; i < str.length; i++) {
+        var d = +str.charAt(i);
+        var pos = str.length - 1 - i;
+        if (d === 0) { zero = true; continue; }
+        if (zero && s) s += "零";
+        zero = false;
+        s += D.charAt(d) + U[pos];
+      }
+      return s;
+    }
+    function intCn(n) {
+      if (n === 0) return "";
+      var groups = [];
+      while (n > 0) { groups.push(n % 10000); n = Math.floor(n / 10000); }
+      var out = "";
+      for (var i = groups.length - 1; i >= 0; i--) {
+        var g = groups[i];
+        if (g === 0) { if (out) out += "零"; continue; }
+        var part = four(g);
+        if (out && g < 1000 && out.charAt(out.length - 1) !== "零") out += "零";
+        out += part + B[i];
+      }
+      return out.replace(/零+/g, "零").replace(/零$/, "");
+    }
+
+    var body = intCn(yuanPart);
+    var s = body ? body + "元" : "";
+    if (yuanPart === 0 && jiao === 0 && fen === 0) return "零元整";
+    if (jiao === 0 && fen === 0) return s + "整";
+    if (fen === 0) return s + D.charAt(jiao) + "角整";
+    if (jiao === 0) return s + "零" + D.charAt(fen) + "分";
+    return s + D.charAt(jiao) + "角" + D.charAt(fen) + "分";
+  }
+
+  function calcNumWords() {
+    var v = num($("nw-amount"), 0);
+    var pre = num($("nw-prefix"), 0) >= 1;
+    var txt = cnUpper(v);
+    $("nw-big").textContent = (v < 0 ? "负" : "") + (pre ? "人民币" : "") + txt;
+    $("nw-low").textContent = "¥" + fmt(Math.abs(v), 2);
+    var cents = Math.round(Math.abs(v) * 100);
+    $("nw-int").textContent = fmt(Math.floor(cents / 100), 0) + " 元";
+    var jiao = Math.floor((cents % 100) / 10), fen = cents % 10;
+    $("nw-cent").textContent = jiao + " 角 " + fen + " 分";
+    var tail = txt.slice(-1);
+    $("nw-rule").textContent = tail === "整" ? "到元为止写「整」，规范" : (jiao > 0 && fen === 0 ? "有角无分：写「X角整」" : "有分：角分都要写，末尾不加「整」");
+    $("nw-warn").textContent = (cents % 100 === 0 && tail !== "整") ? "整数金额必须补「整」" : "不得用「另」、不得简写、不得涂改";
+    $("nw-note").textContent = "凭证和发票的大写栏要求：金额到「元」的末尾写「整」（或「正」），有角无分写「X角整」，有分则角分都写、末尾不加「整」；中间连续的零只写一个「零」，元位为零时写「零元」；不得涂改，错了整张作废重开。";
+  }
+
+  /* ---------- 账期到期与逾期 ---------- */
+  function bizAdd(d, n) {
+    var c = 0;
+    while (c < n) {
+      d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+      if (d.getDay() !== 0 && d.getDay() !== 6) c++;
+    }
+    return d;
+  }
+  function calcDueDate() {
+    var s = parseDate($("ud-start").value) || new Date();
+    var days = Math.max(0, Math.round(num($("ud-days"), 0)));
+    var biz = num($("ud-basis"), 0) >= 1;
+    var amt = num($("ud-amt"), 0);
+    var rateW = num($("ud-rate"), 0);
+    var today = parseDate($("ud-today").value) || new Date();
+
+    var due = biz ? bizAdd(s, days) : new Date(s.getFullYear(), s.getMonth(), s.getDate() + days);
+    var over = Math.round((today - due) / 86400000);
+    $("ud-big").textContent = fmtDate(due);
+    $("ud-state").textContent = over > 0 ? "已逾期 " + over + " 天" : (over === 0 ? "今天到期" : "还有 " + (-over) + " 天到期");
+    $("ud-over").textContent = over > 0 ? over + " 天" : "0 天";
+    $("ud-cycle").textContent = Math.round((today - s) / 86400000) + " 天";
+    var daily = rateW / 10000;
+    $("ud-int").textContent = over > 0 ? yuan(amt * daily * over) : "0.00 元（未逾期）";
+    $("ud-hold").textContent = yuan(amt * daily * days) + "（" + fmt(days, 0) + " 天 × " + fmt(daily * 100, 3) + "%）";
+    $("ud-biz").textContent = biz ? fmtDate(due) + "（就是上面）" : fmtDate(bizAdd(s, days));
+    $("ud-note").textContent = "到期日从「起算日」开始数账期天数，起算日当天不算（次日起算），所以 8/1 开票 + 60 天自然日 = 9/30。逾期利息按「金额 × 日利率 × 逾期天数」算单利，合同没约定罚息时通常按 LPR 或万分之五主张；逾期超过 3 年注意诉讼时效（对账确认单可重新起算）。工作日口径会把周末跳过，法定节假日别忘了自己扣。";
+  }
+
+  /* ---------- 工作日与日期差 ---------- */
+  function calcWorkDay() {
+    var a = parseDate($("wd-a").value) || new Date();
+    var b = parseDate($("wd-b").value) || new Date();
+    var hol = Math.max(0, Math.round(num($("wd-hol"), 0)));
+    var n = Math.max(0, Math.round(num($("wd-n"), 0)));
+    var span = Math.round((b - a) / 86400000);
+    var weekend = 0, bizDays = 0;
+    var step = span >= 0 ? 1 : -1;
+    for (var i = 1; i <= Math.abs(span); i++) {
+      var d = new Date(a.getFullYear(), a.getMonth(), a.getDate() + i * step);
+      if (d.getDay() === 0 || d.getDay() === 6) weekend++; else bizDays++;
+    }
+    var net = Math.max(0, bizDays - hol);
+    $("wd-big").textContent = fmt(net, 0);
+    $("wd-cal").textContent = fmt(Math.abs(span), 0) + " 天";
+    $("wd-weekend").textContent = fmt(weekend, 0) + " 天";
+    $("wd-inc").textContent = fmt(Math.abs(span) + 1, 0) + " 天";
+    var target = bizAdd(a, n);
+    $("wd-target").textContent = fmtDate(target);
+    $("wd-span").textContent = Math.round((target - a) / 86400000) + " 天";
+    $("wd-week").textContent = fmt(Math.abs(span) / 7, 1) + " 周";
+    $("wd-note").textContent = "工作日 = 自然日 − 周末 − 额外非工作日（法定节假日与调休按净额填）。算工期、算审批时限、算「N 个工作日内付款」都用这个；注意「含首尾」比跨度多一天，合同里写「自 X 日起 N 个工作日内」以起算日次日起算。";
+  }
+
+  /* ---------- 增幅与年化 ---------- */
+  function calcCagr() {
+    var f = num($("cg-from"), 0);
+    var t = num($("cg-to"), 0);
+    var y = num($("cg-years"), 1) || 1;
+    if (f <= 0 || t <= 0) {
+      $("cg-big").textContent = "—";
+      $("cg-note").textContent = "期初值和期末值都要大于 0 才能算年化（跨正负号时年化增速没有意义，用绝对差额看）。";
+      return;
+    }
+    var g = t / f - 1;
+    var c = Math.pow(t / f, 1 / y) - 1;
+    $("cg-big").textContent = pct(c, 2);
+    $("cg-total").textContent = pct(g, 2);
+    $("cg-avg").textContent = fmt((t - f) / y, 2);
+    $("cg-double").textContent = c > 0 ? fmt(Math.log(2) / Math.log(1 + c), 2) + " 年" : "不会翻倍";
+    $("cg-y5").textContent = fmt(t * Math.pow(1 + c, 5), 2);
+    $("cg-y10").textContent = fmt(t * Math.pow(1 + c, 10), 2);
+    var halfY = Math.abs(Math.log(0.5) / Math.log(1 + c));
+    $("cg-half").textContent = fmt(halfY, 2) + " 年" + (c > 0 ? "（翻倍用）" : "（减半用）");
+    $("cg-note").textContent = "总增长看的是累计幅度，年化（CAGR）才是可比的速度：涨 80% 用 3 年，年化 21.64%，不是 26.67%。「七二法则」估翻倍用 72÷增速%，精确算是 ln2÷ln(1+g)。利润从 −100 到 +100 这种跨零的情况不能算 CAGR。";
+  }
+
+  /* ---------- 尾差分摊 ---------- */
+  function calcApportion() {
+    var total = num($("apc-total"), 0);
+    var raw = ($("apc-w").value || "").split(/[,，\s]+/).filter(function (x) { return x !== ""; });
+    var w = [];
+    for (var i = 0; i < raw.length && i < 8; i++) {
+      var v = Math.max(0, parseFloat(raw[i]) || 0);
+      w.push(v);
+    }
+    if (!w.length) w = [1];
+    var sum = w.reduce(function (s, x) { return s + x; }, 0) || 1;
+    var cents = Math.round(total * 100);
+    var base = [], rema = [], alloc = 0;
+    for (var j = 0; j < w.length; j++) {
+      var exact = cents * w[j] / sum;
+      var fl = Math.floor(exact);
+      base.push(fl);
+      rema.push(exact - fl);
+      alloc += fl;
+    }
+    var left = cents - alloc;
+    var order = rema.map(function (r, idx) { return idx; }).sort(function (p, q) { return rema[q] - rema[p] || p - q; });
+    for (var k = 0; k < left && k < order.length; k++) base[order[k]] += 1;
+    var rows = "", sumBack = 0, maxIdx = 0, maxGap = -1;
+    for (var m = 0; m < base.length; m++) {
+      sumBack += base[m];
+      var exactM = cents * w[m] / sum;
+      var gap = base[m] - exactM;
+      if (gap > maxGap) { maxGap = gap; maxIdx = m; }
+      rows += "<tr><td>" + (m + 1) + "</td><td>" + fmt(w[m], 2) + "</td><td>" + pct(w[m] / sum, 2) + "</td><td>" + money(base[m] / 100) + "</td></tr>";
+    }
+    $("apc-body").innerHTML = rows;
+    $("apc-big").textContent = money(sumBack / 100) + " / " + money(total, 2);
+    $("apc-n").textContent = String(w.length);
+    $("apc-wsum").textContent = fmt(sum, 2);
+    $("apc-diff").textContent = money((cents - sumBack) / 100);
+    $("apc-max").textContent = "第 " + (maxIdx + 1) + " 项（多分 " + money(maxGap / 100) + "）";
+    $("apc-note").textContent = "分摊最怕「分不完」或「多一分」：先按权重算出小数金额，取整到分后把剩下的分按小数部分从大到小补，这就是最大余额法，也叫尾差调整。总额 1000 元三个人平分，实际是 333.34 / 333.33 / 333.33，不是三个 333.33（那样少 1 分）。费用分摊、收入确认、佣金拆单、合并报表抵销都用得上。";
+  }
+
+  /* ---------- 税后反推税前 ---------- */
+  function calcGrossUp() {
+    var target = num($("gu-net"), 0);
+    var rate = Math.max(0, num($("gu-rate"), 0)) / 100;
+    var spec = num($("gu-spec"), 0);
+    var thr = num($("gu-thr"), 5000);
+    function netOf(gross) {
+      var si = gross * rate;
+      var tax = taxBy(MONTH_TABLE, Math.max(0, gross - si - thr - spec));
+      return { si: si, tax: tax, net: gross - si - tax };
+    }
+    var lo = target, hi = Math.max(target * 3, 1000);
+    for (var i = 0; i < 120; i++) {
+      var mid = (lo + hi) / 2;
+      if (netOf(mid).net < target) lo = mid; else hi = mid;
+    }
+    var g = Math.round((lo + hi) / 2 * 100) / 100;
+    var r = netOf(g);
+    $("gu-big").textContent = money(g) + " 元";
+    $("gu-si").textContent = yuan(r.si);
+    $("gu-tax").textContent = yuan(r.tax);
+    $("gu-tr").textContent = pct(r.tax / g, 2);
+    $("gu-year").textContent = yuan(target * 12) + " / " + yuan(g * 12);
+    $("gu-ytax").textContent = yuan(r.tax * 12);
+    $("gu-cost").textContent = yuan(g * 1.25);
+    $("gu-note").textContent = "招聘谈薪最常被问的一句：「到手 2 万，税前要多少？」按月度预扣表反推，本例税前约 2.60 万，公司实际成本还要加单位社保公积金约 25%。注意：社保有缴费基数上下限（各地不同，这里按工资全额算），年终奖若单独计税会让全年税负不同；谈 offer 时说的「总包」要问清是否含单位社保、是否含年终奖。";
+  }
+
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
@@ -6988,11 +7198,14 @@
     mold: calcMold, rebate: calcRebate, stdcost: calcStdCost, svc: calcSvc,
     taxadj: calcTaxAdj, supplier: calcSupplier, debtcap: calcDebtCap, accdep: calcAccDep,
     custwin: calcCustWin, upgrade: calcUpgrade, deptalloc: calcDeptAlloc, payout: calcPayout,
+    numwords: calcNumWords, duedate: calcDueDate, workday: calcWorkDay, cagr: calcCagr, apportion: calcApportion, grossup: calcGrossUp,
     trprice: calcTrPrice, esop: calcEsop, rdexp: calcRdExp, rollfc: calcRollFC,
     commission: calcCommission, capex: calcCapex, pooling: calcPooling, creditlimit: calcCreditLimit
   };
 
+  var curCat = "hot";
   function setCat(cat) {
+    curCat = cat;
     var chips = document.querySelectorAll(".cat");
     for (var c = 0; c < chips.length; c++) chips[c].classList.toggle("is-on", chips[c].dataset.cat === cat);
     var tb = document.querySelectorAll(".tab");
@@ -7026,9 +7239,20 @@
   $("cats").addEventListener("click", function (e) {
     var c = e.target.closest(".cat");
     if (!c) return;
+    if ($("q")) $("q").value = "";
     setCat(c.dataset.cat);
     var first = document.querySelector('.tab[data-cat~="' + c.dataset.cat + '"]');
     if (first && first.dataset.tab) activate(first.dataset.tab);
+  });
+
+  if ($("q")) $("q").addEventListener("input", function () {
+    var q = this.value.trim().toLowerCase();
+    var tb = document.querySelectorAll(".tab");
+    if (!q) { setCat(curCat); return; }
+    for (var i = 0; i < tb.length; i++) {
+      var hit = tb[i].textContent.toLowerCase().indexOf(q) >= 0 || tb[i].dataset.tab.indexOf(q) >= 0;
+      tb[i].hidden = !hit;
+    }
   });
 
   $("ln-toggle").addEventListener("click", function () {
@@ -7145,9 +7369,9 @@
     "im-cost", "im-price", "im-finish", "im-sell", "im-had", "im-up", "im-tax",
     "fxg-usd", "fxg-signed", "fxg-book", "fxg-spot", "fxg-spread", "fxg-fwd",
 "tbr-sales", "tbr-out", "tbr-in", "tbr-begin", "tbr-prev", "tbr-ind", "tbr-surch", "sens-rev", "sens-vr", "sens-fix", "sens-shock", "sens-target", "cons-pm-rev", "cons-sub-rev", "cons-inter", "cons-pm-np", "cons-sub-np", "cons-unreal", "cons-mi", "cons-inv", "cons-sub-net", "cons-rec", "eoq-d", "eoq-k", "eoq-h", "eoq-day", "eoq-sd", "eoq-lt", "eoq-svc", "eoq-moq",
-"cm-sales", "cm-ret", "cm-gm", "cm-sr", "cm-gr", "cm-achv", "cm-cash", "cpx-inv", "cpx-cf", "cpx-years", "cpx-rate", "cpx-rv", "pool-idle", "pool-a", "pool-b", "pool-in", "pool-out", "pool-demand", "pool-rate", "pool-wealth", "pool-equity", "crl-buy", "crl-term", "crl-vat", "crl-gm", "crl-netw", "crl-lev", "crl-late", "crl-cost", "bpl-rev", "bpl-grow", "bpl-gm", "bpl-opex", "bpl-dep", "bpl-tax", "bpl-dso", "bpl-dio", "bpl-dpo", "bpl-cash", "bpl-big", "bpl-rev2", "bpl-gp", "bpl-op", "bpl-margin", "bpl-wc", "bpl-nwc", "bpl-wcgap", "bpl-free", "bpl-body", "bpl-note", "rf-exp", "rf-reb", "rf-rate", "rf-lag", "rf-audit", "rf-cost", "rf-big", "rf-month", "rf-year", "rf-days", "rf-costv", "rf-gap", "rf-ten", "rf-opt", "rf-advice", "rf-body", "rf-note", "cal-oh", "cal-qa", "cal-qb", "cal-qc", "cal-ha", "cal-hb", "cal-hc", "cal-ma", "cal-mb", "cal-mc", "cal-ta", "cal-tb", "cal-tc", "cal-big", "cal-which", "cal-totals", "cal-r1", "cal-r2", "cal-r3", "cal-pick", "cal-price", "cal-body", "cal-note", "ic-fob", "ic-frt", "ic-ins", "ic-fx", "ic-duty", "ic-cons", "ic-vat", "ic-port", "ic-agent", "ic-qty", "ic-big", "ic-cif", "ic-dutyv", "ic-consv", "ic-vatv", "ic-fees", "ic-land", "ic-cash", "ic-ratio", "ic-body", "ic-note", "tp-cost", "tp-price", "tp-inner", "tp-ratea", "tp-rateb", "tp-lo", "tp-hi", "tp-big", "tp-a", "tp-b", "tp-profit", "tp-rate", "tp-low", "tp-high", "tp-save", "tp-per", "tp-body", "tp-note", "es-shares", "es-fair", "es-strike", "es-years", "es-leave", "es-tax", "es-big", "es-per", "es-qty", "es-flat", "es-acc", "es-diff", "es-dta", "es-deduct", "es-advice", "es-body", "es-note", "rd-labor", "rd-mat", "rd-dep", "rd-other", "rd-pct", "rd-tax", "rd-big", "rd-total", "rd-cap", "rd-effect", "rd-base", "rd-save", "rd-eff", "rd-lost", "rd-body", "rd-note", "rl-bud", "rl-passed", "rl-act", "rl-rest", "rl-gmb", "rl-gma", "rl-big", "rl-rate", "rl-gap", "rl-expect", "rl-pace", "rl-need", "rl-delta", "rl-gp", "rl-advice", "rl-body", "rl-note", "mob-q", "mob-vu", "mob-avo", "mob-price", "mob-extra", "mob-rent", "mob-fixall", "mob-big", "mob-self", "mob-buy", "mob-unit", "mob-crit", "mob-qcrit", "mob-pick", "mob-wrong", "mob-body", "mob-note", "ecl-a1", "ecl-a2", "ecl-a3", "ecl-a4", "ecl-a5", "ecl-r1", "ecl-r2", "ecl-r3", "ecl-r4", "ecl-r5", "ecl-adj", "ecl-prev", "ecl-big", "ecl-total", "ecl-base", "ecl-adjv", "ecl-delta", "ecl-ratio", "ecl-loss", "ecl-tax", "ecl-body", "ecl-note", "qf-cost", "qf-qty", "qf-dyn", "qf-port", "qf-gm", "qf-comm", "qf-fx", "qf-frt", "qf-ins", "qf-big", "qf-fob", "qf-comv", "qf-real", "qf-frtv", "qf-insv", "qf-cif", "qf-profit", "qf-fxrisk", "qf-body", "qf-note", "cap-q", "cap-p", "cap-va", "cap-ca", "cap-fa", "cap-vb", "cap-cb", "cap-fb", "cap-fixa", "cap-fixb", "cap-out", "cap-big", "cap-a", "cap-b", "cap-cm", "cap-fix", "cap-wrong", "cap-gap", "cap-outv", "cap-body", "cap-note", "mold-fee", "mold-life", "mold-price", "mold-vc", "mold-q", "mold-disc", "mold-big", "mold-per", "mold-perq", "mold-m1", "mold-m2", "mold-total", "mold-min1", "mold-verdict", "mold-body", "mold-note", "reb-base", "reb-gm", "reb-t1", "reb-p1", "reb-t2", "reb-p2", "reb-t3", "reb-p3", "reb-big", "reb-cur", "reb-now", "reb-rate", "reb-pick", "reb-crit", "reb-advice", "reb-body", "reb-note", "sc-q", "sc-mq", "sc-mp", "sc-maq", "sc-map", "sc-lh", "sc-lr", "sc-lah", "sc-lar", "sc-vr", "sc-va", "sc-fb", "sc-fa", "sc-big", "sc-mat", "sc-lab", "sc-voh", "sc-foh", "sc-dir", "sc-owner", "sc-ratio", "sc-body", "sc-note", "svc-d", "svc-sd", "svc-lt", "svc-sl", "svc-ann", "svc-lot", "svc-hold", "svc-out", "svc-big", "svc-z", "svc-ltd", "svc-rop", "svc-cost", "svc-total", "svc-best", "svc-up", "svc-body", "svc-note", "txj-rev", "txj-profit", "txj-ent", "txj-ad", "txj-fine", "txj-don", "txj-rd", "txj-rdr", "txj-pre", "txj-big", "txj-entv", "txj-adv", "txj-donv", "txj-finev", "txj-rdv", "txj-tax", "txj-due", "txj-rate", "txj-body", "txj-note", "spl-tot", "spl-t1", "spl-t2", "spl-t3", "spl-t4", "spl-t5", "spl-days", "spl-loss", "spl-big", "spl-top1", "spl-sum", "spl-hhi", "spl-level", "spl-gap", "spl-cost", "spl-advice", "spl-body", "spl-note", "dtc-loan", "dtc-eq", "dtc-rate", "dtc-bank", "dtc-mult", "dtc-big", "dtc-ratio", "dtc-lim", "dtc-paid", "dtc-ratecap", "dtc-multcap", "dtc-final", "dtc-tax", "dtc-advice", "dtc-note", "adp-cost", "adp-life", "adp-salv", "adp-tax", "adp-disc", "adp-big", "adp-acc", "adp-taxdep", "adp-diff", "adp-later", "adp-pv", "adp-net", "adp-yield", "adp-advice", "adp-body", "adp-note", "cwin-ra", "cwin-da", "cwin-ba", "cwin-fa", "cwin-sa", "cwin-ta", "cwin-ga", "cwin-rb", "cwin-db", "cwin-bb", "cwin-fb", "cwin-sb", "cwin-tb", "cwin-gb", "cwin-rc", "cwin-dc", "cwin-bc", "cwin-fc", "cwin-sc", "cwin-tc", "cwin-gc", "cwin-cost", "cwin-big", "cwin-rank", "cwin-total", "cwin-mix", "cwin-cuts", "cwin-occ", "cwin-worst", "cwin-advice", "cwin-body", "cwin-note", "upg-oldrun", "upg-oldmt", "upg-oldsale", "upg-oldlife", "upg-oldsalv", "upg-newinv", "upg-newlife", "upg-newrun", "upg-newmt", "upg-newsalv", "upg-rate", "upg-big", "upg-old", "upg-new", "upg-verdict", "upg-maxinv", "upg-energy", "upg-delay", "upg-body", "upg-note", "da-s1", "da-s12", "da-a1", "da-s2", "da-s21", "da-a2", "da-big", "da-d", "da-s", "da-r", "da-true", "da-sum", "da-pick", "da-body", "da-note", "po-ret", "po-np", "po-share", "po-ratio", "po-tax", "po-roe", "po-loan", "po-big", "po-div", "po-sharev", "po-keep", "po-nodiv", "po-ind", "po-risk", "po-alltax", "po-body", "po-note"
+"cm-sales", "cm-ret", "cm-gm", "cm-sr", "cm-gr", "cm-achv", "cm-cash", "cpx-inv", "cpx-cf", "cpx-years", "cpx-rate", "cpx-rv", "pool-idle", "pool-a", "pool-b", "pool-in", "pool-out", "pool-demand", "pool-rate", "pool-wealth", "pool-equity", "crl-buy", "crl-term", "crl-vat", "crl-gm", "crl-netw", "crl-lev", "crl-late", "crl-cost", "bpl-rev", "bpl-grow", "bpl-gm", "bpl-opex", "bpl-dep", "bpl-tax", "bpl-dso", "bpl-dio", "bpl-dpo", "bpl-cash", "bpl-big", "bpl-rev2", "bpl-gp", "bpl-op", "bpl-margin", "bpl-wc", "bpl-nwc", "bpl-wcgap", "bpl-free", "bpl-body", "bpl-note", "rf-exp", "rf-reb", "rf-rate", "rf-lag", "rf-audit", "rf-cost", "rf-big", "rf-month", "rf-year", "rf-days", "rf-costv", "rf-gap", "rf-ten", "rf-opt", "rf-advice", "rf-body", "rf-note", "cal-oh", "cal-qa", "cal-qb", "cal-qc", "cal-ha", "cal-hb", "cal-hc", "cal-ma", "cal-mb", "cal-mc", "cal-ta", "cal-tb", "cal-tc", "cal-big", "cal-which", "cal-totals", "cal-r1", "cal-r2", "cal-r3", "cal-pick", "cal-price", "cal-body", "cal-note", "ic-fob", "ic-frt", "ic-ins", "ic-fx", "ic-duty", "ic-cons", "ic-vat", "ic-port", "ic-agent", "ic-qty", "ic-big", "ic-cif", "ic-dutyv", "ic-consv", "ic-vatv", "ic-fees", "ic-land", "ic-cash", "ic-ratio", "ic-body", "ic-note", "tp-cost", "tp-price", "tp-inner", "tp-ratea", "tp-rateb", "tp-lo", "tp-hi", "tp-big", "tp-a", "tp-b", "tp-profit", "tp-rate", "tp-low", "tp-high", "tp-save", "tp-per", "tp-body", "tp-note", "es-shares", "es-fair", "es-strike", "es-years", "es-leave", "es-tax", "es-big", "es-per", "es-qty", "es-flat", "es-acc", "es-diff", "es-dta", "es-deduct", "es-advice", "es-body", "es-note", "rd-labor", "rd-mat", "rd-dep", "rd-other", "rd-pct", "rd-tax", "rd-big", "rd-total", "rd-cap", "rd-effect", "rd-base", "rd-save", "rd-eff", "rd-lost", "rd-body", "rd-note", "rl-bud", "rl-passed", "rl-act", "rl-rest", "rl-gmb", "rl-gma", "rl-big", "rl-rate", "rl-gap", "rl-expect", "rl-pace", "rl-need", "rl-delta", "rl-gp", "rl-advice", "rl-body", "rl-note", "mob-q", "mob-vu", "mob-avo", "mob-price", "mob-extra", "mob-rent", "mob-fixall", "mob-big", "mob-self", "mob-buy", "mob-unit", "mob-crit", "mob-qcrit", "mob-pick", "mob-wrong", "mob-body", "mob-note", "ecl-a1", "ecl-a2", "ecl-a3", "ecl-a4", "ecl-a5", "ecl-r1", "ecl-r2", "ecl-r3", "ecl-r4", "ecl-r5", "ecl-adj", "ecl-prev", "ecl-big", "ecl-total", "ecl-base", "ecl-adjv", "ecl-delta", "ecl-ratio", "ecl-loss", "ecl-tax", "ecl-body", "ecl-note", "qf-cost", "qf-qty", "qf-dyn", "qf-port", "qf-gm", "qf-comm", "qf-fx", "qf-frt", "qf-ins", "qf-big", "qf-fob", "qf-comv", "qf-real", "qf-frtv", "qf-insv", "qf-cif", "qf-profit", "qf-fxrisk", "qf-body", "qf-note", "cap-q", "cap-p", "cap-va", "cap-ca", "cap-fa", "cap-vb", "cap-cb", "cap-fb", "cap-fixa", "cap-fixb", "cap-out", "cap-big", "cap-a", "cap-b", "cap-cm", "cap-fix", "cap-wrong", "cap-gap", "cap-outv", "cap-body", "cap-note", "mold-fee", "mold-life", "mold-price", "mold-vc", "mold-q", "mold-disc", "mold-big", "mold-per", "mold-perq", "mold-m1", "mold-m2", "mold-total", "mold-min1", "mold-verdict", "mold-body", "mold-note", "reb-base", "reb-gm", "reb-t1", "reb-p1", "reb-t2", "reb-p2", "reb-t3", "reb-p3", "reb-big", "reb-cur", "reb-now", "reb-rate", "reb-pick", "reb-crit", "reb-advice", "reb-body", "reb-note", "sc-q", "sc-mq", "sc-mp", "sc-maq", "sc-map", "sc-lh", "sc-lr", "sc-lah", "sc-lar", "sc-vr", "sc-va", "sc-fb", "sc-fa", "sc-big", "sc-mat", "sc-lab", "sc-voh", "sc-foh", "sc-dir", "sc-owner", "sc-ratio", "sc-body", "sc-note", "svc-d", "svc-sd", "svc-lt", "svc-sl", "svc-ann", "svc-lot", "svc-hold", "svc-out", "svc-big", "svc-z", "svc-ltd", "svc-rop", "svc-cost", "svc-total", "svc-best", "svc-up", "svc-body", "svc-note", "txj-rev", "txj-profit", "txj-ent", "txj-ad", "txj-fine", "txj-don", "txj-rd", "txj-rdr", "txj-pre", "txj-big", "txj-entv", "txj-adv", "txj-donv", "txj-finev", "txj-rdv", "txj-tax", "txj-due", "txj-rate", "txj-body", "txj-note", "spl-tot", "spl-t1", "spl-t2", "spl-t3", "spl-t4", "spl-t5", "spl-days", "spl-loss", "spl-big", "spl-top1", "spl-sum", "spl-hhi", "spl-level", "spl-gap", "spl-cost", "spl-advice", "spl-body", "spl-note", "dtc-loan", "dtc-eq", "dtc-rate", "dtc-bank", "dtc-mult", "dtc-big", "dtc-ratio", "dtc-lim", "dtc-paid", "dtc-ratecap", "dtc-multcap", "dtc-final", "dtc-tax", "dtc-advice", "dtc-note", "adp-cost", "adp-life", "adp-salv", "adp-tax", "adp-disc", "adp-big", "adp-acc", "adp-taxdep", "adp-diff", "adp-later", "adp-pv", "adp-net", "adp-yield", "adp-advice", "adp-body", "adp-note", "cwin-ra", "cwin-da", "cwin-ba", "cwin-fa", "cwin-sa", "cwin-ta", "cwin-ga", "cwin-rb", "cwin-db", "cwin-bb", "cwin-fb", "cwin-sb", "cwin-tb", "cwin-gb", "cwin-rc", "cwin-dc", "cwin-bc", "cwin-fc", "cwin-sc", "cwin-tc", "cwin-gc", "cwin-cost", "cwin-big", "cwin-rank", "cwin-total", "cwin-mix", "cwin-cuts", "cwin-occ", "cwin-worst", "cwin-advice", "cwin-body", "cwin-note", "upg-oldrun", "upg-oldmt", "upg-oldsale", "upg-oldlife", "upg-oldsalv", "upg-newinv", "upg-newlife", "upg-newrun", "upg-newmt", "upg-newsalv", "upg-rate", "upg-big", "upg-old", "upg-new", "upg-verdict", "upg-maxinv", "upg-energy", "upg-delay", "upg-body", "upg-note", "da-s1", "da-s12", "da-a1", "da-s2", "da-s21", "da-a2", "da-big", "da-d", "da-s", "da-r", "da-true", "da-sum", "da-pick", "da-body", "da-note", "po-ret", "po-np", "po-share", "po-ratio", "po-tax", "po-roe", "po-loan", "po-big", "po-div", "po-sharev", "po-keep", "po-nodiv", "po-ind", "po-risk", "po-alltax", "po-body", "po-note", "nw-amount", "nw-prefix", "ud-start", "ud-days", "ud-basis", "ud-amt", "ud-rate", "ud-today", "wd-a", "wd-b", "wd-hol", "wd-n", "cg-from", "cg-to", "cg-years", "apc-total", "apc-w", "gu-net", "gu-rate", "gu-spec", "gu-thr"
 ];
-  var KEY = "finance-calc-v33";
+  var KEY = "finance-calc-v34";
   var CAT_KEY = "finance-calc-cat";
 
   /* ---------------- 现金流月历 ---------------- */

@@ -161,3 +161,14 @@ tbody tr.c-warn { background: #fff8f0; }
 tbody tr.c-info { background: #eef2ff; }
 
 td.tal { text-align: left; }
+
+/* 模块搜索框 */
+.q{
+  width:100%;margin-top:13px;padding:9px 13px;box-sizing:border-box;
+  border-radius:10px;border:1px solid rgba(255,255,255,.42);
+  background:rgba(255,255,255,.12);color:#fff;font-size:14px;
+  appearance:none;-webkit-appearance:none;
+}
+.q::placeholder{color:rgba(255,255,255,.72)}
+.q:focus{outline:none;border-color:#fff;background:rgba(255,255,255,.2)}
+.q::-webkit-search-cancel-button{-webkit-appearance:none}
