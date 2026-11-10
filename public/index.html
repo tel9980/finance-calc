@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>财务计算器 · 存款 贷款 房贷 个税 债务优先级 FIRE 买房预算</title>
-<meta name="description" content="免费的财务计算器（47 个模块）：存款利息、贷款月供与还款计划、组合贷、提前还款省息、复利与定投、攒钱目标、分期真实年化、年化收益、通胀购买力、个税与到手工资、租房还是买房、信用卡循环利息、汇率与单位换算、公积金可贷额度、利率调整后月供、二手房交易税费、AA 分摊、退休金测算、卖房换房、公积金月冲年冲、多币种折算、提前还款 vs 理财、教育金、保险保额、买车 vs 打车、年终奖拆分、专项附加扣除、存单阶梯、租售比、年度汇算退税、家庭资产负债、灵活就业社保、社保少缴核查、三种还法对撞、定投 vs 一次性、保单体检、到期日历、现金流月历、0 利率真实成本、风险测评与资产配置、提前还款违约金临界点、多笔债务先还哪笔、FIRE 财务自由、年缴费用分摊、买房预算反推。纯前端计算，不联网、不上传数据。">
+<title>财务计算器 · 存款 贷款 房贷 商转公 医保报销 养娃 个人养老金</title>
+<meta name="description" content="免费的财务计算器（51 个模块）：存款利息、贷款月供与还款计划、组合贷、提前还款省息、复利与定投、攒钱目标、分期真实年化、年化收益、通胀购买力、个税与到手工资、租房还是买房、信用卡循环利息、汇率与单位换算、公积金可贷额度、利率调整后月供、二手房交易税费、AA 分摊、退休金测算、卖房换房、公积金月冲年冲、多币种折算、提前还款 vs 理财、教育金、保险保额、买车 vs 打车、年终奖拆分、专项附加扣除、存单阶梯、租售比、年度汇算退税、家庭资产负债、灵活就业社保、社保少缴核查、三种还法对撞、定投 vs 一次性、保单体检、到期日历、现金流月历、0 利率真实成本、风险测评与资产配置、提前还款违约金临界点、多笔债务先还哪笔、FIRE 财务自由、年缴费用分摊、买房预算反推、商转公、医保报销、养娃成本、个人养老金账户。纯前端计算，不联网、不上传数据。">
 <meta name="theme-color" content="#1e3a8a">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231e3a8a'/%3E%3Ctext x='16' y='23' font-size='17' text-anchor='middle' fill='%23fff' font-family='sans-serif'%3E%C2%A5%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="./style.css">
@@ -17,7 +17,7 @@
       <span class="mark">¥</span>
       <div>
         <h1>财务计算器</h1>
-        <p>存款 · 贷款 · 提前还款 · 复利 · 攒钱 · 分期 · 个税 · 汇算退税 · 年终奖 · 到手工资 · 社保 · 退休金 · 教育金 · 保险 · 租买 · 租售比 · 信用卡 · 公积金 · 换房 · 多币种 · 存单阶梯 · 资产负债 · 还法对撞 · 保单体检 · 到期日历 · 现金流月历 · 风险配置 · 债务优先级 · FIRE · 年缴分摊 · 买房预算</p>
+        <p>存款 · 贷款 · 提前还款 · 复利 · 攒钱 · 分期 · 个税 · 汇算退税 · 年终奖 · 到手工资 · 社保 · 退休金 · 教育金 · 保险 · 租买 · 租售比 · 信用卡 · 公积金 · 换房 · 多币种 · 存单阶梯 · 资产负债 · 还法对撞 · 保单体检 · 到期日历 · 现金流月历 · 风险配置 · 债务优先级 · FIRE · 年缴分摊 · 买房预算 · 商转公 · 医保报销 · 养娃 · 个人养老金</p>
       </div>
     </div>
     <nav class="tabs" id="tabs" role="tablist">
@@ -68,6 +68,10 @@
       <button class="tab" data-tab="fire" role="tab">FIRE 自由</button>
       <button class="tab" data-tab="annualfee" role="tab">年缴费用分摊</button>
       <button class="tab" data-tab="budget" role="tab">买房预算反推</button>
+      <button class="tab" data-tab="zhuan" role="tab">商转公</button>
+      <button class="tab" data-tab="medins" role="tab">医保报销</button>
+      <button class="tab" data-tab="childcost" role="tab">养娃成本</button>
+      <button class="tab" data-tab="ppension" role="tab">个人养老金</button>
     </nav>
   </div>
 </header>
@@ -2596,6 +2600,156 @@
           <li><span>30 年总共付的利息</span><b id="bg-int">—</b></li>
         </ul>
         <p class="hint" id="bg-note"></p>
+      </div>
+    </div>
+  </section>
+
+
+  <section class="panel" id="panel-zhuan">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f"><span>剩余商贷本金（元）</span>
+          <input id="zg-balance" type="number" inputmode="decimal" min="0" step="10000" value="1000000"></label>
+        <label class="f"><span>剩余期数（月）</span>
+          <input id="zg-months" type="number" inputmode="decimal" min="1" step="12" value="300"></label>
+        <label class="f"><span>商贷年利率（%）</span>
+          <input id="zg-rate" type="number" inputmode="decimal" min="0" step="0.05" value="3.9"></label>
+        <label class="f"><span>公积金年利率（%）</span>
+          <input id="zg-frate" type="number" inputmode="decimal" min="0" step="0.05" value="2.6"></label>
+        <label class="f"><span>公积金最多能转多少（元）</span>
+          <input id="zg-quota" type="number" inputmode="decimal" min="0" step="50000" value="800000"></label>
+        <label class="f"><span>转贷一次性成本（元）</span>
+          <input id="zg-cost" type="number" inputmode="decimal" min="0" step="500" value="8000"></label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">省下的利息</span><strong id="zg-save">—</strong><span class="unit">元</span></div>
+        <ul class="kv">
+          <li><span>原商贷月供</span><b id="zg-old">—</b></li>
+          <li><span>转后月供合计</span><b id="zg-new">—</b></li>
+          <li><span>每月少还</span><b id="zg-cut">—</b></li>
+          <li><span>不转，剩余利息</span><b id="zg-oldint">—</b></li>
+          <li><span>转后剩余利息</span><b id="zg-newint">—</b></li>
+          <li><span>额度怎么分</span><b id="zg-mix">—</b></li>
+          <li><span>一次性成本多久挣回来</span><b id="zg-back">—</b></li>
+        </ul>
+        <p class="hint" id="zg-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-medins">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f"><span>住院总费用（元）</span>
+          <input id="mi-total" type="number" inputmode="decimal" min="0" step="1000" value="80000"></label>
+        <label class="f"><span>其中完全自费（目录外，元）</span>
+          <input id="mi-self" type="number" inputmode="decimal" min="0" step="1000" value="12000"></label>
+        <label class="f"><span>起付线（元）</span>
+          <input id="mi-ded" type="number" inputmode="decimal" min="0" step="100" value="1300"></label>
+        <label class="f"><span>统筹报销比例（%）</span>
+          <input id="mi-ratio" type="number" inputmode="decimal" min="0" max="100" step="1" value="85"></label>
+        <label class="f"><span>统筹封顶线（元）</span>
+          <input id="mi-cap" type="number" inputmode="decimal" min="0" step="10000" value="300000"></label>
+        <label class="f"><span>大病保险起付（元）</span>
+          <input id="mi-bigstart" type="number" inputmode="decimal" min="0" step="1000" value="10000"></label>
+        <label class="f"><span>大病保险报销比例（%）</span>
+          <input id="mi-bigratio" type="number" inputmode="decimal" min="0" max="100" step="5" value="60"></label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">你自己要掏</span><strong id="mi-net">—</strong><span class="unit">元</span></div>
+        <ul class="kv">
+          <li><span>医保目录内费用</span><b id="mi-inner">—</b></li>
+          <li><span>扣掉起付线后的可报基数</span><b id="mi-base">—</b></li>
+          <li><span>统筹基金报销</span><b id="mi-reimb">—</b></li>
+          <li><span>目录内还要自付</span><b id="mi-inner-self">—</b></li>
+          <li><span>大病保险再报</span><b id="mi-big">—</b></li>
+          <li><span>合计报销</span><b id="mi-all">—</b></li>
+          <li><span>实际报销比例</span><b id="mi-rate">—</b></li>
+          <li><span>离封顶线还剩</span><b id="mi-room">—</b></li>
+        </ul>
+        <p class="hint" id="mi-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-childcost">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f"><span>孩子现在几岁</span>
+          <input id="cc-age" type="number" inputmode="decimal" min="0" max="18" step="1" value="0"></label>
+        <label class="f"><span>0–6 岁：每年花多少（元）</span>
+          <input id="cc-pre" type="number" inputmode="decimal" min="0" step="1000" value="30000"></label>
+        <label class="f"><span>7–18 岁：每年花多少（元）</span>
+          <input id="cc-mid" type="number" inputmode="decimal" min="0" step="1000" value="40000"></label>
+        <label class="f"><span>大学 4 年：每年花多少（元）</span>
+          <input id="cc-uni" type="number" inputmode="decimal" min="0" step="1000" value="50000"></label>
+        <label class="f"><span>每年花费上涨（%）</span>
+          <input id="cc-infl" type="number" inputmode="decimal" min="0" step="0.5" value="3"></label>
+        <label class="f"><span>你的钱能拿到的年化（%）</span>
+          <input id="cc-rate" type="number" inputmode="decimal" min="0" step="0.5" value="3"></label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">到 22 岁一共要花</span><strong id="cc-total">—</strong><span class="unit">元</span></div>
+        <ul class="kv">
+          <li><span>折成今天的钱</span><b id="cc-pv">—</b></li>
+          <li><span>平均每月</span><b id="cc-month">—</b></li>
+          <li><span>最贵的一年</span><b id="cc-peak">—</b></li>
+          <li><span>学前段合计</span><b id="cc-pre-sum">—</b></li>
+          <li><span>中小学段合计</span><b id="cc-mid-sum">—</b></li>
+          <li><span>大学段合计</span><b id="cc-uni-sum">—</b></li>
+          <li><span>现在开始每月存</span><b id="cc-save">—</b></li>
+        </ul>
+        <p class="hint" id="cc-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-ppension">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f"><span>每年放进账户（元，上限 12000）</span>
+          <input id="pa-pay" type="number" inputmode="decimal" min="0" step="1000" value="12000"></label>
+        <label class="f"><span>你现在的边际税率（%）</span>
+          <input id="pa-rate" type="number" inputmode="decimal" min="0" max="45" step="1" value="20"></label>
+        <label class="f"><span>现在几岁</span>
+          <input id="pa-age" type="number" inputmode="decimal" min="18" max="59" step="1" value="30"></label>
+        <label class="f"><span>还能缴多少年（到 60 岁）</span>
+          <input id="pa-years" type="number" inputmode="decimal" min="1" max="40" step="1" value="20"></label>
+        <label class="f"><span>账户里投资年化（%）</span>
+          <input id="pa-ret" type="number" inputmode="decimal" min="0" step="0.5" value="4"></label>
+        <label class="f"><span>领取时缴税（%）</span>
+          <input id="pa-taxout" type="number" inputmode="decimal" min="0" max="45" step="1" value="3"></label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">比放在外面投多拿</span><strong id="pa-diff">—</strong><span class="unit">元</span></div>
+        <ul class="kv">
+          <li><span>每年少缴个税</span><b id="pa-save">—</b></li>
+          <li><span>这些年一共省税</span><b id="pa-saveall">—</b></li>
+          <li><span>账户滚到退休时</span><b id="pa-acc">—</b></li>
+          <li><span>领取时缴税</span><b id="pa-out">—</b></li>
+          <li><span>最终到手</span><b id="pa-net">—</b></li>
+          <li><span>同样的钱自己投（先交税）</span><b id="pa-own">—</b></li>
+          <li><span>本金投入</span><b id="pa-in">—</b></li>
+        </ul>
+        <div class="tablebox">
+          <table>
+            <thead><tr><th>边际税率</th><th>每年省税</th><th>账户净到手</th><th>自己投</th><th>净收益差</th></tr></thead>
+            <tbody id="pa-body"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="pa-note"></p>
       </div>
     </div>
   </section>

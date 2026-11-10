@@ -2309,6 +2309,199 @@
     $("bg-note").textContent = note;
   }
 
+  /* ---------------- 商转公能省多少 ---------------- */
+  function calcZhuan() {
+    var P = Math.max(0, num($("zg-balance"), 0));
+    var N = months(num($("zg-months"), 120));
+    var r = Math.max(0, num($("zg-rate"), 0)) / 100;
+    var fr = Math.max(0, num($("zg-frate"), 0)) / 100;
+    var quota = Math.max(0, num($("zg-quota"), 0));
+    var cost = Math.max(0, num($("zg-cost"), 0));
+
+    var oldPay = annuityPayment(P, r / 12, N);
+    var oldInt = Math.max(0, oldPay * N - P);
+    var q = Math.min(P, quota), rest = Math.max(0, P - q);
+    var payF = q > 0 ? annuityPayment(q, fr / 12, N) : 0;
+    var payC = rest > 0 ? annuityPayment(rest, r / 12, N) : 0;
+    var newPay = payF + payC;
+    var newInt = Math.max(0, newPay * N - P);
+    var save = oldInt - newInt, cut = oldPay - newPay;
+    var back = cut > 0 ? cost / cut : 0;
+
+    $("zg-save").textContent = money(save);
+    $("zg-old").textContent = yuan(oldPay) + " × " + N + " 期";
+    $("zg-new").textContent = yuan(newPay);
+    $("zg-cut").textContent = cut > 0 ? yuan(cut) + " / 月" : "—";
+    $("zg-oldint").textContent = yuan(oldInt);
+    $("zg-newint").textContent = yuan(newInt);
+    $("zg-mix").textContent = rest > 0
+      ? "公积金 " + money(q) + " ＋ 商贷 " + money(rest) + " 元"
+      : "全部转公积金 " + money(q) + " 元";
+    $("zg-back").textContent = back > 0 ? fmt(back, 1) + " 个月（约 " + fmt(back / 12, 1) + " 年）" : "—";
+
+    if (P <= 0 || N <= 0) {
+      $("zg-note").textContent = "填上剩余商贷本金、期数和两个利率，就能看到转成公积金贷款后省多少。";
+      return;
+    }
+    if (save <= 0) {
+      $("zg-note").textContent = "公积金利率（" + pct(fr, 2) + "）并不比你的商贷利率（" + pct(r, 2) + "）低，转了不省钱，还白付 "
+        + money(cost) + " 元手续费。";
+      return;
+    }
+    $("zg-note").textContent = "这笔钱里有 " + money(q) + " 元能转成公积金贷款（利率 " + pct(fr, 2) + "），"
+      + (rest > 0 ? "剩下的 " + money(rest) + " 元仍是商贷（" + pct(r, 2) + "），要按组合贷重新算月供。" : "全部可以转，月供一次降到位。")
+      + " 月供从 " + money(oldPay) + " 元降到 " + money(newPay) + " 元，每月少还 " + money(Math.max(0, cut)) + " 元，"
+      + "剩余期限里一共少付 " + money(save) + " 元利息；一次性成本 " + money(cost) + " 元大约 "
+      + fmt(back, 1) + " 个月回本，所以只要还能住满一年以上就值得办。"
+      + " 注意三件事：① 转贷要原银行同意并先结清，多数城市要求过桥资金，这笔短期利息没算在里面；"
+      + "② 公积金贷款有额度上限和缴存年限要求，实际能转多少以公积金中心审批为准；"
+      + "③ 转成公积金后，原来享受的房贷利息专项附加扣除（每月 1000 元）照样有，不受影响。";
+  }
+
+  /* ---------------- 医保能报多少 ---------------- */
+  function calcMedins() {
+    var total = Math.max(0, num($("mi-total"), 0));
+    var selfFull = Math.min(total, Math.max(0, num($("mi-self"), 0)));
+    var ded = Math.max(0, num($("mi-ded"), 0));
+    var ratio = Math.min(100, Math.max(0, num($("mi-ratio"), 85))) / 100;
+    var cap = Math.max(0, num($("mi-cap"), 0));
+    var bigStart = Math.max(0, num($("mi-bigstart"), 0));
+    var bigRatio = Math.min(100, Math.max(0, num($("mi-bigratio"), 60))) / 100;
+
+    var inner = Math.max(0, total - selfFull);
+    var base = Math.max(0, inner - ded);
+    var reimb = cap > 0 ? Math.min(base * ratio, cap) : base * ratio;
+    var innerSelf = Math.max(0, inner - reimb);
+    var big = Math.max(0, innerSelf - bigStart) * bigRatio;
+    var selfPay = Math.max(0, total - reimb - big);
+    var allReimb = reimb + big;
+
+    $("mi-net").textContent = money(selfPay);
+    $("mi-inner").textContent = yuan(inner);
+    $("mi-base").textContent = yuan(base);
+    $("mi-reimb").textContent = yuan(reimb);
+    $("mi-inner-self").textContent = yuan(innerSelf);
+    $("mi-big").textContent = yuan(big);
+    $("mi-all").textContent = yuan(allReimb);
+    $("mi-rate").textContent = total > 0 ? pct(allReimb / total, 1) : "—";
+    $("mi-room").textContent = cap > 0 ? yuan(Math.max(0, cap - reimb)) : "不设封顶";
+
+    if (total <= 0) {
+      $("mi-note").textContent = "填住院总费用、完全自费的部分和当地报销规则，就能估出自己要掏多少。";
+      return;
+    }
+    $("mi-note").textContent = "总费用 " + money(total) + " 元里，有 " + money(selfFull) + " 元是目录外全自费，一分不报；"
+      + "目录内的 " + money(inner) + " 元先扣掉起付线 " + money(ded) + "，剩 " + money(base) + " 元按 "
+      + pct(ratio, 0) + " 报销，统筹基金付 " + money(reimb) + " 元。"
+      + (big > 0 ? "目录内自付的 " + money(innerSelf) + " 元超过大病保险起付线 " + money(bigStart) + "，大病保险再报 " + money(big) + " 元。" : "目录内自付 " + money(innerSelf) + " 元还没到大病保险起付线 " + money(bigStart) + "，大病保险这次不启动。")
+      + " 所以账面报销比例是 " + pct(ratio, 0) + "，你实际拿到的是 " + pct(total > 0 ? allReimb / total : 0, 1) + "，自付 " + money(selfPay) + " 元。"
+      + " 差距全在「目录外全自费」和「起付线」这两块——这也是为什么同样一场病，有人报八成、有人只报五成。"
+      + " 各地起付线、报销比例、封顶线、大病保险规则差异很大，请按参保地政策填；职工医保与居民医保也不是一套数。";
+  }
+
+  /* ---------------- 养一个孩子要多少钱 ---------------- */
+  function calcChild() {
+    var age = Math.max(0, Math.min(18, Math.round(num($("cc-age"), 0))));
+    var pre = Math.max(0, num($("cc-pre"), 0));
+    var mid = Math.max(0, num($("cc-mid"), 0));
+    var uni = Math.max(0, num($("cc-uni"), 0));
+    var infl = Math.max(0, num($("cc-infl"), 0)) / 100;
+    var rate = Math.max(0, num($("cc-rate"), 0)) / 100;
+
+    var total = 0, pv = 0, peak = 0, peakAge = 0;
+    var sPre = 0, sMid = 0, sUni = 0, yrs = 0;
+    for (var a = age; a <= 22; a++) {
+      var base = a <= 6 ? pre : (a <= 18 ? mid : uni);
+      var v = base * Math.pow(1 + infl, a - age);
+      total += v;
+      pv += v / Math.pow(1 + infl, a - age);
+      if (a <= 6) sPre += v; else if (a <= 18) sMid += v; else sUni += v;
+      if (v > peak) { peak = v; peakAge = a; }
+      yrs++;
+    }
+    var perMonth = yrs > 0 ? total / (yrs * 12) : 0;
+    var nMonths = Math.max(1, (Math.max(18, age) - age) * 12);
+    var i = rate / 12;
+    var annFactor = i > 0 ? (1 - Math.pow(1 + i, -nMonths)) / i : nMonths;
+    var save = annFactor > 0 ? pv / annFactor : 0;
+
+    $("cc-total").textContent = money(total);
+    $("cc-pv").textContent = yuan(pv);
+    $("cc-month").textContent = yuan(perMonth);
+    $("cc-peak").textContent = peakAge + " 岁那年：" + yuan(peak);
+    $("cc-pre-sum").textContent = yuan(sPre);
+    $("cc-mid-sum").textContent = yuan(sMid);
+    $("cc-uni-sum").textContent = yuan(sUni);
+    $("cc-save").textContent = yuan(save) + "（存到 18 岁）";
+
+    if (total <= 0) {
+      $("cc-note").textContent = "填上各阶段每年的花费，就能看到从现在到大学毕业一共要准备多少钱。";
+      return;
+    }
+    $("cc-note").textContent = "从现在（" + age + " 岁）到 22 岁毕业，按每年花费上涨 " + pct(infl, 1) + " 算，一共要花 " + money(total) + " 元，"
+      + "折成今天的钱是 " + money(pv) + " 元（这两个数的差就是通胀；如果通胀和你的理财收益都是 " + pct(infl, 1) + "，那两者相等，说明你只是在「搬钱」并没有增值）。"
+      + " 平均每月 " + money(perMonth) + " 元，最贵的是 " + peakAge + " 岁那年 " + money(peak) + " 元。"
+      + " 要一次性备齐，今天就得有 " + money(pv) + " 元；改成每月定投、按 " + pct(rate, 1) + " 年化滚到 18 岁，每月存 " + money(save) + " 元就够。"
+      + " 这里只算「养」的钱：吃穿、教育、医疗、兴趣班、出行。没算买房首付、结婚、留学，也没算你为了带娃少赚的那部分收入——"
+      + "真正的大头往往就是后者。";
+  }
+
+  /* ---------------- 个人养老金账户划算吗 ---------------- */
+  function calcPPA() {
+    var pay = Math.min(12000, Math.max(0, num($("pa-pay"), 0)));
+    var age = Math.max(18, Math.min(59, Math.round(num($("pa-age"), 30))));
+    var mr = Math.min(45, Math.max(0, num($("pa-rate"), 20))) / 100;
+    var yrs = Math.max(1, Math.min(40, Math.round(num($("pa-years"), 20))));
+    var ret = Math.max(0, num($("pa-ret"), 4)) / 100;
+    var tOut = Math.min(45, Math.max(0, num($("pa-taxout"), 3))) / 100;
+
+    function fv(annual) {
+      return ret > 0 ? annual * (Math.pow(1 + ret, yrs) - 1) / ret : annual * yrs;
+    }
+    var acc = fv(pay);
+    var out = acc * tOut;
+    var net = acc - out;
+    var own = fv(pay * (1 - mr));
+    var diff = net - own;
+
+    $("pa-diff").textContent = money(diff);
+    $("pa-save").textContent = yuan(pay * mr);
+    $("pa-saveall").textContent = yuan(pay * mr * yrs);
+    $("pa-acc").textContent = yuan(acc);
+    $("pa-out").textContent = yuan(out) + "（" + pct(tOut, 1) + "）";
+    $("pa-net").textContent = yuan(net);
+    $("pa-own").textContent = yuan(own);
+    $("pa-in").textContent = yuan(pay * yrs) + "（每年 " + money(pay) + " × " + yrs + " 年）";
+
+    var body = $("pa-body");
+    body.innerHTML = "";
+    var list = [0.03, 0.10, 0.20, 0.30, 0.45];
+    for (var k = 0; k < list.length; k++) {
+      var m = list[k];
+      var ownK = fv(pay * (1 - m));
+      var d = net - ownK;
+      var tr = document.createElement("tr");
+      tr.innerHTML = "<td>" + pct(m, 0) + "</td><td>" + money(pay * m) + "</td><td>" + money(net)
+        + "</td><td>" + money(ownK) + "</td><td>" + (d >= 0 ? "+" : "") + money(d) + "</td>";
+      body.appendChild(tr);
+    }
+
+    if (pay <= 0) {
+      $("pa-note").textContent = "填上每年打算放进去的金额（上限 12000 元）和你的边际税率，就能看到这个账户到底划算多少。";
+      return;
+    }
+    $("pa-note").textContent = "工资税率 " + pct(mr, 0) + " 的人，每年放 " + money(pay) + " 元进个人养老金账户，当年少缴个税 " + money(pay * mr) + " 元，"
+      + " " + yrs + " 年（" + age + " 岁放到 60 岁）累计省税 " + money(pay * mr * yrs) + " 元。账户里的钱按 " + pct(ret, 1) + " 滚 " + yrs + " 年到 " + money(acc) + " 元，"
+      + "退休领取时统一按 " + pct(tOut, 1) + " 缴税 " + money(out) + " 元，最终到手 " + money(net) + " 元；"
+      + " 同样这笔钱如果在外面自己投，得先按 " + pct(mr, 0) + " 缴税再投，只剩 " + money(own) + " 元。"
+      + " 所以净赚 " + money(diff) + " 元。"
+      + " 判断标准就一句：只要你现在的边际税率高于领取时的税率，这个账户就是赚的，赚的是「税率差」，不是收益差。"
+      + " 税率 3% 的人基本没好处（省 3% 缴 3%），税率 20% 以上才有明显价值。"
+      + " 代价是钱锁到退休（特殊情况如重病、出国定居才能提前取），所以先留够应急金再放；"
+      + " 另外这里假设你在账户里买的基金/存款能拿到 " + pct(ret, 1) + " 年化——账户本身不保证收益，选错产品照样亏。";
+  }
+
+
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
@@ -2321,7 +2514,8 @@
     settle: calcSettle, balance: calcBalance, selfins: calcSelfIns, underpay: calcUnderpay,
     loanways: calcLoanWays, dca: calcDCA, checkup: calcCheckup, calendar: calcCalendar,
     cashflow: calcCashflow, zeroloan: calcZeroLoan, riskalloc: calcRiskAlloc, penalty: calcPenalty,
-    debtfree: calcDebtFree, fire: calcFire, annualfee: calcAnnualFee, budget: calcBudget
+    debtfree: calcDebtFree, fire: calcFire, annualfee: calcAnnualFee, budget: calcBudget,
+    zhuan: calcZhuan, medins: calcMedins, childcost: calcChild, ppension: calcPPA
   };
 
   function activate(name) {
@@ -2397,9 +2591,13 @@
     "df-bal1", "df-rate1", "df-min1", "df-bal2", "df-rate2", "df-min2", "df-bal3", "df-rate3", "df-min3", "df-extra",
     "fr-exp", "fr-has", "fr-save", "fr-rate", "fr-swr", "fr-age",
     "af-1", "af-1m", "af-2", "af-2m", "af-3", "af-3m", "af-4", "af-4m",
-    "bg-income", "bg-cash", "bg-down", "bg-rate", "bg-years", "bg-ratio", "bg-fee"
+    "bg-income", "bg-cash", "bg-down", "bg-rate", "bg-years", "bg-ratio", "bg-fee",
+    "zg-balance", "zg-months", "zg-rate", "zg-frate", "zg-quota", "zg-cost",
+    "mi-total", "mi-self", "mi-ded", "mi-ratio", "mi-cap", "mi-bigstart", "mi-bigratio",
+    "cc-age", "cc-pre", "cc-mid", "cc-uni", "cc-infl", "cc-rate",
+    "pa-pay", "pa-rate", "pa-age", "pa-years", "pa-ret", "pa-taxout"
   ];
-  var KEY = "finance-calc-v12";
+  var KEY = "finance-calc-v13";
 
   /* ---------------- 现金流月历 ---------------- */
   function calcCashflow() {
