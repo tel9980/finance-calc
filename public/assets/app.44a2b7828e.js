@@ -1,0 +1,1587 @@
+/* 财务计算器 —— 纯前端，无依赖 */
+(function () {
+  "use strict";
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  function num(el, fallback) {
+    var v = parseFloat(el && el.value);
+    return isFinite(v) ? v : (fallback || 0);
+  }
+
+  function fmt(n, digits) {
+    if (!isFinite(n)) return "—";
+    var d = digits === undefined ? 2 : digits;
+    return n.toLocaleString("zh-CN", { minimumFractionDigits: d, maximumFractionDigits: d });
+  }
+
+  function money(n) { return fmt(n, 2); }
+  function fx(str) { return str; }
+  function yuan(n) { return money(n) + " 元"; }
+
+  function pct(x, digits) {
+    if (!isFinite(x)) return "—";
+    return fmt(x * 100, digits === undefined ? 2 : digits) + "%";
+  }
+
+  function months(monthsRaw) {
+    return Math.max(0, Math.min(1200, Math.round(monthsRaw)));
+  }
+
+  /* 等额本息月供 */
+  function annuityPayment(P, i, n) {
+    if (n <= 0) return 0;
+    if (i === 0) return P / n;
+    var g = Math.pow(1 + i, n);
+    return (P * i * g) / (g - 1);
+  }
+
+  /* ---------------- 1. 存款 ---------------- */
+
+
+  /* ---------------- 2. 贷款 ---------------- */
+  var loanRows = [];
+
+  function buildLoanSchedule(P, i, n, method) {
+    var rows = [], k, x, rest;
+    if (method === "equal-payment") {
+      var pay = annuityPayment(P, i, n);
+      rest = P;
+      for (k = 1; k <= n; k++) {
+        var int = rest * i;
+        var pri = pay - int;
+        if (k === n) { pri = rest; pay = pri + int; }
+        rest = Math.max(0, rest - pri);
+        rows.push({ k: k, pay: pay, pri: pri, int: int, rest: rest });
+      }
+    } else {
+      var prin = P / n;
+      rest = P;
+      for (k = 1; k <= n; k++) {
+        var it = rest * i;
+        var pr = k === n ? rest : prin;
+        rest = Math.max(0, rest - pr);
+        rows.push({ k: k, pay: pr + it, pri: pr, int: it, rest: rest });
+      }
+    }
+    return rows;
+  }
+
+
+
+  function renderLoanTable() {
+    var tb = $("ln-table").querySelector("tbody");
+    var box = $("ln-box");
+    if (!loanRows.length) {
+      tb.innerHTML = "";
+      box.hidden = true;
+      $("ln-toggle").textContent = "展开明细";
+      return;
+    }
+    var html = "";
+    for (var k = 0; k < loanRows.length; k++) {
+      var x = loanRows[k];
+      html += "<tr><td>" + x.k + "</td><td>" + money(x.pay) + "</td><td>" + money(x.pri) +
+        "</td><td>" + money(x.int) + "</td><td>" + money(x.rest) + "</td></tr>";
+    }
+    tb.innerHTML = html;
+  }
+
+  /* ---------------- 3. 提前还款 ---------------- */
+
+
+  /* ---------------- 4. 复利 / 定投 ---------------- */
+
+
+  /* ---------------- 5. 年化 ---------------- */
+
+
+  /* ---------------- 6. 通胀 / 购买力 ---------------- */
+
+
+  /* ---------------- 7. 个税 ---------------- */
+  // [级距上限, 税率, 速算扣除数]
+  var YEAR_TABLE = [
+    [36000, 0.03, 0], [144000, 0.10, 2520], [300000, 0.20, 16920],
+    [420000, 0.25, 31920], [660000, 0.30, 52920], [960000, 0.35, 85920],
+    [Infinity, 0.45, 181920]
+  ];
+  var MONTH_TABLE = [
+    [3000, 0.03, 0], [12000, 0.10, 210], [25000, 0.20, 1410],
+    [35000, 0.25, 2660], [55000, 0.30, 4410], [80000, 0.35, 7160],
+    [Infinity, 0.45, 15160]
+  ];
+
+  function taxBy(table, taxable) {
+    if (taxable <= 0) return 0;
+    for (var k = 0; k < table.length; k++) {
+      if (taxable <= table[k][0]) return taxable * table[k][1] - table[k][2];
+    }
+    return 0;
+  }
+
+
+
+  /* ---------------- 8. 组合贷 ---------------- */
+
+
+  /* ---------------- 9. 攒钱目标 ---------------- */
+  function monthToDate(m) {
+    var d = new Date();
+    d.setMonth(d.getMonth() + m);
+    return d.getFullYear() + " 年 " + (d.getMonth() + 1) + " 月";
+  }
+
+
+
+  /* ---------------- 10. 分期真实利率 ---------------- */
+  function npvDiff(r, pay, n, P) {
+    if (Math.abs(r) < 1e-12) return pay * n - P;
+    return (pay * (1 - Math.pow(1 + r, -n))) / r - P;
+  }
+
+  function monthlyIRR(P, pay, n) {
+    var lo = 0, hi = 1;
+    for (var k = 0; k < 200; k++) {
+      var mid = (lo + hi) / 2;
+      if (npvDiff(mid, pay, n, P) > 0) lo = mid;
+      else hi = mid;
+    }
+    return (lo + hi) / 2;
+  }
+
+
+
+  /* ---------------- 11. 折扣 / 单价 ---------------- */
+
+
+  /* ---------------- 标签切换 & 事件 ---------------- */
+
+  /* ---------------- 8. 到手工资（累计预扣法） ---------------- */
+  function cumulativeTax(monthlyGross, insuranceMonthly, specialMonthly, months) {
+    var income = monthlyGross * months;
+    var deduct = 5000 * months + insuranceMonthly * months + specialMonthly * months;
+    var taxable = Math.max(0, income - deduct);
+    return taxBy(YEAR_TABLE, taxable);
+  }
+
+
+
+  /* ---------------- 9. 租房还是买房 ---------------- */
+  function rentBuyAt(g) {
+    var price = num($("rb-price"));
+    var downRate = num($("rb-down")) / 100;
+    var loanRate = num($("rb-rate")) / 100;
+    var loanYears = num($("rb-years"));
+    var rent0 = num($("rb-rent"));
+    var hold = Math.max(1, num($("rb-hold")));
+    var rg = num($("rb-rgrowth")) / 100;
+    var inv = num($("rb-invest")) / 100;
+    var costY = num($("rb-cost"));
+
+    var down = price * downRate;
+    var loan = Math.max(0, price - down);
+    var n = Math.round(loanYears * 12);
+    var i = loanRate / 12;
+    var pay = n > 0 ? annuityPayment(loan, i, n) : 0;
+    var months = Math.round(hold * 12);
+
+    // 期末房产价值与剩余贷款
+    var houseValue = price * Math.pow(1 + g, hold);
+    var k = Math.min(months, n);
+    var balance = 0;
+    if (n > 0 && k < n) {
+      if (i === 0) balance = loan * (1 - k / n);
+      else {
+        var gk = Math.pow(1 + i, k);
+        balance = loan * gk - pay * ((gk - 1) / i);
+      }
+      balance = Math.max(0, balance);
+    }
+    var buyNet = houseValue - balance;
+
+    // 租房：首付拿去理财 + 每月差额（月供+持有成本−租金）也理财
+    var rentNet = down * Math.pow(1 + inv, hold);
+    var im = inv / 12;
+    for (var m = 1; m <= months; m++) {
+      var yr = Math.floor((m - 1) / 12);
+      var rentNow = rent0 * Math.pow(1 + rg, yr);
+      var diff = pay + costY / 12 - rentNow;
+      rentNet += diff * Math.pow(1 + im, months - m);
+    }
+    return { buyNet: buyNet, rentNet: rentNet, down: down, loan: loan, pay: pay, months: months, houseValue: houseValue, balance: balance };
+  }
+
+
+
+  /* ---------------- 10. 信用卡循环利息 ---------------- */
+
+
+  /* ---------------- 11. 汇率 / 单位换算 ---------------- */
+  var UNITS = {
+    length: [["米", 1], ["千米", 1000], ["厘米", 0.01], ["毫米", 0.001], ["英里", 1609.344], ["英尺", 0.3048], ["英寸", 0.0254]],
+    weight: [["千克", 1], ["克", 0.001], ["斤", 0.5], ["两", 0.05], ["磅", 0.45359237], ["盎司", 0.028349523125], ["吨", 1000]],
+    area: [["平方米", 1], ["平方千米", 1e6], ["公顷", 10000], ["亩", 666.6666667], ["平方英尺", 0.09290304]],
+    volume: [["升", 1], ["毫升", 0.001], ["立方米", 1000], ["加仑（美）", 3.785411784]],
+    temp: [["摄氏度 ℃", 1], ["华氏度 ℉", 1], ["开尔文 K", 1]]
+  };
+
+  function fillUnits() {
+    var cat = $("fx-cat").value;
+    var list = UNITS[cat];
+    var html = "";
+    for (var k = 0; k < list.length; k++) html += '<option value="' + k + '">' + list[k][0] + "</option>";
+    $("fx-from").innerHTML = html;
+    $("fx-to").innerHTML = html;
+    $("fx-to").value = String(Math.min(1, list.length - 1));
+  }
+
+  function convertTemp(v, from, to) {
+    // 先转摄氏度
+    var c = from === 0 ? v : from === 1 ? (v - 32) * 5 / 9 : v - 273.15;
+    return to === 0 ? c : to === 1 ? c * 9 / 5 + 32 : c + 273.15;
+  }
+
+
+
+
+  /* ================= 公积金可贷额度 ================= */
+  function annuityPV(pay, i, n) {
+    if (i <= 0) return pay * n;
+    return pay * (1 - Math.pow(1 + i, -n)) / i;
+  }
+
+
+
+  /* ================= 利率调整后的月供（LPR 重定价） ================= */
+
+
+  /* ================= 二手房交易税费 ================= */
+
+
+  /* ================= AA 分摊 ================= */
+
+
+  /* ================= 退休金测算 ================= */
+  var DIVISOR = { 40: 233, 45: 216, 50: 195, 55: 170, 60: 139, 65: 101 };
+
+
+
+  /* ================= 卖房换房 ================= */
+
+
+  /* ================= 公积金对冲：月冲 vs 年冲 ================= */
+
+
+  /* ================= 多币种折算 ================= */
+  var CURS = [
+    { k: "USD", name: "美元", id: "mc-usd", out: "mc-usd-out", digits: 2 },
+    { k: "EUR", name: "欧元", id: "mc-eur", out: "mc-eur-out", digits: 2 },
+    { k: "JPY", name: "日元", id: "mc-jpy", out: "mc-jpy-out", digits: 0 },
+    { k: "HKD", name: "港币", id: "mc-hkd", out: "mc-hkd-out", digits: 2 },
+    { k: "GBP", name: "英镑", id: "mc-gbp", out: "mc-gbp-out", digits: 2 }
+  ];
+
+
+
+  /* ================= 提前还款 vs 理财 ================= */
+  function leftAfter(P, i, pay, m) {
+    var x = P;
+    for (var k = 0; k < m; k++) { x = x * (1 + i) - pay; if (x <= 0) return 0; }
+    return x;
+  }
+
+
+
+  /* ================= 教育金 ================= */
+
+
+  /* ================= 保险保额 ================= */
+
+
+  /* ================= 买车 vs 打车 ================= */
+
+
+  /* ================= 年终奖拆分 ================= */
+  function rateOf(table, per) {
+    for (var i = 0; i < table.length; i++) if (per <= table[i][0]) return table[i][1];
+    return table[table.length - 1][1];
+  }
+  function quickOf(table, per) {
+    for (var i = 0; i < table.length; i++) if (per <= table[i][0]) return table[i][2];
+    return table[table.length - 1][2];
+  }
+  /* 年终奖单独计税：总额 ÷ 12 找月度税率表档位，税额 = 总额 × 税率 − 速算扣除 */
+  function bonusSoloTax(b) {
+    if (b <= 0) return 0;
+    var per = b / 12;
+    return Math.max(0, b * rateOf(MONTH_TABLE, per) - quickOf(MONTH_TABLE, per));
+  }
+  function combineTax(base) { return Math.max(0, taxBy(YEAR_TABLE, base)); }
+
+
+
+  /* ================= 专项附加扣除 ================= */
+
+
+  /* ================= 存单阶梯 ================= */
+
+
+  /* ================= 租售比 ================= */
+
+
+  /* ================= 年度汇算退税 ================= */
+
+
+  /* ================= 家庭资产负债表 ================= */
+
+
+  /* ================= 灵活就业社保 ================= */
+
+
+  /* ================= 社保少缴核查 ================= */
+
+
+
+  /* ---------------- 三种还法对撞 ---------------- */
+
+
+  /* ---------------- 定投 vs 一次性 ---------------- */
+  function gauss() {
+    var u = 0, v = 0;
+    while (u === 0) u = Math.random();
+    while (v === 0) v = Math.random();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+
+  function percentile(arr, p) {
+    if (!arr.length) return 0;
+    var a = arr.slice().sort(function (x, y) { return x - y; });
+    var idx = (a.length - 1) * p;
+    var lo = Math.floor(idx), hi = Math.ceil(idx);
+    if (lo === hi) return a[lo];
+    return a[lo] + (a[hi] - a[lo]) * (idx - lo);
+  }
+
+
+
+  /* ---------------- 保单体检 ---------------- */
+
+
+  /* ---------------- 到期日历 ---------------- */
+  function parseDate(str) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec((str || "").trim());
+    if (!m) return null;
+    var d = new Date(+m[1], +m[2] - 1, +m[3]);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  function addMonths(d, monthsToAdd) {
+    var y = d.getFullYear(), mo = d.getMonth() + monthsToAdd, day = d.getDate();
+    var first = new Date(y, mo, 1);
+    var lastDay = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
+    return new Date(first.getFullYear(), first.getMonth(), Math.min(day, lastDay));
+  }
+
+  function fmtDate(d) {
+    var mm = d.getMonth() + 1, dd = d.getDate();
+    return d.getFullYear() + "-" + (mm < 10 ? "0" : "") + mm + "-" + (dd < 10 ? "0" : "") + dd;
+  }
+
+
+
+  /* ---------------- 债务先还哪笔：雪崩 vs 雪球 ---------------- */
+
+
+  /* ---------------- FIRE 财务自由 ---------------- */
+
+
+  /* ---------------- 年缴费用分摊 ---------------- */
+
+
+  /* ---------------- 买房预算反推 ---------------- */
+
+
+  /* ---------------- 商转公能省多少 ---------------- */
+
+
+  /* ---------------- 医保能报多少 ---------------- */
+
+
+  /* ---------------- 养一个孩子要多少钱 ---------------- */
+
+
+  /* ---------------- 个人养老金账户划算吗 ---------------- */
+
+
+
+  /* ---------------- 公积金缴存与额度 ---------------- */
+
+
+  /* ---------------- 应急金 ---------------- */
+
+
+  /* ---------------- 收入分配体检 50/30/20 ---------------- */
+
+
+  /* ---------------- 债务置换 ---------------- */
+
+
+  /* ---------------- 信用卡免息期与最优刷卡日 ---------------- */
+
+
+  /* ---------------- 加班费与请假扣款 ---------------- */
+
+
+  /* ---------------- 涨租 vs 搬家 ---------------- */
+
+
+  /* ---------------- 油车 vs 电车 ---------------- */
+
+
+  /* ---------------- 发票价税分离 ---------------- */
+
+
+  /* ---------------- 增值税与附加税 ---------------- */
+
+
+  /* ---------------- 固定资产折旧 ---------------- */
+
+
+  /* ---------------- 保本点与目标利润 ---------------- */
+
+
+  /* ---------------- 报表体检（杜邦） ---------------- */
+
+
+  /* ---------------- 银行余额调节 ---------------- */
+
+
+  /* ---------------- 差旅报销单合计 ---------------- */
+
+
+  /* ---------------- 应收账款账龄 ---------------- */
+
+
+  /* ---------------- 资金排期 ---------------- */
+
+
+  /* ---------------- 含税报价与毛利 ---------------- */
+
+
+
+
+
+
+
+
+
+
+  /* ---------------- 应付账龄 ---------------- */
+
+
+  /* ---------------- 成本核算（品种法） ---------------- */
+
+
+  /* ---------------- 预算差异分析 ---------------- */
+
+
+  /* ---------------- 月度利润表 ---------------- */
+
+
+
+
+
+
+
+
+
+
+  /* 存货周转与库龄分析 */
+
+
+  /* 出口退税（生产企业免抵退） */
+
+
+  /* 往来对账（双向调节） */
+
+
+  /* 三费趋势（6 期） */
+
+
+  /* ---------------- 多产品保本与安全边际 ---------------- */
+
+
+  /* ---------------- 工资表代扣核对 ---------------- */
+
+
+  /* ---------------- 固定资产盘点差异 ---------------- */
+
+
+  /* ---------------- 月度关账进度 ---------------- */
+
+
+
+  /* ---------------- 应收保理 / 贴现 ---------------- */
+
+
+  /* ---------------- 呆滞库存清理决策 ---------------- */
+
+
+  /* ---------------- 供应商账期谈判 ---------------- */
+
+
+  /* ---------------- 13 周滚动现金流 ---------------- */
+
+
+
+  /* ---------------- 票据贴现成本 ---------------- */
+
+
+  /* ---------------- 贷款真实利率 ---------------- */
+
+
+  /* ---------------- 催收优先级 ---------------- */
+
+
+  /* ---------------- 月度经营数据包 ---------------- */
+
+
+
+
+
+
+
+
+
+
+  /* ===== 增值税税负率监控 ===== */
+
+
+  /* ===== 利润敏感性 ===== */
+
+
+  /* ===== 合并抵销 ===== */
+
+
+  /* ===== 订货批量与安全库存 ===== */
+
+
+  /* ===== 销售提成方案对比 ===== */
+
+
+  /* ===== 固定资产投决 ===== */
+
+
+  /* ===== 资金归集与内部借款 ===== */
+
+
+  /* ===== 客户信用额度核定 ===== */
+
+
+  /* ===== 年度预算联动 ===== */
+
+
+  /* ===== 出口退税资金占用 ===== */
+
+
+  /* ===== 制造费用分摊方法对比 ===== */
+
+
+  /* ===== 进口到岸成本 ===== */
+
+
+  /* ===== 关联方转移定价 ===== */
+
+
+  /* ===== 股权激励费用摊销 ===== */
+
+
+  /* ===== 研发费用加计扣除 ===== */
+
+
+  /* ===== 滚动预测 ===== */
+
+
+  /* ===== 自产还是外购 ===== */
+
+
+  /* ===== 应收账款预期信用损失 ===== */
+
+
+  /* ===== 出口报价换算 ===== */
+
+
+  /* ===== 多工厂产能分配 ===== */
+
+
+  function zOf(p) {
+    if (p <= 0.5) return 0;
+    if (p >= 0.9999) return 3.719;
+    var a = [-3.969683028665376e+01, 2.209460984245205e+02, -2.759285104469687e+02, 1.383577518672690e+02, -3.066479806614716e+01, 2.506628277459239e+00];
+    var b = [-5.447609879822406e+01, 1.615858368580409e+02, -1.556989798598866e+02, 6.680131188771972e+01, -1.328068155288572e+01];
+    var c = [-7.784894002430293e-03, -3.223964580411365e-01, -2.400758277161838e+00, -2.549732539343734e+00, 4.374664141464968e+00, 2.938163982698783e+00];
+    var d = [7.784695709041462e-03, 3.224671290700398e-01, 2.445134137142996e+00, 3.754408661907416e+00];
+    var q, r;
+    if (p < 0.02425) {
+      q = Math.sqrt(-2 * Math.log(p));
+      return (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
+        ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+    }
+    q = p - 0.5; r = q * q;
+    return (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q /
+      (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1);
+  }
+
+  /* ===== 模具摊销与最小批量 ===== */
+
+
+  /* ===== 阶梯返利 ===== */
+
+
+  /* ===== 标准成本三差异 ===== */
+
+
+  /* ===== 安全库存与服务水平 ===== */
+
+
+  /* ===== 企业所得税汇算调整 ===== */
+
+
+  /* ===== 供应商集中度 ===== */
+
+
+  /* ===== 关联方利息扣除限额 ===== */
+
+
+  /* ===== 设备一次性扣除税会差异 ===== */
+
+
+  /* ===== 客户级盈利 ===== */
+
+
+  /* ===== 设备换新 ===== */
+
+
+  /* ===== 辅助部门费用分摊 ===== */
+
+
+  /* ===== 股东回报与分红 ===== */
+
+
+  /* ---------- 金额大写 ---------- */
+  function cnUpper(numRaw) {
+    var D = "零壹贰叁肆伍陆柒捌玖";
+    var U = ["", "拾", "佰", "仟"];
+    var B = ["", "万", "亿", "万亿"];
+    var cents = Math.round(Math.abs(numRaw) * 100);
+    var yuanPart = Math.floor(cents / 100);
+    var jiao = Math.floor((cents % 100) / 10);
+    var fen = cents % 10;
+
+    function four(n) {
+      var s = "";
+      var str = String(n);
+      var zero = false;
+      for (var i = 0; i < str.length; i++) {
+        var d = +str.charAt(i);
+        var pos = str.length - 1 - i;
+        if (d === 0) { zero = true; continue; }
+        if (zero && s) s += "零";
+        zero = false;
+        s += D.charAt(d) + U[pos];
+      }
+      return s;
+    }
+    function intCn(n) {
+      if (n === 0) return "";
+      var groups = [];
+      while (n > 0) { groups.push(n % 10000); n = Math.floor(n / 10000); }
+      var out = "";
+      for (var i = groups.length - 1; i >= 0; i--) {
+        var g = groups[i];
+        if (g === 0) { if (out) out += "零"; continue; }
+        var part = four(g);
+        if (out && g < 1000 && out.charAt(out.length - 1) !== "零") out += "零";
+        out += part + B[i];
+      }
+      return out.replace(/零+/g, "零").replace(/零$/, "");
+    }
+
+    var body = intCn(yuanPart);
+    var s = body ? body + "元" : "";
+    if (yuanPart === 0 && jiao === 0 && fen === 0) return "零元整";
+    if (jiao === 0 && fen === 0) return s + "整";
+    if (fen === 0) return s + D.charAt(jiao) + "角整";
+    if (jiao === 0) return s + "零" + D.charAt(fen) + "分";
+    return s + D.charAt(jiao) + "角" + D.charAt(fen) + "分";
+  }
+
+
+
+  /* ---------- 账期到期与逾期 ---------- */
+  function bizAdd(d, n) {
+    var c = 0;
+    while (c < n) {
+      d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+      if (d.getDay() !== 0 && d.getDay() !== 6) c++;
+    }
+    return d;
+  }
+
+
+  /* ---------- 工作日与日期差 ---------- */
+
+
+  /* ---------- 增幅与年化 ---------- */
+
+
+  /* ---------- 尾差分摊 ---------- */
+
+
+  /* ---------- 税后反推税前 ---------- */
+
+
+
+
+
+
+  var XL_ROWS = [
+    ["按条件求和", "=SUMIFS(金额列, 部门列, \"销售部\", 月份列, \">=\"&DATE(2026,1,1))"],
+    ["多条件查找", "=XLOOKUP(1,(A:A=姓名)*(B:B=月份),C:C,\"未找到\")"],
+    ["左表补齐右表", "=IFNA(VLOOKUP($A2,表2!$A:$D,3,FALSE),\"\")"],
+    ["老版本兜底", "=INDEX(表2!C:C,MATCH($A2,表2!A:A,0))"],
+    ["去重清单", "=UNIQUE(明细!B2:B1000)"],
+    ["排序", "=SORT(明细!A2:D100,4,-1)"],
+    ["条件筛选", "=FILTER(明细!A2:D100,明细!D2:D100>10000,\"无\")"],
+    ["按分隔符拆列", "=TEXTSPLIT(A2,\"-\")"],
+    ["取中间几位", "=MID(A2,7,8)"],
+    ["当月最后一天", "=EOMONTH(A2,0)"],
+    ["推 N 个工作日", "=WORKDAY(A2,10,节假日!A:A)"],
+    ["两个日期差月", "=DATEDIF(A2,B2,\"m\")"],
+    ["四舍五入到分", "=ROUND(A2,2)"],
+    ["账龄分档", "=LOOKUP(TODAY()-A2,{0,31,91,181,366},{\"未到期\",\"1-30\",\"31-90\",\"91-180\",\"180+\"})"],
+    ["累计求和", "=SUM($C$2:C2)"],
+    ["分类小计", "=SUMIF($B:$B,$B2,$C:$C)"],
+    ["两级下拉", "=INDIRECT(\"字典!\"&$A2)"],
+    ["标出重复项", "=COUNTIF($A:$A,$A2)>1"],
+    ["LET 少写重复", "=LET(x,SUMIFS(C:C,A:A,A2),IF(x>0,x*0.05,0))"],
+    ["透视式汇总", "=GROUPBY(区域,金额,SUM)"],
+    ["千分位文本", "=TEXT(A2,\"#,##0.00\")"],
+    ["把空值显示为 0", "=IFERROR(N(A2),0)"]
+  ];
+
+
+  function parseAmounts(str) {
+    var m = String(str || "").replace(/[,，¥$、\s]+/g, " ").match(/-?\d+(?:\.\d+)?/g) || [];
+    return m.map(function (x) { return parseFloat(x); }).filter(function (x) { return isFinite(x); });
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  /* ---------------- 家庭财务体检 ---------------- */
+
+
+  function calcLoan() {
+    var P = num($("ln-principal"));
+    var r = num($("ln-rate")) / 100;
+    var n = months(num($("ln-years")) * 12);
+    var method = $("ln-method").value;
+    var i = r / 12;
+    var ok = P > 0 && n > 0 && r >= 0;
+
+    loanRows = ok ? buildLoanSchedule(P, i, n, method) : [];
+
+    if (!ok) {
+      $("ln-pay").textContent = "—";
+      ["ln-total", "ln-interest", "ln-ratio", "ln-count"].forEach(function (id) { $(id).textContent = "—"; });
+      $("ln-note").textContent = "填好贷款金额、利率和期限后自动计算。";
+      renderLoanTable();
+      return;
+    }
+
+    var total = 0;
+    for (var k = 0; k < loanRows.length; k++) total += loanRows[k].pay;
+    var interest = total - P;
+    var first = loanRows[0].pay;
+    var last = loanRows[n - 1].pay;
+    var showLast = document.querySelector('input[name="ln-show"]:checked').value === "last";
+
+    $("ln-pay-label").textContent = method === "equal-payment" ? "每月月供" : (showLast ? "末月月供" : "首月月供");
+    $("ln-pay").textContent = money(method === "equal-payment" ? first : (showLast ? last : first));
+    $("ln-total").textContent = yuan(total);
+    $("ln-interest").textContent = yuan(interest);
+    $("ln-ratio").textContent = pct(interest / P);
+    $("ln-count").textContent = n + " 期（" + fmt(n / 12, n % 12 === 0 ? 0 : 1) + " 年）";
+
+    $("ln-note").textContent = method === "equal-payment"
+      ? "等额本息：每月还款额固定，前期利息占比高、本金还得慢。月供 = 本金×月利率×(1+月利率)^期数 ÷ [(1+月利率)^期数−1]。"
+      : "等额本金：每月还的本金固定，利息随剩余本金递减，月供逐月下降。首月最高（" + money(first) +
+        " 元）、末月最低（" + money(last) + " 元），总利息比等额本息少。";
+
+    renderLoanTable();
+  }
+
+undefined
+
+  /* ---- 按分类懒加载：只有点到的模块才下载对应 chunk ---- */
+  var CHUNK_OF = { "deposit": "save", "loan": "loan", "combo": "loan", "prepay": "loan", "compound": "save", "goal": "save", "installment": "life", "annual": "save", "inflation": "save", "tax": "tax", "deal": "life", "salary": "tax", "rentbuy": "house", "card": "life", "fx": "life", "fund": "loan", "lpr": "loan", "deed": "house", "split": "life", "pension": "tax", "sell": "house", "offset": "loan", "multi": "life", "repayvs": "loan", "edu": "family", "insure": "family", "car": "life", "bonus": "tax", "deduct": "tax", "ladder": "save", "rentyield": "house", "settle": "tax", "balance": "family", "selfins": "tax", "underpay": "tax", "loanways": "loan", "dca": "save", "checkup": "family", "calendar": "save", "cashflow": "family", "zeroloan": "loan", "riskalloc": "family", "penalty": "loan", "debtfree": "life", "fire": "family", "annualfee": "family", "budget": "house", "zhuan": "loan", "medins": "tax", "childcost": "family", "ppension": "tax", "fundlimit": "loan", "emergency": "family", "rule503020": "family", "debtmerge": "life", "freeperiod": "life", "overtime": "tax", "rentup": "house", "ev": "life", "vat": "acct", "vatdue": "acct", "deprec": "acct", "breakeven": "acct", "ratios": "acct", "recon": "acct", "expense": "acct", "aging": "acct", "funding": "acct", "pricing": "acct", "triplede": "acct", "multimargin": "acct", "apterms": "acct", "assetledger": "acct", "payage": "acct", "costcard": "acct", "budgetvar": "acct", "finreport": "acct", "invoice": "acct", "expbudget": "acct", "efficiency": "acct", "cashstmt": "acct", "invstock": "acct", "exportrebate": "acct", "tieout": "acct", "feetrend": "acct", "mpbe": "acct", "payroll": "acct", "assetdiff": "acct", "monthclose": "acct", "factoring": "acct", "deadstock": "acct", "aptalk": "acct", "cash13": "acct", "bill": "acct", "loanreal": "loan", "collect": "acct", "mgmtpack": "acct", "settleway": "acct", "creditline": "acct", "impair": "acct", "fxgain": "acct", "taxburden": "acct", "sens": "acct", "consol": "acct", "eoq": "acct", "bplan": "acct", "refundflow": "acct", "costalloc": "acct", "importcost": "acct", "makeorbuy": "acct", "ecl": "acct", "quotefx": "acct", "capacity": "acct", "mold": "acct", "rebate": "acct", "stdcost": "acct", "svc": "acct", "taxadj": "acct", "supplier": "acct", "debtcap": "acct", "accdep": "acct", "custwin": "acct", "upgrade": "acct", "deptalloc": "acct", "payout": "acct", "numwords": "util", "duedate": "util", "workday": "util", "cagr": "util", "apportion": "util", "grossup": "util", "trprice": "acct", "esop": "acct", "rdexp": "acct", "rollfc": "acct", "commission": "acct", "capex": "acct", "pooling": "acct", "creditlimit": "acct", "contractperf": "acct", "projrev": "acct", "creditpolicy": "acct", "rateadj": "tax", "invfund": "acct", "machrate": "acct", "govgrant": "acct", "fxtranslate": "acct", "rebateacc": "acct", "pledgeloan": "acct", "labvar": "acct", "rdcap": "acct", "processcost": "acct", "makeoroutsource": "acct", "rebatedta": "acct", "leasebuy": "acct", "welfare": "acct", "inputout": "acct", "stampduty": "acct", "assetdisp": "acct", "headcount": "acct", "markroi": "acct", "rdproject": "acct", "intsvc": "acct", "accrual": "acct", "cfconsol": "acct", "exportcheck": "acct", "vatcheck": "acct", "healthcheck": "hot", "salesallow": "acct", "lease": "acct", "gpmix": "acct", "vatchoose": "acct", "datemath": "util", "pct3": "util", "xlhelp": "util", "csvrecon": "util" };
+  var TABS = { "deposit": 1, "loan": 1, "combo": 1, "prepay": 1, "compound": 1, "goal": 1, "installment": 1, "annual": 1, "inflation": 1, "tax": 1, "deal": 1, "salary": 1, "rentbuy": 1, "card": 1, "fx": 1, "fund": 1, "lpr": 1, "deed": 1, "split": 1, "pension": 1, "sell": 1, "offset": 1, "multi": 1, "repayvs": 1, "edu": 1, "insure": 1, "car": 1, "bonus": 1, "deduct": 1, "ladder": 1, "rentyield": 1, "settle": 1, "balance": 1, "selfins": 1, "underpay": 1, "loanways": 1, "dca": 1, "checkup": 1, "calendar": 1, "cashflow": 1, "zeroloan": 1, "riskalloc": 1, "penalty": 1, "debtfree": 1, "fire": 1, "annualfee": 1, "budget": 1, "zhuan": 1, "medins": 1, "childcost": 1, "ppension": 1, "fundlimit": 1, "emergency": 1, "rule503020": 1, "debtmerge": 1, "freeperiod": 1, "overtime": 1, "rentup": 1, "ev": 1, "vat": 1, "vatdue": 1, "deprec": 1, "breakeven": 1, "ratios": 1, "recon": 1, "expense": 1, "aging": 1, "funding": 1, "pricing": 1, "triplede": 1, "multimargin": 1, "apterms": 1, "assetledger": 1, "payage": 1, "costcard": 1, "budgetvar": 1, "finreport": 1, "invoice": 1, "expbudget": 1, "efficiency": 1, "cashstmt": 1, "invstock": 1, "exportrebate": 1, "tieout": 1, "feetrend": 1, "mpbe": 1, "payroll": 1, "assetdiff": 1, "monthclose": 1, "factoring": 1, "deadstock": 1, "aptalk": 1, "cash13": 1, "bill": 1, "loanreal": 1, "collect": 1, "mgmtpack": 1, "settleway": 1, "creditline": 1, "impair": 1, "fxgain": 1, "taxburden": 1, "sens": 1, "consol": 1, "eoq": 1, "bplan": 1, "refundflow": 1, "costalloc": 1, "importcost": 1, "makeorbuy": 1, "ecl": 1, "quotefx": 1, "capacity": 1, "mold": 1, "rebate": 1, "stdcost": 1, "svc": 1, "taxadj": 1, "supplier": 1, "debtcap": 1, "accdep": 1, "custwin": 1, "upgrade": 1, "deptalloc": 1, "payout": 1, "numwords": 1, "duedate": 1, "workday": 1, "cagr": 1, "apportion": 1, "grossup": 1, "trprice": 1, "esop": 1, "rdexp": 1, "rollfc": 1, "commission": 1, "capex": 1, "pooling": 1, "creditlimit": 1, "contractperf": 1, "projrev": 1, "creditpolicy": 1, "rateadj": 1, "invfund": 1, "machrate": 1, "govgrant": 1, "fxtranslate": 1, "rebateacc": 1, "pledgeloan": 1, "labvar": 1, "rdcap": 1, "processcost": 1, "makeoroutsource": 1, "rebatedta": 1, "leasebuy": 1, "welfare": 1, "inputout": 1, "stampduty": 1, "assetdisp": 1, "headcount": 1, "markroi": 1, "rdproject": 1, "intsvc": 1, "accrual": 1, "cfconsol": 1, "exportcheck": 1, "vatcheck": 1, "healthcheck": 1, "salesallow": 1, "lease": 1, "gpmix": 1, "vatchoose": 1, "datemath": 1, "pct3": 1, "xlhelp": 1, "csvrecon": 1 };
+  var CHUNK_FILES = { "save": "assets/c-save.40a9d05714.js", "loan": "assets/c-loan.4b8b151afb.js", "life": "assets/c-life.8c1252d6a4.js", "tax": "assets/c-tax.1e646d8288.js", "house": "assets/c-house.fc9074239f.js", "family": "assets/c-family.5fc2dd8896.js", "acct": "assets/c-acct.a4bbf2fc77.js", "util": "assets/c-util.908405797a.js", "hot": "assets/c-hot.2b1d86fe6b.js" };
+  var CORE_CALC = { "loan": calcLoan };
+  var calcMap = {};
+  Object.keys(CORE_CALC).forEach(function (k) { calcMap[k] = CORE_CALC[k]; });
+  var chunkReady = {};
+  function ensureChunk(grp) {
+    if (chunkReady[grp]) return chunkReady[grp];
+    var file = CHUNK_FILES[grp];
+    if (!file) return Promise.resolve();
+    chunkReady[grp] = import(new URL(file, document.baseURI).href).then(function (mod) {
+      var api = (mod && mod.default) ? mod.default : mod;
+      Object.keys(api).forEach(function (k) { calcMap[k] = api[k]; });
+    }).catch(function (err) {
+      chunkReady[grp] = null;
+      if (window.console) console.error("chunk 加载失败: " + grp, err);
+    });
+    return chunkReady[grp];
+  }
+  function runCalc(name) {
+    if (calcMap[name]) { calcMap[name](); return Promise.resolve(); }
+    var grp = CHUNK_OF[name];
+    if (!grp) return Promise.resolve();
+    var pn = document.getElementById("panel-" + name);
+    var bgs = pn ? pn.querySelector(".big strong") : null;
+    if (bgs && (bgs.textContent === "—" || bgs.textContent === "")) bgs.textContent = "载入中…";
+    return ensureChunk(grp).then(function () { if (calcMap[name]) calcMap[name](); });
+  }
+
+  var curCat = "hot", curSub = "";
+  var FAV_KEY = "finance-calc-fav";
+  var favList = [];
+  try { favList = JSON.parse(localStorage.getItem(FAV_KEY) || "[]") || []; } catch (e) { favList = []; }
+  function isFav(id) { return favList.indexOf(id) >= 0; }
+  function saveFav() {
+    try { localStorage.setItem(FAV_KEY, JSON.stringify(favList)); } catch (e) {}
+    refreshCounts();
+  }
+  function refreshCounts() {
+    var chips = document.querySelectorAll(".cat");
+    for (var c = 0; c < chips.length; c++) {
+      var cat = chips[c].dataset.cat, label = chips[c].dataset.label || chips[c].textContent.trim();
+      var n = cat === "fav" ? favList.length
+        : document.querySelectorAll('.tab[data-cat~="' + cat + '"]').length;
+      chips[c].textContent = label + " " + n;
+    }
+  }
+  function applyFilter() {
+    var tb = document.querySelectorAll(".tab");
+    for (var t = 0; t < tb.length; t++) {
+      var el = tb[t], cat = el.dataset.cat || "", ok;
+      if (curCat === "fav") ok = isFav(el.dataset.tab);
+      else ok = cat.split(/\s+/).indexOf(curCat) >= 0;
+      if (ok && curCat === "acct" && curSub) ok = (el.dataset.grp || "") === curSub;
+      el.hidden = !ok;
+    }
+    var subs = $("subs");
+    if (subs) subs.hidden = curCat !== "acct";
+    var tn = $("tabs");
+    if (tn) tn.classList.toggle("tall", curCat === "acct" && !curSub);
+  }
+  function setCat(cat) {
+    curCat = cat; curSub = "";
+    var chips = document.querySelectorAll(".cat");
+    for (var c = 0; c < chips.length; c++) chips[c].classList.toggle("is-on", chips[c].dataset.cat === cat);
+    var sb = document.querySelectorAll(".sub");
+    for (var s = 0; s < sb.length; s++) sb[s].classList.toggle("is-on", sb[s].dataset.grp === "");
+    applyFilter();
+    try { localStorage.setItem(CAT_KEY, cat); } catch (e) {}
+  }
+  function setSub(grp) {
+    curSub = grp;
+    var sb = document.querySelectorAll(".sub");
+    for (var s = 0; s < sb.length; s++) sb[s].classList.toggle("is-on", sb[s].dataset.grp === grp);
+    applyFilter();
+  }
+
+  function activate(name) {
+    var self = document.querySelector('.tab[data-tab="' + name + '"]');
+    var qb = $("q");
+    if (qb && qb.value) { qb.value = ""; applyFilter(); }
+    if (self && self.hidden) setCat(self.dataset.cat.split(/\s+/)[0]);
+    var tabs = document.querySelectorAll(".tab");
+    for (var i = 0; i < tabs.length; i++) {
+      var on = tabs[i].dataset.tab === name;
+      tabs[i].classList.toggle("is-on", on);
+      tabs[i].setAttribute("aria-selected", on ? "true" : "false");
+    }
+    var panels = document.querySelectorAll(".panel");
+    for (var j = 0; j < panels.length; j++) panels[j].classList.toggle("is-on", panels[j].id === "panel-" + name);
+    runCalc(name);
+    if (location.hash !== "#" + name) history.replaceState(null, "", "#" + name);
+    var onTab = document.querySelector(".tab.is-on");
+    if (onTab && onTab.scrollIntoView) onTab.scrollIntoView({ block: "nearest", inline: "center" });
+    var fv = $("btn-fav");
+    if (fv) { var f = isFav(name); fv.textContent = f ? "★ 已置顶" : "☆ 置顶"; fv.classList.toggle("on", f); }
+  }
+
+  $("tabs").addEventListener("click", function (e) {
+    var t = e.target.closest(".tab");
+    if (t) activate(t.dataset.tab);
+  });
+
+  window.addEventListener("hashchange", function () {
+    var st = hashTarget();
+    if (st.name && TABS[st.name]) {
+      activate(st.name);
+      if (st.params) { applyParams(st.params); runCalc(st.name); }
+    }
+  });
+
+  $("cats").addEventListener("click", function (e) {
+    var c = e.target.closest(".cat");
+    if (!c) return;
+    if ($("q")) $("q").value = "";
+    setCat(c.dataset.cat);
+    var first = document.querySelector('.tab[data-cat~="' + c.dataset.cat + '"]');
+    if (first && first.dataset.tab) activate(first.dataset.tab);
+  });
+
+  if ($("q")) $("q").addEventListener("input", function () {
+    var q = this.value.trim().toLowerCase();
+    var tb = document.querySelectorAll(".tab"), subs = $("subs");
+    if (!q) { applyFilter(); return; }
+    if (subs) subs.hidden = true;
+    for (var i = 0; i < tb.length; i++) {
+      var hit = tb[i].textContent.toLowerCase().indexOf(q) >= 0 || tb[i].dataset.tab.indexOf(q) >= 0;
+      tb[i].hidden = !hit;
+    }
+  });
+  if ($("subs")) $("subs").addEventListener("click", function (e) {
+    var s = e.target.closest(".sub");
+    if (!s) return;
+    setSub(s.dataset.grp);
+    var first = document.querySelector(".tab:not([hidden])");
+    if (first) activate(first.dataset.tab);
+  });
+
+  $("ln-toggle").addEventListener("click", function () {
+    var box = $("ln-box");
+    box.hidden = !box.hidden;
+    this.textContent = box.hidden ? "展开明细" : "收起明细";
+  });
+
+  document.addEventListener("input", function (e) {
+    var panel = e.target.closest(".panel");
+    if (!panel) return;
+    var name = panel.id.replace("panel-", "");
+    runCalc(name);
+    save();
+  });
+
+  /* 记住上次填写（本机 localStorage，不上传） */
+  var FIELDS = [
+    "dp-principal", "dp-rate", "dp-term", "dp-unit", "dp-mode",
+    "ln-principal", "ln-rate", "ln-years", "ln-method",
+    "pp-principal", "pp-rate", "pp-months", "pp-amount", "pp-fee", "pp-mode",
+    "cp-start", "cp-monthly", "cp-rate", "cp-years", "cp-timing",
+    "cb-commercial", "cb-commercial-rate", "cb-fund", "cb-fund-rate", "cb-years",
+    "gl-target", "gl-start", "gl-monthly", "gl-rate", "gl-years",
+    "is-amount", "is-months", "is-mode", "is-rate",
+    "an-start", "an-end", "an-days",
+    "if-amount", "if-rate", "if-years",
+    "tx-income", "tx-insurance", "tx-special", "tx-other", "tx-bonus",
+    "dl-price", "dl-discount", "dl-threshold", "dl-off", "dl-qty",
+    "dl-pa", "dl-qa", "dl-ua", "dl-pb", "dl-qb", "dl-ub",
+    "sl-gross", "sl-base", "sl-hf", "sl-special", "sl-month",
+    "rb-price", "rb-down", "rb-rate", "rb-years", "rb-rent", "rb-hold",
+    "rb-growth", "rb-rgrowth", "rb-invest", "rb-cost",
+    "cd-balance", "cd-min", "cd-rate", "cd-days",
+    "fx-amount", "fx-cur", "fx-rate", "fx-fee", "fx-cat", "fx-value", "fx-from", "fx-to",
+    "fd-balance", "fd-monthly", "fd-ratio", "fd-mult", "fd-years", "fd-rate", "fd-cap", "fd-price",
+    "lp-principal", "lp-old", "lp-new", "lp-months", "lp-lpr", "lp-bp",
+    "dd-price", "dd-area", "dd-first", "dd-deed", "dd-hold", "dd-vat", "dd-income-tax", "dd-agent", "dd-other", "dd-cost",
+    "sp-total", "sp-people", "sp-fee", "sp-round", "sp-who",
+    "pn-avg", "pn-index", "pn-years", "pn-balance", "pn-age", "pn-expense",
+    "sv-price", "sv-loan", "sv-vat", "sv-it", "sv-agent", "sv-other", "sv-new", "sv-down", "sv-rate", "sv-years",
+    "of-principal", "of-rate", "of-months", "of-acct", "of-dep", "of-mode",
+    "mc-amount", "mc-cur", "mc-usd", "mc-eur", "mc-jpy", "mc-hkd", "mc-gbp",
+    "rv-principal", "rv-rate", "rv-months", "rv-cash", "rv-invest", "rv-years",
+    "ed-age", "ed-go", "ed-cur", "ed-infl", "ed-have", "ed-rate", "ed-monthly",
+    "in-income", "in-expense", "in-debt", "in-edu", "in-assets", "in-have", "in-years",
+    "cr-price", "cr-years", "cr-residual", "cr-km", "cr-fc", "cr-oil", "cr-ins", "cr-maint", "cr-park", "cr-taxi",
+    "lw-balance", "lw-rate", "lw-months", "lw-lump", "lw-income",
+    "dc-amount", "dc-months", "dc-return", "dc-vol", "dc-hold", "dc-cash",
+    "ck-income", "ck-expense", "ck-debt", "ck-edu", "ck-assets",
+    "ck-haveLife", "ck-haveCI", "ck-haveAcc", "ck-premium",
+    "cl-total", "cl-count", "cl-gap", "cl-term", "cl-rate", "cl-start",
+    "cf-open", "cf-income", "cf-payday", "cf-loan", "cf-loanday", "cf-card", "cf-cardday", "cf-living",
+    "zl-amount", "zl-months", "zl-fee", "zl-discount", "zl-rate",
+    "ra-age", "ra-years", "ra-dd", "ra-stable", "ra-cap",
+    "py-balance", "py-rate", "py-months", "py-lump", "py-fee", "py-invest",
+    "df-bal1", "df-rate1", "df-min1", "df-bal2", "df-rate2", "df-min2", "df-bal3", "df-rate3", "df-min3", "df-extra",
+    "fr-exp", "fr-has", "fr-save", "fr-rate", "fr-swr", "fr-age",
+    "af-1", "af-1m", "af-2", "af-2m", "af-3", "af-3m", "af-4", "af-4m",
+    "bg-income", "bg-cash", "bg-down", "bg-rate", "bg-years", "bg-ratio", "bg-fee",
+    "zg-balance", "zg-months", "zg-rate", "zg-frate", "zg-quota", "zg-cost",
+    "mi-total", "mi-self", "mi-ded", "mi-ratio", "mi-cap", "mi-bigstart", "mi-bigratio",
+    "cc-age", "cc-pre", "cc-mid", "cc-uni", "cc-infl", "cc-rate",
+    "pa-pay", "pa-rate", "pa-age", "pa-years", "pa-ret", "pa-taxout",
+    "fl-target", "fl-bal", "fl-monthly", "fl-mult", "fl-cap", "fl-rate", "fl-years",
+    "em-exp", "em-stab", "em-loan", "em-kid", "em-have", "em-save",
+    "rg-inc", "rg-need", "rg-want", "rg-save",
+    "dm-bal", "dm-old", "dm-new", "dm-fee", "dm-pay",
+    "fp-bill", "fp-due", "fp-amount",
+    "ot-salary", "ot-days", "ot-wd", "ot-rest", "ot-hol", "ot-leave", "ot-sick", "ot-sickrate",
+    "ru-cur", "ru-new", "ru-cost", "ru-alt", "ru-years",
+    "ev-km", "ev-oil", "ev-price", "ev-kwh", "ev-eprice", "ev-p1", "ev-p2", "ev-years",
+    "ev-res1", "ev-res2", "ev-m1", "ev-m2", "ev-i1", "ev-i2",
+    "vt-amount", "vt-mode", "vt-rate", "vt-surtax",
+    "vd-out", "vd-in", "vd-carry", "vd-sales", "vd-urban", "vd-edu", "vd-local",
+    "fa-cost", "fa-res", "fa-life", "fa-method", "fa-used",
+    "be-price", "be-vc", "be-fc", "be-period", "be-target", "be-qty",
+    "rt-rev", "rt-cogs", "rt-np", "rt-ca", "rt-inv", "rt-ar", "rt-cl", "rt-ta", "rt-tl", "rt-eq",
+    "rc-book", "rc-bank", "rc-a", "rc-b", "rc-c", "rc-d",
+    "ex-days", "ex-nights", "ex-hotel", "ex-hstd", "ex-meal", "ex-local", "ex-travel", "ex-other",
+    "ag-b1", "ag-b2", "ag-b3", "ag-b4", "ag-rates", "ag-have",
+    "fg-open", "fg-in", "fg-ind", "fg-a", "fg-ad", "fg-b", "fg-bd", "fg-c", "fg-cd", "fg-d", "fg-dd",
+    "pr-cost", "pr-margin", "pr-vat", "pr-disc", "pr-cust",
+    "td-np", "td-da", "td-ar", "td-inv", "td-ap", "td-cfo", "td-cfi", "td-cff", "td-cash0", "td-cash1", "td-ta", "td-tl", "td-te",
+    "mm-q1", "mm-p1", "mm-c1", "mm-q2", "mm-p2", "mm-c2", "mm-q3", "mm-p3", "mm-c3", "mm-q4", "mm-p4", "mm-c4",
+    "ap-amt", "ap-disc", "ap-d1", "ap-d2", "ap-rate",
+    "al-v1", "al-l1", "al-s1", "al-m1", "al-v2", "al-l2", "al-s2", "al-m2", "al-v3", "al-l3", "al-s3", "al-m3",
+    "pg-a1", "pg-a2", "pg-a3", "pg-a4", "pg-term", "pg-buy", "pg-rate",
+    "cw-fin", "cw-wip", "cw-deg", "cw-mat", "cw-lab", "cw-oh",
+    "bv-bq", "bv-bp", "bv-sq", "bv-sp", "bv-aq", "bv-ap", "bv-aqty", "bv-apx",
+    "pl-rev", "pl-cogs", "pl-tax", "pl-se", "pl-ae", "pl-rd", "pl-fe", "pl-oi", "pl-noi", "pl-noe", "pl-tr",
+    "iv-contract", "iv-issued", "iv-received", "iv-rate", "iv-overdue", "iv-days", "iv-penalty",
+    "eb-b1", "eb-a1", "eb-b2", "eb-a2", "eb-b3", "eb-a3", "eb-b4", "eb-a4", "eb-b5", "eb-a5",
+    "ef-rev", "ef-head", "ef-labor", "ef-opex", "ef-gross", "ef-net",
+    "cs-sale", "cs-othin", "cs-buy", "cs-pay", "cs-tax", "cs-othout", "cs-capex", "cs-invpay", "cs-invback", "cs-borrow", "cs-repay", "cs-div", "cs-begin",
+    "sk-beg", "sk-end", "sk-cogs", "sk-a1", "sk-a2", "sk-a3", "sk-a4", "sk-r3", "sk-r4", "sk-days",
+    "er-exp", "er-vat", "er-reb", "er-dom", "er-in", "er-carry",
+    "tie-a", "tie-b", "tie-c", "tie-d", "tie-e", "tie-f",
+    "tr-r1", "tr-f1", "tr-r2", "tr-f2", "tr-r3", "tr-f3", "tr-r4", "tr-f4", "tr-r5", "tr-f5", "tr-r6", "tr-f6",
+    "mb-fc", "mb-p1", "mb-v1", "mb-q1", "mb-p2", "mb-v2", "mb-q2", "mb-p3", "mb-v3", "mb-q3", "mb-target",
+    "pc-gross", "pc-si", "pc-hf", "pc-tax", "pc-other", "pc-act", "pc-tax2", "pc-cosi", "pc-cohf", "pc-rev", "pc-head",
+    "ad-cost", "ad-dep", "ad-rv", "ad-cd", "ad-comp", "ad-ins", "ad-vat", "ad-tr",
+    "mw-total", "mw-done", "mw-key", "mw-days", "mw-per", "mw-people",
+    "nt-face", "nt-days", "nt-rate", "nt-openfee", "nt-margin", "nt-cap", "nt-loan",
+    "lr-p", "lr-rate", "lr-n", "lr-fee", "lr-margin", "lr-mrate", "lr-mode",
+    "co-a1", "co-d1", "co-a2", "co-d2", "co-a3", "co-d3", "co-a4", "co-d4", "co-rate",
+    "pk-rev", "pk-bud", "pk-ly", "pk-gm", "pk-net", "pk-ar", "pk-inv", "pk-cfo",
+    "fc-amt", "fc-days", "fc-rate", "fc-fee", "fc-margin", "fc-loan",
+    "ds-q", "ds-cost", "ds-price", "ds-prob", "ds-store", "ds-cut", "ds-scrap", "ds-val",
+    "tn-buy", "tn-now", "tn-target", "tn-rate", "tn-markup",
+    "wk-open", "wk-in", "wk-out", "wk-e1", "wk-w1", "wk-e2", "wk-w2", "wk-safe",
+    "sw-amt", "sw-mon", "sw-rate", "sw-disc", "sw-bank", "sw-com", "sw-bd", "sw-cd",
+    "crd-sales", "crd-net", "crd-coll", "crd-collrate", "crd-creditrate", "crd-guar", "crd-used", "crd-need",
+    "im-cost", "im-price", "im-finish", "im-sell", "im-had", "im-up", "im-tax",
+    "fxg-usd", "fxg-signed", "fxg-book", "fxg-spot", "fxg-spread", "fxg-fwd",
+"tbr-sales", "tbr-out", "tbr-in", "tbr-begin", "tbr-prev", "tbr-ind", "tbr-surch", "sens-rev", "sens-vr", "sens-fix", "sens-shock", "sens-target", "cons-pm-rev", "cons-sub-rev", "cons-inter", "cons-pm-np", "cons-sub-np", "cons-unreal", "cons-mi", "cons-inv", "cons-sub-net", "cons-rec", "eoq-d", "eoq-k", "eoq-h", "eoq-day", "eoq-sd", "eoq-lt", "eoq-svc", "eoq-moq",
+"cm-sales", "cm-ret", "cm-gm", "cm-sr", "cm-gr", "cm-achv", "cm-cash", "cpx-inv", "cpx-cf", "cpx-years", "cpx-rate", "cpx-rv", "pool-idle", "pool-a", "pool-b", "pool-in", "pool-out", "pool-demand", "pool-rate", "pool-wealth", "pool-equity", "crl-buy", "crl-term", "crl-vat", "crl-gm", "crl-netw", "crl-lev", "crl-late", "crl-cost", "bpl-rev", "bpl-grow", "bpl-gm", "bpl-opex", "bpl-dep", "bpl-tax", "bpl-dso", "bpl-dio", "bpl-dpo", "bpl-cash", "bpl-big", "bpl-rev2", "bpl-gp", "bpl-op", "bpl-margin", "bpl-wc", "bpl-nwc", "bpl-wcgap", "bpl-free", "bpl-body", "bpl-note", "rf-exp", "rf-reb", "rf-rate", "rf-lag", "rf-audit", "rf-cost", "rf-big", "rf-month", "rf-year", "rf-days", "rf-costv", "rf-gap", "rf-ten", "rf-opt", "rf-advice", "rf-body", "rf-note", "cal-oh", "cal-qa", "cal-qb", "cal-qc", "cal-ha", "cal-hb", "cal-hc", "cal-ma", "cal-mb", "cal-mc", "cal-ta", "cal-tb", "cal-tc", "cal-big", "cal-which", "cal-totals", "cal-r1", "cal-r2", "cal-r3", "cal-pick", "cal-price", "cal-body", "cal-note", "ic-fob", "ic-frt", "ic-ins", "ic-fx", "ic-duty", "ic-cons", "ic-vat", "ic-port", "ic-agent", "ic-qty", "ic-big", "ic-cif", "ic-dutyv", "ic-consv", "ic-vatv", "ic-fees", "ic-land", "ic-cash", "ic-ratio", "ic-body", "ic-note", "tp-cost", "tp-price", "tp-inner", "tp-ratea", "tp-rateb", "tp-lo", "tp-hi", "tp-big", "tp-a", "tp-b", "tp-profit", "tp-rate", "tp-low", "tp-high", "tp-save", "tp-per", "tp-body", "tp-note", "es-shares", "es-fair", "es-strike", "es-years", "es-leave", "es-tax", "es-big", "es-per", "es-qty", "es-flat", "es-acc", "es-diff", "es-dta", "es-deduct", "es-advice", "es-body", "es-note", "rd-labor", "rd-mat", "rd-dep", "rd-other", "rd-pct", "rd-tax", "rd-big", "rd-total", "rd-cap", "rd-effect", "rd-base", "rd-save", "rd-eff", "rd-lost", "rd-body", "rd-note", "rl-bud", "rl-passed", "rl-act", "rl-rest", "rl-gmb", "rl-gma", "rl-big", "rl-rate", "rl-gap", "rl-expect", "rl-pace", "rl-need", "rl-delta", "rl-gp", "rl-advice", "rl-body", "rl-note", "mob-q", "mob-vu", "mob-avo", "mob-price", "mob-extra", "mob-rent", "mob-fixall", "mob-big", "mob-self", "mob-buy", "mob-unit", "mob-crit", "mob-qcrit", "mob-pick", "mob-wrong", "mob-body", "mob-note", "ecl-a1", "ecl-a2", "ecl-a3", "ecl-a4", "ecl-a5", "ecl-r1", "ecl-r2", "ecl-r3", "ecl-r4", "ecl-r5", "ecl-adj", "ecl-prev", "ecl-big", "ecl-total", "ecl-base", "ecl-adjv", "ecl-delta", "ecl-ratio", "ecl-loss", "ecl-tax", "ecl-body", "ecl-note", "qf-cost", "qf-qty", "qf-dyn", "qf-port", "qf-gm", "qf-comm", "qf-fx", "qf-frt", "qf-ins", "qf-big", "qf-fob", "qf-comv", "qf-real", "qf-frtv", "qf-insv", "qf-cif", "qf-profit", "qf-fxrisk", "qf-body", "qf-note", "cap-q", "cap-p", "cap-va", "cap-ca", "cap-fa", "cap-vb", "cap-cb", "cap-fb", "cap-fixa", "cap-fixb", "cap-out", "cap-big", "cap-a", "cap-b", "cap-cm", "cap-fix", "cap-wrong", "cap-gap", "cap-outv", "cap-body", "cap-note", "mold-fee", "mold-life", "mold-price", "mold-vc", "mold-q", "mold-disc", "mold-big", "mold-per", "mold-perq", "mold-m1", "mold-m2", "mold-total", "mold-min1", "mold-verdict", "mold-body", "mold-note", "reb-base", "reb-gm", "reb-t1", "reb-p1", "reb-t2", "reb-p2", "reb-t3", "reb-p3", "reb-big", "reb-cur", "reb-now", "reb-rate", "reb-pick", "reb-crit", "reb-advice", "reb-body", "reb-note", "sc-q", "sc-mq", "sc-mp", "sc-maq", "sc-map", "sc-lh", "sc-lr", "sc-lah", "sc-lar", "sc-vr", "sc-va", "sc-fb", "sc-fa", "sc-big", "sc-mat", "sc-lab", "sc-voh", "sc-foh", "sc-dir", "sc-owner", "sc-ratio", "sc-body", "sc-note", "svc-d", "svc-sd", "svc-lt", "svc-sl", "svc-ann", "svc-lot", "svc-hold", "svc-out", "svc-big", "svc-z", "svc-ltd", "svc-rop", "svc-cost", "svc-total", "svc-best", "svc-up", "svc-body", "svc-note", "txj-rev", "txj-profit", "txj-ent", "txj-ad", "txj-fine", "txj-don", "txj-rd", "txj-rdr", "txj-pre", "txj-big", "txj-entv", "txj-adv", "txj-donv", "txj-finev", "txj-rdv", "txj-tax", "txj-due", "txj-rate", "txj-body", "txj-note", "spl-tot", "spl-t1", "spl-t2", "spl-t3", "spl-t4", "spl-t5", "spl-days", "spl-loss", "spl-big", "spl-top1", "spl-sum", "spl-hhi", "spl-level", "spl-gap", "spl-cost", "spl-advice", "spl-body", "spl-note", "dtc-loan", "dtc-eq", "dtc-rate", "dtc-bank", "dtc-mult", "dtc-big", "dtc-ratio", "dtc-lim", "dtc-paid", "dtc-ratecap", "dtc-multcap", "dtc-final", "dtc-tax", "dtc-advice", "dtc-note", "adp-cost", "adp-life", "adp-salv", "adp-tax", "adp-disc", "adp-big", "adp-acc", "adp-taxdep", "adp-diff", "adp-later", "adp-pv", "adp-net", "adp-yield", "adp-advice", "adp-body", "adp-note", "cwin-ra", "cwin-da", "cwin-ba", "cwin-fa", "cwin-sa", "cwin-ta", "cwin-ga", "cwin-rb", "cwin-db", "cwin-bb", "cwin-fb", "cwin-sb", "cwin-tb", "cwin-gb", "cwin-rc", "cwin-dc", "cwin-bc", "cwin-fc", "cwin-sc", "cwin-tc", "cwin-gc", "cwin-cost", "cwin-big", "cwin-rank", "cwin-total", "cwin-mix", "cwin-cuts", "cwin-occ", "cwin-worst", "cwin-advice", "cwin-body", "cwin-note", "upg-oldrun", "upg-oldmt", "upg-oldsale", "upg-oldlife", "upg-oldsalv", "upg-newinv", "upg-newlife", "upg-newrun", "upg-newmt", "upg-newsalv", "upg-rate", "upg-big", "upg-old", "upg-new", "upg-verdict", "upg-maxinv", "upg-energy", "upg-delay", "upg-body", "upg-note", "da-s1", "da-s12", "da-a1", "da-s2", "da-s21", "da-a2", "da-big", "da-d", "da-s", "da-r", "da-true", "da-sum", "da-pick", "da-body", "da-note", "po-ret", "po-np", "po-share", "po-ratio", "po-tax", "po-roe", "po-loan", "po-big", "po-div", "po-sharev", "po-keep", "po-nodiv", "po-ind", "po-risk", "po-alltax", "po-body", "po-note", "nw-amount", "nw-prefix", "ud-start", "ud-days", "ud-basis", "ud-amt", "ud-rate", "ud-today", "wd-a", "wd-b", "wd-hol", "wd-n", "cg-from", "cg-to", "cg-years", "apc-total", "apc-w", "gu-net", "gu-rate", "gu-spec", "gu-thr",
+    "dtm-date", "dtm-months", "dtm-days",
+    "pct-a", "pct-b", "pct-p1", "pct-p2",
+    "rk-tol",
+    "cfe-price", "cfe-cost", "cfe-actual", "cfe-billed", "cfe-cash",
+    "sbr-wage", "sbr-old", "sbr-new", "sbr-pr", "sbr-cr", "sbr-months",
+    "cpl-sales", "cpl-vc", "cpl-d1", "cpl-b1", "cpl-d2", "cpl-b2", "cpl-disc", "cpl-dd", "cpl-take", "cpl-cost",
+    "prj-rev", "prj-cost", "prj-actual", "prj-billed", "prj-prior", "prj-pcost",
+    "ifw-cogs", "ifw-d1", "ifw-d2", "ifw-cost", "ifw-hold",
+    "mhr-fixed", "mhr-cap", "mhr-act", "mhr-qty",
+    "ggr-amt", "ggr-type", "ggr-years", "ggr-tax", "ggr-rate",
+    "fxt-asset", "fxt-liab", "fxt-cap", "fxt-ret0", "fxt-np", "fxt-close", "fxt-avg", "fxt-his", "fxt-open",,
+    "rba-sales", "rba-rate", "rba-ach", "rba-vc", "rba-fee", "rba-promo", "rba-staff",
+    "plg-ar", "plg-ratio", "plg-rate", "plg-days", "plg-fee", "plg-fact",
+    "lab-qty", "lab-std", "lab-srate", "lab-ah", "lab-arate", "lab-cap",
+    "rdc-total", "rdc-cap", "rdc-years", "rdc-months", "rdc-tax",
+    "alw-sales", "alw-allow", "alw-ret", "alw-giftcost", "alw-giftval", "alw-vc", "alw-vat",
+    "lse-rent", "lse-years", "lse-rate", "lse-when",
+    "gpm-r1", "gpm-c1", "gpm-r2", "gpm-c2", "gpm-qty",
+    "vtc-sales", "vtc-cost", "vtc-ded", "vtc-rate13", "vtc-rate3", "vtc-tax",
+    "stp-m1", "stp-c1", "stp-q1", "stp-q2", "stp-m2", "stp-c2", "stp-scrap",
+    "mko-qty", "mko-vc", "mko-inv", "mko-life", "mko-opp", "mko-price", "mko-extra",
+    "rdt-rebate", "rdt-return", "rdt-stock", "rdt-tax",
+    "lbu-price", "lbu-rent", "lbu-years", "lbu-rate", "lbu-tax", "lbu-maint", "lbu-resid",
+    "wlf-wage", "wlf-wel", "wlf-edu", "wlf-union", "wlf-tax", "wlf-emp", "wlf-dis", "wlf-avg", "wlf-rate",
+    "itr-input", "itr-tax", "itr-simple", "itr-free", "itr-welf", "itr-loss",
+    "sdt-sale", "sdt-loan", "sdt-lease", "sdt-trans", "sdt-equity", "sdt-capital", "sdt-half",
+    "adsp-orig", "adsp-dep", "adsp-imp", "adsp-price", "adsp-vat", "adsp-fee", "adsp-tax",
+    "hc-vol", "hc-grow", "hc-eff", "hc-now", "hc-cost", "hc-turn", "hc-hire",
+    "mroi-spend", "mroi-new", "mroi-aov", "mroi-gm", "mroi-rep", "mroi-life",
+    "rdp-budget", "rdp-mat", "rdp-ext", "rdp-hours", "rdp-rate", "rdp-oh", "rdp-mon",
+    "isv-cost", "isv-mark", "isv-low", "isv-high", "isv-ta", "isv-tb",
+    "acr-rent", "acr-mon", "acr-ins", "acr-nofpiao", "acr-tax", "acr-get",
+    "cfc-poa", "cfc-soa", "cfc-poi", "cfc-soi", "cfc-pof", "cfc-sof", "cfc-in", "cfc-inv",
+    "exc-usd", "exc-fx", "exc-inv", "exc-rec", "exc-rate", "exc-credit",
+    "vchk-out", "vchk-inv", "vchk-noinv", "vchk-in", "vchk-cert", "vchk-tr",
+    "hk-inc", "hk-age", "hk-need", "hk-want", "hk-cash", "hk-inv", "hk-house", "hk-debt",
+    "hk-loan", "hk-prem", "hk-ins"
+];
+  var KEY = "finance-calc-v43";
+  var CAT_KEY = "finance-calc-cat";
+
+  /* ---------------- 现金流月历 ---------------- */
+
+
+  /* ---------------- 0 利率真实成本 ---------------- */
+
+
+  /* ---------------- 风险测评与配置 ---------------- */
+
+
+  /* ---------------- 提前还款违约金临界点 ---------------- */
+
+
+  function save() {
+    try {
+      var o = {};
+      for (var k = 0; k < FIELDS.length; k++) {
+        var el = $(FIELDS[k]);
+        if (el) o[FIELDS[k]] = el.value;
+      }
+      localStorage.setItem(KEY, JSON.stringify(o));
+    } catch (err) { /* 隐私模式忽略 */ }
+  }
+
+  function restore() {
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (!raw) return;
+      var o = JSON.parse(raw);
+      for (var k = 0; k < FIELDS.length; k++) {
+        var el = $(FIELDS[k]);
+        if (el && o[FIELDS[k]] !== undefined && o[FIELDS[k]] !== "") el.value = o[FIELDS[k]];
+      }
+    } catch (err) { /* 忽略损坏数据 */ }
+  }
+
+
+  /* ---------------- 复制结果 / 下载 CSV ---------------- */
+  function snapshot() {
+    var panel = document.querySelector(".panel.is-on");
+    var tab = document.querySelector(".tab.is-on");
+    if (!panel) return { name: "", rows: [] };
+    var rows = [];
+    var big = panel.querySelector(".big");
+    if (big) {
+      var k = big.querySelector(".k"), v = big.querySelector("strong");
+      if (k && v) rows.push([k.textContent.trim(), v.textContent.trim() + (big.querySelector(".unit") ? " " + big.querySelector(".unit").textContent.trim() : "")]);
+    }
+    var kv = panel.querySelectorAll(".kv li");
+    for (var i = 0; i < kv.length; i++) {
+      var sp = kv[i].querySelector("span"), b = kv[i].querySelector("b");
+      if (sp && b) rows.push([sp.textContent.trim(), b.textContent.trim()]);
+    }
+    var note = panel.querySelector(".hint");
+    return { name: tab ? tab.textContent.trim() : "", rows: rows, note: note ? note.textContent.trim() : "" };
+  }
+
+  function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text);
+    }
+    return new Promise(function (res, rej) {
+      var ta = document.createElement("textarea");
+      ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand("copy"); res(); } catch (e) { rej(e); }
+      document.body.removeChild(ta);
+    });
+  }
+
+  $("btn-copy").addEventListener("click", function () {
+    var snap = snapshot(), lines = ["【财务计算器】" + snap.name];
+    snap.rows.forEach(function (r) { lines.push(r[0] + "：" + r[1]); });
+    if (snap.note) lines.push("说明：" + snap.note);
+    lines.push("（" + new Date().toLocaleString("zh-CN") + " 计算）");
+    var btn = this, old = btn.textContent;
+    copyText(lines.join("\n")).then(function () {
+      btn.textContent = "已复制"; setTimeout(function () { btn.textContent = old; }, 1300);
+    }).catch(function () {
+      btn.textContent = "复制失败，请手动选择"; setTimeout(function () { btn.textContent = old; }, 1600);
+    });
+  });
+
+  $("btn-csv").addEventListener("click", function () {
+    var snap = snapshot();
+    var esc = function (v) { return '"' + String(v).replace(/"/g, '""') + '"'; };
+    var rows = [["模块", snap.name], ["生成时间", new Date().toLocaleString("zh-CN")], ["项目", "数值"]];
+    snap.rows.forEach(function (r) { rows.push(r); });
+    if (snap.note) rows.push(["说明", snap.note]);
+    var csv = "\ufeff" + rows.map(function (r) { return r.map(esc).join(","); }).join("\r\n");
+    var blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "财务计算器-" + snap.name.replace(/\s/g, "") + ".csv";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+  });
+
+  // 单位下拉随类别变化
+  $("fx-cat").addEventListener("change", function () { fillUnits(); calcFx(); save(); });
+  fillUnits();
+
+  /* ---------------- 置顶 / 分享链接 / 底稿 / 预设 / 主题 ---------------- */
+  function hashTarget() {
+    var h = (location.hash || "").replace("#", "");
+    var parts = h.split("?");
+    return { name: parts[0] || "", params: parts[1] || "" };
+  }
+
+  function panelEls() {
+    var panel = document.querySelector(".panel.is-on");
+    if (!panel) return [];
+    var els = panel.querySelectorAll("input,select");
+    return [].slice.call(els).filter(function (el) { return el.id && el.type !== "search"; });
+  }
+
+  function panelParams() {
+    return panelEls().map(function (el) {
+      return [encodeURIComponent(el.id), encodeURIComponent(el.value == null ? "" : el.value)];
+    }).filter(function (kv) { return kv[1] !== ""; })
+      .map(function (kv) { return kv[0] + "=" + kv[1]; });
+  }
+
+  function buildShare() {
+    var t = document.querySelector(".tab.is-on");
+    var name = t ? t.dataset.tab : "deposit";
+    var qs = panelParams().join("&");
+    return location.origin + location.pathname + "#" + name + (qs ? "?" + qs : "");
+  }
+
+  function applyParams(str) {
+    if (!str) return;
+    str.split("&").forEach(function (kv) {
+      var i = kv.indexOf("=");
+      if (i < 0) return;
+      var el = document.getElementById(decodeURIComponent(kv.slice(0, i)));
+      if (!el || !el.tagName) return;
+      el.value = decodeURIComponent(kv.slice(i + 1));
+    });
+  }
+
+  if ($("btn-fav")) $("btn-fav").addEventListener("click", function () {
+    var t = document.querySelector(".tab.is-on");
+    if (!t) return;
+    var id = t.dataset.tab;
+    if (isFav(id)) favList = favList.filter(function (x) { return x !== id; });
+    else favList.push(id);
+    saveFav();
+    if (curCat === "fav") applyFilter();
+    var on = isFav(id);
+    this.textContent = on ? "★ 已置顶" : "☆ 置顶";
+    this.classList.toggle("on", on);
+  });
+
+  function flash(btn, txt) {
+    if (!btn) return;
+    var old = btn.textContent;
+    btn.textContent = txt;
+    setTimeout(function () { btn.textContent = old; }, 1400);
+  }
+
+  if ($("btn-link")) $("btn-link").addEventListener("click", function () {
+    var btn = this;
+    copyText(buildShare()).then(function () { flash(btn, "链接已复制"); })
+      .catch(function () { flash(btn, "复制失败，请手动复制地址栏"); });
+  });
+
+  if ($("btn-md")) $("btn-md").addEventListener("click", function () {
+    var snap = snapshot(), panel = document.querySelector(".panel.is-on"), md = [];
+    md.push("# 财务计算器 · " + (snap.name || "计算"));
+    md.push("");
+    md.push("> 生成时间 " + new Date().toLocaleString("zh-CN") + "　·　来源 " + location.origin + location.pathname);
+    md.push("");
+    md.push("## 一、输入参数");
+    md.push("");
+    var labels = panel ? panel.querySelectorAll("label.f") : [];
+    for (var i = 0; i < labels.length; i++) {
+      var sp = labels[i].querySelector("span"), el = labels[i].querySelector("input,select,textarea");
+      if (!sp || !el) continue;
+      var raw = el.value == null ? "" : el.value;
+      if (el.tagName === "SELECT" && el.selectedIndex >= 0) raw = el.options[el.selectedIndex].textContent;
+      var v = String(raw).replace(/\s*\n\s*/g, " / ");
+      md.push("- " + sp.textContent.trim() + "：" + (v === "" ? "（空）" : v));
+    }
+    md.push("");
+    md.push("## 二、计算结果");
+    md.push("");
+    snap.rows.forEach(function (r) { md.push("- **" + r[0] + "**：" + r[1]); });
+    var tbody = panel ? panel.querySelector("tbody") : null;
+    if (tbody && tbody.rows.length) {
+      md.push("");
+      md.push("## 三、明细（前 20 行）");
+      md.push("");
+      var head = panel.querySelector("thead tr");
+      if (head) md.push("| " + [].map.call(head.children, function (th) { return th.textContent.trim(); }).join(" | ") + " |");
+      if (head) md.push("|" + [].map.call(head.children, function () { return "---"; }).join("|") + "|");
+      for (var r2 = 0; r2 < tbody.rows.length && r2 < 20; r2++) {
+        md.push("| " + [].map.call(tbody.rows[r2].children, function (td) { return td.textContent.trim(); }).join(" | ") + " |");
+      }
+      if (tbody.rows.length > 20) md.push("| … 共 " + tbody.rows.length + " 行，完整数据请用「下载 CSV」 |  |");
+    }
+    var hasTable = !!(tbody && tbody.rows.length);
+    if (snap.note) { md.push(""); md.push("## " + (hasTable ? "四" : "三") + "、口径说明"); md.push(""); md.push(snap.note); }
+    md.push("");
+    md.push("*本底稿由财务计算器生成，纯前端计算、数据未上传。所有结果按页面默认假设的公式推算，"
+      + "实际以合同、票据、当地政策和银行/税务口径为准。*");
+    var blob = new Blob([md.join("\n")], { type: "text/markdown;charset=utf-8" });
+    var link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "财务计算器-" + (snap.name || "底稿").replace(/\s/g, "") + ".md";
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    setTimeout(function () { URL.revokeObjectURL(link.href); }, 2000);
+    flash(this, "已导出 .md");
+  });
+
+  var PRE_KEY = "finance-calc-presets";
+  var presets = [];
+  try { presets = JSON.parse(localStorage.getItem(PRE_KEY) || "[]") || []; } catch (e) { presets = []; }
+  function savePresets() {
+    try { localStorage.setItem(PRE_KEY, JSON.stringify(presets)); } catch (e) {}
+    renderPresets();
+  }
+  function renderPresets() {
+    var sel = $("preset");
+    if (!sel) return;
+    var cur = sel.value, opts = ['<option value="">参数预设 ' + (presets.length || "") + "</option>"];
+    presets.forEach(function (p, i) {
+      opts.push('<option value="' + i + '">' + p.name + "（" + p.module + "）</option>");
+    });
+    sel.innerHTML = opts.join("");
+    sel.value = cur && presets[+cur] ? cur : "";
+  }
+  if ($("btn-preset-save")) $("btn-preset-save").addEventListener("click", function () {
+    var t = document.querySelector(".tab.is-on");
+    var module = t ? t.dataset.tab : "";
+    var name = t ? t.textContent.trim() : "计算";
+    var label = window.prompt("给这套参数起个名字（只存在本机浏览器）", name + " · 常用情形");
+    if (!label) return;
+    var data = {};
+    panelEls().forEach(function (el) { data[el.id] = el.value; });
+    presets = presets.filter(function (p) { return !(p.module === module && p.name === label); });
+    presets.push({ name: label, module: module, data: data });
+    savePresets();
+    flash(this, "已存为预设");
+  });
+  if ($("btn-preset-del")) $("btn-preset-del").addEventListener("click", function () {
+    var sel = $("preset");
+    if (!sel || sel.value === "") { flash(this, "先在左边选一个预设"); return; }
+    presets.splice(+sel.value, 1);
+    sel.value = "";
+    savePresets();
+    flash(this, "已删除");
+  });
+  if ($("preset")) $("preset").addEventListener("change", function () {
+    var i = this.value;
+    if (i === "") return;
+    var p = presets[+i];
+    if (!p) return;
+    if (TABS[p.module]) activate(p.module);
+    Object.keys(p.data).forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.value = p.data[id];
+    });
+    runCalc(p.module);
+    save();
+  });
+
+  var THEME_KEY = "finance-calc-theme";
+  function setTheme(t) {
+    document.documentElement.setAttribute("data-theme", t);
+    try { localStorage.setItem(THEME_KEY, t); } catch (e) {}
+    var b = $("btn-theme");
+    if (b) b.textContent = t === "dark" ? "浅色" : "深色";
+  }
+  if ($("btn-theme")) $("btn-theme").addEventListener("click", function () {
+    setTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark");
+  });
+  (function () {
+    var t = "";
+    try { t = localStorage.getItem(THEME_KEY) || ""; } catch (e) {}
+    if (!t) t = (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
+    setTheme(t);
+  })();
+
+  document.addEventListener("keydown", function (e) {
+    var tag = (document.activeElement && document.activeElement.tagName) || "";
+    if (e.key === "/" && !/^(INPUT|TEXTAREA|SELECT)$/.test(tag)) {
+      if ($("q")) { e.preventDefault(); $("q").focus(); $("q").select(); }
+      return;
+    }
+    if (e.key === "Escape" && document.activeElement === $("q")) {
+      $("q").value = ""; applyFilter(); $("q").blur();
+      return;
+    }
+    if ((e.key === "ArrowRight" || e.key === "ArrowLeft") && /(^| )tab( |$)/.test(document.activeElement.className || "")) {
+      var list = [].filter.call(document.querySelectorAll(".tab"), function (x) { return !x.hidden; });
+      var idx = list.indexOf(document.activeElement);
+      if (idx < 0) return;
+      var nx = list[idx + (e.key === "ArrowRight" ? 1 : -1)];
+      if (nx) { e.preventDefault(); nx.focus(); }
+    }
+  });
+
+  /* ---------------- 对比 A/B ---------------- */
+  var CMP_KEY = "finance-calc-cmpA";
+  function loadCmpA() {
+    try { return JSON.parse(localStorage.getItem(CMP_KEY) || "null"); } catch (e) { return null; }
+  }
+  function saveCmpA(o) {
+    try { localStorage.setItem(CMP_KEY, JSON.stringify(o)); } catch (e) {}
+  }
+  function numOf(v) {
+    var m = String(v).replace(/[^0-9.\-]/g, "");
+    var n = m ? parseFloat(m) : NaN;
+    return isFinite(n) ? n : NaN;
+  }
+  function currentSnap() {
+    var snap = snapshot();
+    var tab = document.querySelector(".tab.is-on");
+    var params = {};
+    panelEls().forEach(function (el) { params[el.id] = el.value; });
+    return { mod: tab ? tab.dataset.tab : "", name: snap.name, rows: snap.rows, params: params };
+  }
+  if ($("btn-cmp")) $("btn-cmp").addEventListener("click", function () {
+    var btn = this, cur = currentSnap(), A = loadCmpA();
+    if (!A || A.mod !== cur.mod) {
+      saveCmpA(cur);
+      if ($("cmpbox")) $("cmpbox").hidden = true;
+      flash(btn, "已存 A");
+      return;
+    }
+    var mapA = {};
+    A.rows.forEach(function (r) { mapA[r[0]] = r[1]; });
+    var html = [], diffN = 0;
+    cur.rows.forEach(function (r) {
+      var av = mapA[r[0]] !== undefined ? mapA[r[0]] : "—";
+      var na = numOf(av), nb = numOf(r[1]);
+      var d = (isFinite(na) && isFinite(nb)) ? nb - na : NaN;
+      var changed = isFinite(d) && Math.abs(d) > 0.005;
+      if (changed) diffN++;
+      html.push("<tr" + (changed ? ' class="c-info"' : "") + '><td class="tal">' + r[0] + "</td><td>" + av
+        + "</td><td>" + r[1] + "</td><td>" + (isFinite(d) ? (d > 0 ? "+" : "") + fmt(d, 2) : "—") + "</td></tr>");
+    });
+    var pd = [];
+    Object.keys(cur.params).forEach(function (k) {
+      if (A.params && A.params[k] !== undefined && A.params[k] !== cur.params[k]) pd.push(k + "：" + A.params[k] + " → " + cur.params[k]);
+    });
+    if ($("cmp-title")) $("cmp-title").textContent = cur.name + " · 前后对比";
+    if ($("cmp-body")) $("cmp-body").innerHTML = html.join("");
+    if ($("cmp-note")) $("cmp-note").textContent =
+      (pd.length ? "改动的参数：" + pd.join("；") + "。" : "参数没有改动。")
+      + (diffN ? "结果有 " + diffN + " 项变化（蓝色行）。" : "所有结果完全一致。")
+      + " A 是上一次点这里时的快照，B 是现在；再点一次会把当前结果存成新的 A。浏览器关了也不丢。";
+    if ($("cmpbox")) { $("cmpbox").hidden = false; $("cmpbox").scrollIntoView({ block: "nearest" }); }
+    saveCmpA(cur);
+    flash(btn, "已对比");
+  });
+  if ($("cmp-close")) $("cmp-close").addEventListener("click", function () { $("cmpbox").hidden = true; });
+
+  if ($("btn-print")) $("btn-print").addEventListener("click", function () {
+    var t = document.querySelector(".tab.is-on");
+    document.title = "财务计算器-" + (t ? t.textContent.trim() : "计算");
+    window.print();
+    setTimeout(function () { document.title = "财务计算器 · 个人理财 + 公司财务"; }, 1200);
+  });
+
+  if ($("hk-pull")) $("hk-pull").addEventListener("click", function () {
+    var o = {};
+    try { o = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) {}
+    var got = 0;
+    var take = function (dst, src) {
+      if (o[src] !== undefined && o[src] !== "" && $(dst)) { $(dst).value = o[src]; got++; }
+    };
+    take("hk-inc", "rg-inc"); take("hk-need", "rg-need"); take("hk-want", "rg-want");
+    take("hk-cash", "em-have"); take("hk-loan", "cf-loan");
+    calcHealth(); save();
+    flash(this, got ? "已读取 " + got + " 项" : "还没填过别的模块");
+  });
+
+  if ("serviceWorker" in navigator && /^(https:|http:\/\/(localhost|127\.0\.0\.1))/.test(location.origin + "/")) {
+    window.addEventListener("load", function () {
+      try { navigator.serviceWorker.register("./sw.js").catch(function () {}); } catch (e) {}
+    });
+  }
+
+  /* chunk 里要用到的工具函数，统一挂到 window.FC */
+  window.FC = { $, CAT_KEY, CMP_KEY, CURS, DIVISOR, FAV_KEY, FIELDS, KEY, MONTH_TABLE, PRE_KEY, THEME_KEY, UNITS, XL_ROWS, YEAR_TABLE, activate, addMonths, annuityPV, annuityPayment, applyFilter, applyParams, bizAdd, bonusSoloTax, buildLoanSchedule, buildShare, calcLoan, cnUpper, combineTax, convertTemp, copyText, cumulativeTax, curCat, currentSnap, favList, fillUnits, flash, fmt, fmtDate, fx, gauss, hashTarget, isFav, leftAfter, loadCmpA, loanRows, money, monthToDate, monthlyIRR, months, npvDiff, num, numOf, panelEls, panelParams, parseAmounts, parseDate, pct, percentile, presets, quickOf, rateOf, refreshCounts, renderLoanTable, renderPresets, rentBuyAt, restore, save, saveCmpA, saveFav, savePresets, savedCat, setCat, setSub, setTheme, snapshot, st0, startName, taxBy, yuan, zOf };
+
+  /* ---------------- 启动 ---------------- */
+  restore();
+  refreshCounts();
+  renderPresets();
+  var savedCat = "hot";
+  try { savedCat = localStorage.getItem(CAT_KEY) || "hot"; } catch (e) {}
+  if (!document.querySelector('.cat[data-cat="' + savedCat + '"]')) savedCat = "hot";
+  setCat(savedCat);
+  var st0 = hashTarget();
+  var startName = TABS[st0.name] ? st0.name : "deposit";
+  activate(startName);
+  if (st0.params) { applyParams(st0.params); runCalc(startName); }
+  $("ver").textContent = "财务计算器 · 纯前端 · 更新于 " + new Date().toISOString().slice(0, 10);
+})();

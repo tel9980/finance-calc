@@ -1,13 +1,8 @@
-/* 财务计算器 service worker —— 由 scripts/fingerprint.mjs 生成，请勿手改 */
-var VERSION = "fc-bb20e31388";
-var SHELL = [
-  "/",
-  "./assets/app.f0153449f2.js",
-  "./assets/style.ceb01d1393.css",
-  "./manifest.webmanifest",
-  "./icon-192.png"
-];
-
+/* 自动生成，勿手改 */
+const VERSION = "fc-137a0d104c";
+const SHELL = ["/","./assets/app.44a2b7828e.js","./assets/style.ceb01d1393.css","./manifest.webmanifest","./icon-192.png"];
+const RUNTIME = "fc-rt-137a0d104c";
+/* 财务计算器 service worker 主体（VERSION / SHELL 由 scripts/build.mjs 注入） */
 self.addEventListener("install", function (e) {
   e.waitUntil(
     caches.open(VERSION)

@@ -1,7 +1,4 @@
-/* 财务计算器 service worker —— 由 scripts/fingerprint.mjs 生成，请勿手改 */
-var VERSION = "__VERSION__";
-var SHELL = __ASSETS__;
-
+/* 财务计算器 service worker 主体（VERSION / SHELL 由 scripts/build.mjs 注入） */
 self.addEventListener("install", function (e) {
   e.waitUntil(
     caches.open(VERSION)
