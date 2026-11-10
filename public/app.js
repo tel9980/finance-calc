@@ -16,6 +16,7 @@
   }
 
   function money(n) { return fmt(n, 2); }
+  function fx(str) { return str; }
   function yuan(n) { return money(n) + " 元"; }
 
   function pct(x, digits) {
@@ -393,10 +394,254 @@
     $("tx-note").textContent = note;
   }
 
+  /* ---------------- 8. 组合贷 ---------------- */
+  function calcCombo() {
+    var c = num($("cb-commercial"));
+    var cr = num($("cb-commercial-rate")) / 100;
+    var f = num($("cb-fund"));
+    var fr = num($("cb-fund-rate")) / 100;
+    var n = months(num($("cb-years")) * 12);
+
+    var ok = n > 0 && c + f > 0;
+    if (!ok) {
+      $("cb-pay").textContent = "—";
+      ["cb-total-principal", "cb-c-pay", "cb-f-pay", "cb-interest", "cb-allc", "cb-save"].forEach(function (id) { $(id).textContent = "—"; });
+      $("cb-note").textContent = "填好贷款金额和年限后自动计算。";
+      return;
+    }
+
+    var cP = annuityPayment(c, cr / 12, n);
+    var fP = annuityPayment(f, fr / 12, n);
+    var pay = cP + fP;
+    var totalPrincipal = c + f;
+    var totalPay = pay * n;
+    var interest = totalPay - totalPrincipal;
+
+    var allC = annuityPayment(totalPrincipal, cr / 12, n);
+    var allCTotal = allC * n;
+    var save = allCTotal - totalPay;
+
+    $("cb-pay").textContent = money(pay);
+    $("cb-total-principal").textContent = yuan(totalPrincipal);
+    $("cb-c-pay").textContent = yuan(cP);
+    $("cb-f-pay").textContent = yuan(fP);
+    $("cb-interest").textContent = yuan(interest);
+    $("cb-allc").textContent = "月供 " + money(allC) + "，利息 " + money(allCTotal - totalPrincipal) + " 元";
+    $("cb-save").textContent = yuan(save);
+
+    $("cb-note").textContent = fx(
+      "组合贷 = 商业贷款 + 公积金贷款两笔并行，各自按自己的利率还款，月供相加。公积金部分利率低，所以能用满公积金额度就先贷满，剩下的走商贷；上例中组合贷比全部按商贷利率少付 " +
+      money(save) + " 元利息。两笔贷款的实际年限、还款方式以公积金中心和银行审批为准。");
+  }
+
+  /* ---------------- 9. 攒钱目标 ---------------- */
+  function monthToDate(m) {
+    var d = new Date();
+    d.setMonth(d.getMonth() + m);
+    return d.getFullYear() + " 年 " + (d.getMonth() + 1) + " 月";
+  }
+
+  function calcGoal() {
+    var target = num($("gl-target"));
+    var start = num($("gl-start"));
+    var pmt = num($("gl-monthly"));
+    var i = num($("gl-rate")) / 100 / 12;
+    var years = num($("gl-years"));
+
+    if (!(target > 0)) {
+      $("gl-time").textContent = "—";
+      ["gl-date", "gl-cost", "gl-gain", "gl-need"].forEach(function (id) { $(id).textContent = "—"; });
+      $("gl-note").textContent = "填好目标金额后自动计算。";
+      return;
+    }
+
+    if (start >= target) {
+      $("gl-time").textContent = "已经攒够了";
+      $("gl-time-unit").textContent = "";
+      $("gl-date").textContent = "—";
+      $("gl-cost").textContent = yuan(start);
+      $("gl-gain").textContent = "—";
+      $("gl-need").textContent = "0 元";
+      $("gl-note").textContent = "现有资金已经达到目标金额，不用再存。";
+      return;
+    }
+
+    var m = -1, fv = 0;
+    for (var k = 1; k <= 1200; k++) {
+      fv = i > 0
+        ? start * Math.pow(1 + i, k) + pmt * ((Math.pow(1 + i, k) - 1) / i)
+        : start + pmt * k;
+      if (fv >= target) { m = k; break; }
+    }
+
+    if (m < 0) {
+      $("gl-time").textContent = "攒不到";
+      $("gl-time-unit").textContent = "";
+      $("gl-date").textContent = "—";
+      $("gl-cost").textContent = "—";
+      $("gl-gain").textContent = "—";
+      $("gl-need").textContent = "—";
+      $("gl-note").textContent = "每月存的钱太少、收益率又不够，100 年也到不了目标，得提高每月存款额。";
+    } else {
+      var yy = Math.floor(m / 12), mm = m % 12;
+      $("gl-time").textContent = yy > 0 ? yy + " 年" + (mm > 0 ? " " + mm + " 个月" : "") : mm + " 个月";
+      $("gl-time-unit").textContent = "";
+      $("gl-date").textContent = "约 " + monthToDate(m);
+      var cost = start + pmt * m;
+      $("gl-cost").textContent = yuan(cost);
+      $("gl-gain").textContent = yuan(fv - cost);
+    }
+
+    var M = months(years * 12);
+    var need = 0;
+    if (M > 0) {
+      need = i > 0
+        ? ((target - start * Math.pow(1 + i, M)) * i) / (Math.pow(1 + i, M) - 1)
+        : (target - start) / M;
+      need = Math.max(0, need);
+    }
+    $("gl-need").textContent = M > 0 ? yuan(need) + "（" + fmt(years, years % 1 === 0 ? 0 : 1) + " 年内）" : "—";
+
+    if (m >= 0) {
+      $("gl-note").textContent = fx(
+        "按每月存 " + money(pmt) + " 元、年化 " + fmt(num($("gl-rate")), 2) + "% 测算，约 " + m +
+        " 个月后达成 " + money(target) + " 元目标。想更快就两条路：多存（每月多 " + money(Math.max(0, need - pmt)) +
+        " 元可在设定年限内达成）或者提高收益率——但收益率越高风险越大，日常攒钱别把收益率当成主要变量。");
+    }
+  }
+
+  /* ---------------- 10. 分期真实利率 ---------------- */
+  function npvDiff(r, pay, n, P) {
+    if (Math.abs(r) < 1e-12) return pay * n - P;
+    return (pay * (1 - Math.pow(1 + r, -n))) / r - P;
+  }
+
+  function monthlyIRR(P, pay, n) {
+    var lo = 0, hi = 1;
+    for (var k = 0; k < 200; k++) {
+      var mid = (lo + hi) / 2;
+      if (npvDiff(mid, pay, n, P) > 0) lo = mid;
+      else hi = mid;
+    }
+    return (lo + hi) / 2;
+  }
+
+  function calcInstallment() {
+    var P = num($("is-amount"));
+    var n = months(num($("is-months")));
+    var mode = $("is-mode").value;
+    var rate = num($("is-rate"));
+
+    $("is-rate-label").textContent = mode === "monthly" ? "每期费率（%）"
+      : mode === "once" ? "总费率（%）" : "总手续费（元）";
+
+    if (!(P > 0 && n > 0)) {
+      $("is-apr").textContent = "—";
+      ["is-pay", "is-fee", "is-nominal", "is-multiple"].forEach(function (id) { $(id).textContent = "—"; });
+      $("is-note").textContent = "填好分期金额和期数后自动计算。";
+      return;
+    }
+
+    var feeTotal;
+    if (mode === "monthly") feeTotal = P * (rate / 100) * n;
+    else if (mode === "once") feeTotal = P * (rate / 100);
+    else feeTotal = rate;
+
+    var pay = (P + feeTotal) / n;
+    var r = monthlyIRR(P, pay, n);
+    var apr = Math.pow(1 + r, 12) - 1;
+    var nominal = (feeTotal / P) * (12 / n);
+
+    $("is-apr").textContent = fmt(apr * 100, 2);
+    $("is-pay").textContent = yuan(pay);
+    $("is-fee").textContent = yuan(feeTotal);
+    $("is-nominal").textContent = pct(nominal);
+    $("is-multiple").textContent = nominal > 0 ? fmt(apr / nominal, 2) + " 倍" : "—";
+
+    var howItIs = mode === "monthly" ? "每期按最初本金收 " + fmt(rate, 2) + "% 手续费"
+      : mode === "once" ? "一次性按最初本金收 " + fmt(rate, 2) + "% 手续费"
+      : "总共收 " + money(rate) + " 元手续费";
+    $("is-note").textContent = fx(
+      "这笔分期是" + howItIs + "，但你每月都在还本金，实际占用的钱越来越少，所以真实成本远高于表面费率——" +
+      "上面那一栏就是 IRR（内部收益率）口径，相当于「按实际占用资金折算的年化利率」，也是《民法典》和监管要求金融机构披露的年化综合成本口径。" +
+      "表面看只有 " + pct(nominal) + "，实际年化 " + fmt(apr * 100, 2) + "%。提前还款通常不退手续费，办之前先算这一栏。");
+  }
+
+  /* ---------------- 11. 折扣 / 单价 ---------------- */
+  function calcDeal() {
+    var price = num($("dl-price"));
+    var factor = num($("dl-discount")) / 10;
+    var threshold = num($("dl-threshold"));
+    var off = num($("dl-off"));
+    var qty = num($("dl-qty"));
+
+    if (!(price > 0 && qty > 0)) {
+      $("dl-pay").textContent = "—";
+      ["dl-real-discount", "dl-save", "dl-unit", "dl-next"].forEach(function (id) { $(id).textContent = "—"; });
+      $("dl-note").textContent = "填好原价和数量后自动计算。";
+    } else {
+      if (factor <= 0) factor = 1;
+      var list = price * qty;
+      var sub = list * factor;
+      var times = threshold > 0 ? Math.floor(sub / threshold) : 0;
+      var reduce = times * off;
+      var pay = Math.max(0, sub - reduce);
+
+      $("dl-pay").textContent = money(pay);
+      $("dl-real-discount").textContent = fmt((pay / list) * 10, 2) + " 折";
+      $("dl-save").textContent = yuan(list - pay);
+      $("dl-unit").textContent = yuan(pay / qty);
+      if (threshold > 0) {
+        var rem = sub % threshold;
+        var need = rem === 0 ? threshold : threshold - rem;
+        $("dl-next").textContent = "还差 " + money(need) + " 元可再多减 " + money(off) + " 元";
+      } else {
+        $("dl-next").textContent = "未设满减";
+      }
+
+      var better = "";
+      if (threshold > 0) {
+        var gap = threshold - rem;
+        if (gap > 0 && gap <= off) better = " 注意：只差 " + money(gap) + " 元就能再减 " + money(off) + " 元，凑单更划算。";
+      }
+      $("dl-note").textContent = threshold > 0
+        ? fx("先打折再满减（多数平台的算法）：折后小计 " + money(sub) + " 元，满 " + money(threshold) +
+             " 减 " + money(off) + " 命中 " + times + " 次，减掉 " + money(reduce) + " 元。算下来相当于 " +
+             fmt((pay / list) * 10, 2) + " 折，比单看折扣力度更真实。" + better)
+        : fx("只按折扣算：原价 " + money(price) + " × " + fmt(factor * 10, 2) + " 折 × " + fmt(qty, 0) +
+             " 件，折后 " + money(sub) + " 元。要叠加满减就在上面填满减条件。");
+    }
+
+    // 单价比较
+    var pa = num($("dl-pa")), qa = num($("dl-qa")), ua = $("dl-ua").value;
+    var pb = num($("dl-pb")), qb = num($("dl-qb")), ub = $("dl-ub").value;
+    if (pa > 0 && qa > 0 && pb > 0 && qb > 0) {
+      var unitA = pa / qa, unitB = pb / qb;
+      var cheap = Math.min(unitA, unitB), pricey = Math.max(unitA, unitB);
+      var diff = (pricey - cheap) / cheap;
+      var aWins = unitA <= unitB;
+      $("dl-winner").textContent = aWins ? "商品 A" : "商品 B";
+      $("dl-winner-unit").textContent = "每" + (aWins ? ua : ub) + "更便宜";
+      var ud = function (v) { return fmt(v, v >= 10 ? 2 : v >= 1 ? 3 : 4); };
+      $("dl-unit-a").textContent = "每" + ua + " " + ud(unitA) + " 元";
+      $("dl-unit-b").textContent = "每" + ub + " " + ud(unitB) + " 元";
+      $("dl-diff").textContent = pct(diff) + "（贵的那方贵这么多）";
+      $("dl-note2").textContent = fx(
+        (aWins ? "A" : "B") + " 的每 " + (aWins ? ua : ub) + " 单价更低，另一件贵了 " + pct(diff) +
+        "。比价别看总价和包装大小，算到每克/每毫升才准；" + (ua !== ub ? "两边单位不同时（" + ua + " vs " + ub + "）要先把单位换算统一再比。" : "同类单位直接比单价即可。"));
+    } else {
+      $("dl-winner").textContent = "—";
+      $("dl-winner-unit").textContent = "";
+      ["dl-unit-a", "dl-unit-b", "dl-diff"].forEach(function (id) { $(id).textContent = "—"; });
+      $("dl-note2").textContent = "两件商品的价格和数量都填上才能比单价。";
+    }
+  }
+
   /* ---------------- 标签切换 & 事件 ---------------- */
   var calcMap = {
-    deposit: calcDeposit, loan: calcLoan, prepay: calcPrepay,
-    compound: calcCompound, annual: calcAnnual, inflation: calcInflation, tax: calcTax
+    deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
+    compound: calcCompound, goal: calcGoal, installment: calcInstallment,
+    annual: calcAnnual, inflation: calcInflation, tax: calcTax, deal: calcDeal
   };
 
   function activate(name) {
@@ -433,11 +678,16 @@
     "ln-principal", "ln-rate", "ln-years", "ln-method",
     "pp-principal", "pp-rate", "pp-months", "pp-amount", "pp-fee", "pp-mode",
     "cp-start", "cp-monthly", "cp-rate", "cp-years", "cp-timing",
+    "cb-commercial", "cb-commercial-rate", "cb-fund", "cb-fund-rate", "cb-years",
+    "gl-target", "gl-start", "gl-monthly", "gl-rate", "gl-years",
+    "is-amount", "is-months", "is-mode", "is-rate",
     "an-start", "an-end", "an-days",
     "if-amount", "if-rate", "if-years",
-    "tx-income", "tx-insurance", "tx-special", "tx-other", "tx-bonus"
+    "tx-income", "tx-insurance", "tx-special", "tx-other", "tx-bonus",
+    "dl-price", "dl-discount", "dl-threshold", "dl-off", "dl-qty",
+    "dl-pa", "dl-qa", "dl-ua", "dl-pb", "dl-qb", "dl-ub"
   ];
-  var KEY = "finance-calc-v2";
+  var KEY = "finance-calc-v3";
 
   function save() {
     try {

@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>财务计算器 · 存款 贷款 提前还款 复利 个税</title>
-<meta name="description" content="免费的财务计算器：存款利息、贷款月供与还款计划（等额本息/等额本金）、提前还款省息测算、复利与定投、年化收益换算、通胀购买力、工资与年终奖个税。纯前端计算，不联网、不上传数据。">
+<title>财务计算器 · 存款 贷款 组合贷 复利 分期 个税 折扣</title>
+<meta name="description" content="免费的财务计算器：存款利息、贷款月供与还款计划、提前还款省息、商贷+公积金组合贷对比、复利与定投、攒钱目标倒推、信用卡分期真实年化、年化收益换算、通胀购买力、工资与年终奖个税、折扣与单价比较。纯前端计算，不联网、不上传数据。">
 <meta name="theme-color" content="#1e3a8a">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231e3a8a'/%3E%3Ctext x='16' y='23' font-size='17' text-anchor='middle' fill='%23fff' font-family='sans-serif'%3E%C2%A5%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="./style.css">
@@ -17,17 +17,21 @@
       <span class="mark">¥</span>
       <div>
         <h1>财务计算器</h1>
-        <p>存款 · 贷款 · 提前还款 · 复利 · 年化 · 通胀 · 个税</p>
+        <p>存款 · 贷款 · 组合贷 · 复利 · 攒钱 · 分期 · 通胀 · 个税 · 折扣</p>
       </div>
     </div>
     <nav class="tabs" id="tabs" role="tablist">
       <button class="tab is-on" data-tab="deposit" role="tab">存款利息</button>
       <button class="tab" data-tab="loan" role="tab">贷款月供</button>
+      <button class="tab" data-tab="combo" role="tab">组合贷</button>
       <button class="tab" data-tab="prepay" role="tab">提前还款</button>
       <button class="tab" data-tab="compound" role="tab">复利/定投</button>
+      <button class="tab" data-tab="goal" role="tab">攒钱目标</button>
+      <button class="tab" data-tab="installment" role="tab">分期利率</button>
       <button class="tab" data-tab="annual" role="tab">年化换算</button>
       <button class="tab" data-tab="inflation" role="tab">通胀购买力</button>
       <button class="tab" data-tab="tax" role="tab">个税测算</button>
+      <button class="tab" data-tab="deal" role="tab">折扣单价</button>
     </nav>
   </div>
 </header>
@@ -375,9 +379,242 @@
     </div>
   </section>
 
+
+  <!-- ================= 组合贷 ================= -->
+  <section class="panel" id="panel-combo">
+    <div class="cols">
+      <div class="card">
+        <h2>输入（等额本息）</h2>
+        <label class="f">
+          <span>商业贷款金额（元）</span>
+          <input id="cb-commercial" type="number" inputmode="decimal" min="0" step="10000" value="700000">
+        </label>
+        <label class="f">
+          <span>商贷年利率（%）</span>
+          <input id="cb-commercial-rate" type="number" inputmode="decimal" min="0" step="0.05" value="3.1">
+        </label>
+        <label class="f">
+          <span>公积金贷款金额（元）</span>
+          <input id="cb-fund" type="number" inputmode="decimal" min="0" step="10000" value="500000">
+        </label>
+        <label class="f">
+          <span>公积金年利率（%）</span>
+          <input id="cb-fund-rate" type="number" inputmode="decimal" min="0" step="0.05" value="2.6">
+          <em>首套 5 年以上公积金贷款利率通常低于商贷约 0.5 个百分点以上</em>
+        </label>
+        <label class="f">
+          <span>贷款年限</span>
+          <input id="cb-years" type="number" inputmode="decimal" min="0" step="1" value="30">
+        </label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big">
+          <span class="k">合计月供</span>
+          <strong id="cb-pay">—</strong>
+          <span class="unit">元</span>
+        </div>
+        <ul class="kv">
+          <li><span>贷款总额</span><b id="cb-total-principal">—</b></li>
+          <li><span>商贷月供</span><b id="cb-c-pay">—</b></li>
+          <li><span>公积金月供</span><b id="cb-f-pay">—</b></li>
+          <li><span>利息合计</span><b id="cb-interest">—</b></li>
+          <li><span>若全部按商贷利率</span><b id="cb-allc">—</b></li>
+          <li><span>组合贷省下的利息</span><b id="cb-save">—</b></li>
+        </ul>
+        <p class="hint" id="cb-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 攒钱目标 ================= -->
+  <section class="panel" id="panel-goal">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f">
+          <span>目标金额（元）</span>
+          <input id="gl-target" type="number" inputmode="decimal" min="0" step="10000" value="500000">
+        </label>
+        <label class="f">
+          <span>现在已经有的（元）</span>
+          <input id="gl-start" type="number" inputmode="decimal" min="0" step="10000" value="100000">
+        </label>
+        <label class="f">
+          <span>每月能存下（元）</span>
+          <input id="gl-monthly" type="number" inputmode="decimal" min="0" step="500" value="3000">
+        </label>
+        <label class="f">
+          <span>年化收益率（%，存定期就填存款利率）</span>
+          <input id="gl-rate" type="number" inputmode="decimal" min="0" step="0.5" value="2">
+        </label>
+        <label class="f">
+          <span>如果希望几年内攒够？</span>
+          <input id="gl-years" type="number" inputmode="decimal" min="0" step="1" value="5">
+          <em>用来反推「每月至少要存多少」</em>
+        </label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big">
+          <span class="k">按现在的存法，还需</span>
+          <strong id="gl-time">—</strong>
+          <span class="unit" id="gl-time-unit"></span>
+        </div>
+        <ul class="kv">
+          <li><span>预计达成时间</span><b id="gl-date">—</b></li>
+          <li><span>期间累计投入</span><b id="gl-cost">—</b></li>
+          <li><span>其中利息贡献</span><b id="gl-gain">—</b></li>
+          <li><span>想在设定年限内攒够，每月需存</span><b id="gl-need">—</b></li>
+        </ul>
+        <p class="hint" id="gl-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 分期真实利率 ================= -->
+  <section class="panel" id="panel-installment">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f">
+          <span>分期金额（元）</span>
+          <input id="is-amount" type="number" inputmode="decimal" min="0" step="1000" value="12000">
+        </label>
+        <label class="f">
+          <span>分期期数（月）</span>
+          <input id="is-months" type="number" inputmode="decimal" min="0" step="1" value="12">
+        </label>
+        <label class="f">
+          <span>手续费怎么收</span>
+          <select id="is-mode">
+            <option value="monthly" selected>每期收，按期费率</option>
+            <option value="once">一次性收，按总费率</option>
+            <option value="fixed">直接给总手续费金额</option>
+          </select>
+        </label>
+        <label class="f">
+          <span id="is-rate-label">每期费率（%）</span>
+          <input id="is-rate" type="number" inputmode="decimal" min="0" step="0.01" value="0.6">
+          <em>银行/平台常写「月费率 0.6%」或「每期 0.6%」，就填这里</em>
+        </label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big">
+          <span class="k">实际年化利率（IRR 口径）</span>
+          <strong id="is-apr">—</strong>
+          <span class="unit">%</span>
+        </div>
+        <ul class="kv">
+          <li><span>每期还款</span><b id="is-pay">—</b></li>
+          <li><span>手续费合计</span><b id="is-fee">—</b></li>
+          <li><span>名义年化（费率×12）</span><b id="is-nominal">—</b></li>
+          <li><span>比宣传的费率贵多少倍</span><b id="is-multiple">—</b></li>
+        </ul>
+        <p class="hint" id="is-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 折扣单价 ================= -->
+  <section class="panel" id="panel-deal">
+    <div class="cols">
+      <div class="card">
+        <h2>打折 / 满减</h2>
+        <label class="f">
+          <span>原价（元 / 件）</span>
+          <input id="dl-price" type="number" inputmode="decimal" min="0" step="10" value="299">
+        </label>
+        <label class="f">
+          <span>折扣（几折，不打折填 10）</span>
+          <input id="dl-discount" type="number" inputmode="decimal" min="0" step="0.5" value="8.5">
+        </label>
+        <label class="f">
+          <span>满减条件（满 X 元，没有填 0）</span>
+          <input id="dl-threshold" type="number" inputmode="decimal" min="0" step="50" value="300">
+        </label>
+        <label class="f">
+          <span>满减金额（减 Y 元）</span>
+          <input id="dl-off" type="number" inputmode="decimal" min="0" step="10" value="50">
+        </label>
+        <label class="f">
+          <span>数量（件）</span>
+          <input id="dl-qty" type="number" inputmode="decimal" min="0" step="1" value="2">
+        </label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big">
+          <span class="k">实际要付</span>
+          <strong id="dl-pay">—</strong>
+          <span class="unit">元</span>
+        </div>
+        <ul class="kv">
+          <li><span>相当于打几折</span><b id="dl-real-discount">—</b></li>
+          <li><span>省了多少钱</span><b id="dl-save">—</b></li>
+          <li><span>每件实际单价</span><b id="dl-unit">—</b></li>
+          <li><span>离下一档满减还差</span><b id="dl-next">—</b></li>
+        </ul>
+        <p class="hint" id="dl-note"></p>
+      </div>
+    </div>
+
+    <div class="cols">
+      <div class="card">
+        <h2>单价比较：哪个更划算</h2>
+        <label class="f">
+          <span>商品 A</span>
+          <span class="row">
+            <input id="dl-pa" type="number" inputmode="decimal" min="0" step="1" value="39.9" placeholder="价格">
+            <input id="dl-qa" type="number" inputmode="decimal" min="0" step="1" value="750" placeholder="数量">
+            <select id="dl-ua">
+              <option value="克" selected>克</option>
+              <option value="毫升">毫升</option>
+              <option value="个">个</option>
+              <option value="片">片</option>
+            </select>
+          </span>
+        </label>
+        <label class="f">
+          <span>商品 B</span>
+          <span class="row">
+            <input id="dl-pb" type="number" inputmode="decimal" min="0" step="1" value="56" placeholder="价格">
+            <input id="dl-qb" type="number" inputmode="decimal" min="0" step="1" value="1100" placeholder="数量">
+            <select id="dl-ub">
+              <option value="克" selected>克</option>
+              <option value="毫升">毫升</option>
+              <option value="个">个</option>
+              <option value="片">片</option>
+            </select>
+          </span>
+        </label>
+      </div>
+
+      <div class="card res">
+        <h2>比较结果</h2>
+        <div class="big">
+          <span class="k">更划算的是</span>
+          <strong id="dl-winner">—</strong>
+          <span class="unit" id="dl-winner-unit"></span>
+        </div>
+        <ul class="kv">
+          <li><span>商品 A 单价</span><b id="dl-unit-a">—</b></li>
+          <li><span>商品 B 单价</span><b id="dl-unit-b">—</b></li>
+          <li><span>差价比例</span><b id="dl-diff">—</b></li>
+        </ul>
+        <p class="hint" id="dl-note2"></p>
+      </div>
+    </div>
+  </section>
+
   <p class="foot">
     全部计算在你自己的浏览器里完成，不联网、不上传任何数据。结果仅为数学测算，未计手续费、通货膨胀等额外因素；
-    个税按现行综合所得与全年一次性奖金政策估算，实际以扣缴义务人申报与税务机关口径为准。
+    个税按现行综合所得与全年一次性奖金政策估算；分期年化按 IRR 折算，实际以银行业务规则为准。
     存款保险最高偿付 50 万元（本息合计，同一家银行），理财不等于存款。<br>
     <span id="ver">财务计算器</span>
   </p>
