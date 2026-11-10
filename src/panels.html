@@ -186,6 +186,9 @@
             <tbody id="rp-body"></tbody>
           </table>
         </div>
+        <h2 class="sub">你记的 12 个月支出</h2>
+        <canvas id="rp-mini" width="720" height="120" aria-label="12 个月支出缩略图"></canvas>
+        <p class="hint" id="rp-mini-note"></p>
         <h2 class="sub">先改这三项（按"缺分 × 好改程度"排）</h2>
         <ol class="pri" id="rp-pri"></ol>
         <p class="hint" id="rp-note"></p>
@@ -8120,6 +8123,7 @@
         <label class="f"><span>交通（车贷+油+打车）</span><input id="bxsp-car" type="number" inputmode="decimal" min="0" step="100" value="2000"></label>
         <label class="f"><span>餐饮日用</span><input id="bxsp-food" type="number" inputmode="decimal" min="0" step="500" value="4500"></label>
         <label class="f"><span>其他（医疗/人情/娱乐）</span><input id="bxsp-other" type="number" inputmode="decimal" min="0" step="500" value="3000"></label>
+        <label class="f"><span>每月定投/储蓄（转出）</span><input id="bxsp-save" type="number" inputmode="decimal" min="0" step="500" value="3000"></label>
         <label class="f"><span>目标储蓄率（%）</span><input id="bxsp-goal" type="number" inputmode="decimal" min="0" max="80" step="1" value="25"></label>
         <em>这是把「房贷、养娃、保险、养车、日常」放在一张表里看结构。各项的数字都可以到对应模块里先单独算准再填进来。</em>
       </div>
@@ -8132,6 +8136,7 @@
           <li><span>全年可存</span><b id="bxsp-year">—</b></li>
           <li><span>最大头</span><b id="bxsp-top">—</b></li>
           <li><span>超参考区间的项</span><b id="bxsp-over">—</b></li>
+          <li><span>储蓄＋结余</span><b id="bxsp-sv">—</b></li>
           <li><span>结构评分</span><b id="bxsp-score">—</b></li>
         </ul>
         <div class="tablebox">
@@ -8150,7 +8155,20 @@
     <div class="cols">
       <div class="card">
         <h2>输入：每月支出</h2>
-        <label class="f"><span>每月税后收入</span><input id="mt-inc" type="number" inputmode="decimal" min="0" step="1000" value="20000"></label>
+        <label class="f"><span>每月税后收入（月均模式下用这个）</span><input id="mt-inc" type="number" inputmode="decimal" min="0" step="1000" value="20000"></label>
+        <label class="f"><span>收入怎么填</span><select id="mt-mode">
+          <option value="avg">按月均收入平摊（简单）</option>
+          <option value="monthly">逐月填真实到手（有年终奖/调薪时用）</option>
+        </select></label>
+        <div id="mt-incbox" hidden>
+          <h2 class="sub">12 个月的真实收入</h2>
+          <span class="row"><input id="mt-i1" type="number" inputmode="decimal" min="0" step="500" value="20000" aria-label="1月收入"><input id="mt-i2" type="number" inputmode="decimal" min="0" step="500" value="20000" aria-label="2月收入"></span>
+          <span class="row"><input id="mt-i3" type="number" inputmode="decimal" min="0" step="500" value="20000" aria-label="3月收入"><input id="mt-i4" type="number" inputmode="decimal" min="0" step="500" value="20000" aria-label="4月收入"></span>
+          <span class="row"><input id="mt-i5" type="number" inputmode="decimal" min="0" step="500" value="20000" aria-label="5月收入"><input id="mt-i6" type="number" inputmode="decimal" min="0" step="500" value="20000" aria-label="6月收入"></span>
+          <span class="row"><input id="mt-i7" type="number" inputmode="decimal" min="0" step="500" value="20000" aria-label="7月收入"><input id="mt-i8" type="number" inputmode="decimal" min="0" step="500" value="20000" aria-label="8月收入"></span>
+          <span class="row"><input id="mt-i9" type="number" inputmode="decimal" min="0" step="500" value="20000" aria-label="9月收入"><input id="mt-i10" type="number" inputmode="decimal" min="0" step="500" value="20000" aria-label="10月收入"></span>
+          <span class="row"><input id="mt-i11" type="number" inputmode="decimal" min="0" step="500" value="20000" aria-label="11月收入"><input id="mt-i12" type="number" inputmode="decimal" min="0" step="500" value="26000" aria-label="12月收入"></span>
+        </div>
         <h2 class="sub">12 个月的支出（从 1 月到 12 月）</h2>
         <span class="row"><input id="mt-m1" type="number" inputmode="decimal" min="0" step="100" value="18000" aria-label="1月支出"><input id="mt-m2" type="number" inputmode="decimal" min="0" step="100" value="19500" aria-label="2月支出"></span>
         <span class="row"><input id="mt-m3" type="number" inputmode="decimal" min="0" step="100" value="21000" aria-label="3月支出"><input id="mt-m4" type="number" inputmode="decimal" min="0" step="100" value="17600" aria-label="4月支出"></span>
@@ -8158,13 +8176,15 @@
         <span class="row"><input id="mt-m7" type="number" inputmode="decimal" min="0" step="100" value="18500" aria-label="7月支出"><input id="mt-m8" type="number" inputmode="decimal" min="0" step="100" value="20200" aria-label="8月支出"></span>
         <span class="row"><input id="mt-m9" type="number" inputmode="decimal" min="0" step="100" value="19100" aria-label="9月支出"><input id="mt-m10" type="number" inputmode="decimal" min="0" step="100" value="18700" aria-label="10月支出"></span>
         <span class="row"><input id="mt-m11" type="number" inputmode="decimal" min="0" step="100" value="20500" aria-label="11月支出"><input id="mt-m12" type="number" inputmode="decimal" min="0" step="100" value="23800" aria-label="12月支出"></span>
-        <em>只填支出就够了——收入按月平摊。想按真实月份记，把每月到手工资填进「税后工资」模块再回填这里的月均收入。</em>
+        <em>只填支出就够了——收入按月平摊。有年终奖、调薪、奖金月，就切到「逐月填真实到手」。支出可以照银行 App 的月度账单抄。</em>
+        <p class="btnrow"><button class="ghost" type="button" id="mt-csv">导出这 12 个月 CSV</button></p>
       </div>
       <div class="card res">
         <h2>结果</h2>
         <div class="big"><span class="k">全年结余</span><strong id="mt-big">—</strong><span class="unit">元</span></div>
         <ul class="kv">
           <li><span>全年收入</span><b id="mt-in">—</b></li>
+          <li><span>月均收入</span><b id="mt-inavg">—</b></li>
           <li><span>全年支出</span><b id="mt-out">—</b></li>
           <li><span>月均支出</span><b id="mt-avg">—</b></li>
           <li><span>储蓄率</span><b id="mt-rate">—</b></li>
@@ -8182,6 +8202,42 @@
           </table>
         </div>
         <p class="hint" id="mt-note"></p>
+      </div>
+    </div>
+  </section>
+  <section class="panel" id="panel-yearcmp">
+    <div class="cols">
+      <div class="card">
+        <h2>输入：两年对比</h2>
+        <h2 class="sub">上一年</h2>
+        <label class="f"><span>年收入（税后）</span><input id="yc-inc1" type="number" inputmode="decimal" min="0" step="1000" value="240000"></label>
+        <label class="f"><span>年支出</span><input id="yc-out1" type="number" inputmode="decimal" min="0" step="1000" value="239000"></label>
+        <label class="f"><span>年末资产（不含自住房）</span><input id="yc-asset1" type="number" inputmode="decimal" min="0" step="10000" value="350000"></label>
+        <h2 class="sub">这一年</h2>
+        <label class="f"><span>年收入（税后）</span><input id="yc-inc2" type="number" inputmode="decimal" min="0" step="1000" value="288000"></label>
+        <label class="f"><span>年支出</span><input id="yc-out2" type="number" inputmode="decimal" min="0" step="1000" value="262000"></label>
+        <label class="f"><span>年末资产（不含自住房）</span><input id="yc-asset2" type="number" inputmode="decimal" min="0" step="10000" value="412000"></label>
+        <em>资产填「不含自住房的金融资产＋投资房」，这样看的是能生钱的那部分增长。收入用税后到手，和自己的银行卡对得上。</em>
+      </div>
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">资产这一年</span><strong id="yc-big">—</strong><span class="unit">元</span></div>
+        <ul class="kv">
+          <li><span>收入增幅</span><b id="yc-incg">—</b></li>
+          <li><span>支出增幅</span><b id="yc-outg">—</b></li>
+          <li><span>结余（上年 → 这年）</span><b id="yc-left">—</b></li>
+          <li><span>储蓄率（上年 → 这年）</span><b id="yc-rate">—</b></li>
+          <li><span>资产增幅</span><b id="yc-assetg">—</b></li>
+          <li><span>资产增加 vs 结余</span><b id="yc-gap">—</b></li>
+          <li><span>哪一项最该管</span><b id="yc-focus">—</b></li>
+        </ul>
+        <div class="tablebox">
+          <table>
+            <thead><tr><th class="tal">项目</th><th>上一年</th><th>这一年</th><th>变化</th></tr></thead>
+            <tbody id="yc-body"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="yc-note"></p>
       </div>
     </div>
   </section>
