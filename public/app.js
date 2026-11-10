@@ -7740,6 +7740,116 @@
       + "无差异点会随征收率优惠、行业加计抵减政策变化，算完要按最新文件复核。";
   }
 
+  function calcProcessCost() {
+    var m1 = num($("stp-m1"), 0), c1 = num($("stp-c1"), 0);
+    var q1 = Math.max(1, num($("stp-q1"), 1)), q2 = Math.max(1, num($("stp-q2"), 1));
+    var m2 = num($("stp-m2"), 0), c2 = num($("stp-c2"), 0), scrap = num($("stp-scrap"), 0);
+    var cost1 = m1 + c1;
+    var semiUnit = cost1 / q1;
+    var carry = cost1;
+    var total2 = carry + m2 + c2 - scrap;
+    var unit = total2 / q2;
+    var lossN = Math.max(0, q1 - q2);
+    var lossCost = lossN * unit;
+    var naive = total2 / q1;
+    var matShare = (m1 + m2 - scrap) / total2, procShare = (c1 + c2) / total2;
+    $("stp-big").textContent = fmt(unit, 2);
+    $("stp-semi").textContent = fmt(semiUnit, 2) + " 元 / 转出 " + money(carry) + " 元";
+    $("stp-total").textContent = money(total2) + " 元（含工序1 转入 " + money(carry) + "）";
+    $("stp-loss").textContent = lossN + " 件 / " + money(lossCost) + " 元（占成本 " + pct(q1 > q2 ? lossCost / total2 : 0, 2) + "）";
+    $("stp-naive").textContent = fmt(naive, 2) + " 元（少算 " + fmt(unit - naive, 2) + " 元/件）";
+    $("stp-mix").textContent = pct(matShare, 1) + " / " + pct(procShare, 1);
+    $("stp-note").textContent = "逐步结转分步法：上一步的半成品成本整体转进下一步，所以第二步的「材料」里含着第一步的人工和制造费用，"
+      + "要还原成本结构就得按第一步的成本构成比例倒推（本模块用材料/加工占比近似）。"
+      + "关键点是损耗：投入 " + money(q1) + " 件、产出 " + money(q2) + " 件，损耗的 " + lossN + " 件成本 "
+      + money(lossCost) + " 元不能摊到产成品成本里（除非是正常损耗且准则允许），实务里多数按「正常损耗计入成本、"
+      + "非正常损耗进营业外/管理费用」处理；直接用总成本除投入件数会低估单位成本 " + fmt(unit - naive, 2) + " 元。"
+      + "另要注意：在产品要按完工程度折约当产量，别把在制当废品。";
+  }
+
+  function calcMakeOrOutsource() {
+    var qty = num($("mko-qty"), 0), vc = num($("mko-vc"), 0);
+    var inv = num($("mko-inv"), 0), life = Math.max(1, num($("mko-life"), 5));
+    var opp = num($("mko-opp"), 0);
+    var price = num($("mko-price"), 0), extra = num($("mko-extra"), 0);
+    var dep = inv / life;
+    var inTotal = qty * vc + dep;
+    var outUnit = price + extra;
+    var outTotal = qty * outUnit;
+    var save = outTotal - inTotal;
+    var inUnit = qty > 0 ? inTotal / qty : 0;
+    var denom = outUnit - vc;
+    var be = denom > 0 ? dep / denom : Infinity;
+    var oppTotal = qty * opp;
+    var saveWithOpp = save - oppTotal;
+    $("mko-big").textContent = money(save);
+    $("mko-in").textContent = money(inTotal) + " 元（变动 " + money(qty * vc) + " ＋ 折旧 " + money(dep) + "）";
+    $("mko-out").textContent = money(outTotal) + " 元（" + fmt(outUnit, 2) + " 元/件）";
+    $("mko-unit").textContent = fmt(inUnit, 2) + " vs " + fmt(outUnit, 2) + " 元/件";
+    $("mko-be").textContent = (be === Infinity ? "—" : money(be) + " 件（低于此量委外更省）");
+    $("mko-oppout").textContent = opp > 0
+      ? "自制再让出价值 " + money(oppTotal) + " 的产能 → 自制优势变为 " + (saveWithOpp >= 0 ? "省 " : "亏 ") + money(Math.abs(saveWithOpp)) + " 元"
+      : "机会成本填 0（产能确实闲置）";
+    $("mko-note").textContent = "委外决策只比「相关成本」：自制的变动成本 vs 委外单价，加上只有自制才发生的专属投入（设备、模具、"
+      + "专属人员），分摊来的固定制造费用是沉没成本，算进去必然把自制算贵。"
+      + "本案例临界量 " + (be === Infinity ? "不存在" : money(be) + " 件") + "：量低于它，设备折旧摊不薄，委外更省（"
+      + "这就是小批量订单外发的道理）；量越大自制越占优。还有三件事要一起想："
+      + "① 产能能不能转做别的（机会成本 " + fmt(opp, 2) + " 元/件）；② 委外的质量与交付风险、技术外泄；"
+      + "③ 自制省下的是毛利、委外省下的是固定投入——现金流时间点不同，要按年限折现比。";
+  }
+
+  function calcRebateDTA() {
+    var rebate = num($("rdt-rebate"), 0), ret = num($("rdt-return"), 0);
+    var stock = num($("rdt-stock"), 0), tax = num($("rdt-tax"), 0) / 100;
+    var diff = rebate + ret;
+    var dta = diff * tax;
+    var netPL = (rebate + ret - stock) * (1 - tax) - stock * 0;
+    var same = stock;
+    $("rdt-big").textContent = money(dta);
+    $("rdt-td").textContent = money(diff) + " 元（返利 " + money(rebate) + " ＋ 退货 " + money(ret) + "）";
+    $("rdt-add").textContent = money(diff) + " 元（税法要等实际支付/实际退货才认）";
+    $("rdt-cash").textContent = "当期多缴 " + money(dta) + "，实际发生时少缴 " + money(dta) + " 元";
+    $("rdt-same").textContent = money(same) + " 元（退货存货成本冲回，账税一致）";
+    $("rdt-pl").textContent = money(netPL) + " 元（收入冲减 " + money(rebate + ret) + "，税后 " + money((rebate + ret) * (1 - tax)) + "，扣除存货成本后）";
+    $("rdt-note").textContent = "会计按权责发生制先冲收入、确认「应付退货退款」和「预计负债」，税法只认实际发生并有合法凭据的部分，"
+      + "于是形成可抵扣暂时性差异 " + money(diff) + "，确认递延所得税资产 " + money(dta) + "，同时当期纳税调增。"
+      + "注意三点：① 返利要凭红字发票或对方开具的收款凭证才能扣，光有合同和计提表不行；"
+      + "② 退货的存货成本部分（" + money(stock) + "）账税一致，不产生差异，别重复算；③ 递延所得税资产要评估「未来有没有足够应纳税所得额」，"
+      + "连续亏损的企业这部分资产可能确认不了，计提了也要做减值。";
+  }
+
+  function calcLeaseBuy() {
+    var price = num($("lbu-price"), 0), rent = num($("lbu-rent"), 0);
+    var n = Math.max(1, Math.round(num($("lbu-years"), 8)));
+    var r = num($("lbu-rate"), 0) / 100, tax = num($("lbu-tax"), 0) / 100;
+    var maint = num($("lbu-maint"), 0), resid = num($("lbu-resid"), 0);
+    var pvaf = r > 0 ? (1 - Math.pow(1 + r, -n)) / r : n;
+    var dfN = Math.pow(1 + r, -n);
+    var lseAT = rent * (1 - tax);
+    var lsePV = lseAT * pvaf;
+    var dep = price / n;
+    var shieldPV = dep * tax * pvaf;
+    var maintPV = maint * (1 - tax) * pvaf;
+    var residNet = resid * (1 - tax);
+    var residPV = residNet * dfN;
+    var buyPV = price + maintPV - shieldPV - residPV;
+    var diff = buyPV - lsePV;
+    var crit = pvaf > 0 ? buyPV / ((1 - tax) * pvaf) : 0;
+    $("lbu-big").textContent = money(Math.abs(diff)) + (diff >= 0 ? "（租赁更省）" : "（购买更省）");
+    $("lbu-lse").textContent = money(lseAT) + " / " + money(lsePV) + " 元";
+    $("lbu-buy").textContent = money(buyPV) + " 元（买价 " + money(price) + " ＋ 维护 " + money(maintPV) + " − 税盾 " + money(shieldPV) + " − 残值 " + money(residPV) + "）";
+    $("lbu-shield").textContent = money(shieldPV) + " 元（年折旧 " + money(dep) + " × " + pct(tax, 0) + "）";
+    $("lbu-mr").textContent = money(maintPV) + " / " + money(residPV) + " 元（残值税后 " + money(residNet) + "）";
+    $("lbu-crit").textContent = money(crit) + " 元/年（超过这个租金就该买）";
+    $("lbu-note").textContent = "比的是「税后现金流现值」，不是租金总额和买价：租赁租金当期全额可扣税，"
+      + "购买的钱要通过每年折旧慢慢抵税（税盾现值 " + money(shieldPV) + "），期末残值还要交处置所得税。"
+      + "本案例租赁现值 " + money(lsePV) + " vs 购买现值 " + money(buyPV) + "，" + (diff >= 0 ? "租赁更省 " : "购买更省 ")
+      + money(Math.abs(diff)) + " 元；临界年租金 " + money(crit) + " 元。"
+      + "真正决定胜负的是折现率与残值假设：折现率高、残值低、租期短，租赁更容易赢；"
+      + "能拿到加速折旧或一次性税前扣除优惠、且残值高的资产，购买通常更划算。别忘了租赁还有额度占用、"
+      + "提前解约罚则和资产不归自己的问题，购买则压现金流、占授信。";
+  }
+
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
@@ -7779,6 +7889,7 @@
     contractperf: calcContractPerf, projrev: calcProjRev, creditpolicy: calcCreditPolicy, rateadj: calcRateAdj,
     invfund: calcInvFund, machrate: calcMachRate, govgrant: calcGovGrant, fxtranslate: calcFxTranslate,
     rebateacc: calcRebateAcc, pledgeloan: calcPledgeLoan, labvar: calcLabVar, rdcap: calcRdCap,
+    processcost: calcProcessCost, makeoroutsource: calcMakeOrOutsource, rebatedta: calcRebateDTA, leasebuy: calcLeaseBuy,
     salesallow: calcSalesAllow, lease: calcLease, gpmix: calcGpmix, vatchoose: calcVatChoose,
     datemath: calcDatemath, pct3: calcPct3, xlhelp: calcXlHelp, csvrecon: calcCsvRecon,
     contractperf: calcContractPerf, projrev: calcProjRev, creditpolicy: calcCreditPolicy, rateadj: calcRateAdj
@@ -8026,9 +8137,13 @@
     "alw-sales", "alw-allow", "alw-ret", "alw-giftcost", "alw-giftval", "alw-vc", "alw-vat",
     "lse-rent", "lse-years", "lse-rate", "lse-when",
     "gpm-r1", "gpm-c1", "gpm-r2", "gpm-c2", "gpm-qty",
-    "vtc-sales", "vtc-cost", "vtc-ded", "vtc-rate13", "vtc-rate3", "vtc-tax"
+    "vtc-sales", "vtc-cost", "vtc-ded", "vtc-rate13", "vtc-rate3", "vtc-tax",
+    "stp-m1", "stp-c1", "stp-q1", "stp-q2", "stp-m2", "stp-c2", "stp-scrap",
+    "mko-qty", "mko-vc", "mko-inv", "mko-life", "mko-opp", "mko-price", "mko-extra",
+    "rdt-rebate", "rdt-return", "rdt-stock", "rdt-tax",
+    "lbu-price", "lbu-rent", "lbu-years", "lbu-rate", "lbu-tax", "lbu-maint", "lbu-resid"
 ];
-  var KEY = "finance-calc-v39";
+  var KEY = "finance-calc-v40";
   var CAT_KEY = "finance-calc-cat";
 
   /* ---------------- 现金流月历 ---------------- */
