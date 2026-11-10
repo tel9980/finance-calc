@@ -7287,6 +7287,118 @@
         + "最后才是真正的错账或漏记。同金额多笔按出现顺序配对，所以明细顺序不影响结果。";
   }
 
+  function calcContractPerf() {
+    var price = num($("cfe-price"), 0), cost = num($("cfe-cost"), 0), actual = num($("cfe-actual"), 0);
+    var billed = num($("cfe-billed"), 0), cash = num($("cfe-cash"), 0);
+    if (price <= 0 || cost <= 0) {
+      $("cfe-big").textContent = "—"; $("cfe-rev").textContent = "—"; $("cfe-gp").textContent = "—";
+      $("cfe-rate").textContent = "—"; $("cfe-asset").textContent = "—"; $("cfe-ar").textContent = "—";
+      $("cfe-left").textContent = "—"; $("cfe-note").textContent = "合同总价和预计总成本都要大于 0。";
+      return;
+    }
+    var prog = Math.min(1, Math.max(0, actual / cost));
+    var rev = price * prog, gp = rev - actual;
+    var bal = rev - billed, ar = billed - cash;
+    var leftRev = price - rev, leftCost = Math.max(0, cost - actual);
+    $("cfe-big").textContent = fmt(prog * 100, 2);
+    $("cfe-rev").textContent = money(rev) + " 元";
+    $("cfe-gp").textContent = money(gp) + " 元";
+    $("cfe-rate").textContent = rev > 0 ? pct(gp / rev, 2) : "—";
+    $("cfe-asset").textContent = bal >= 0 ? "合同资产 " + money(bal) + " 元" : "合同负债 " + money(-bal) + " 元";
+    $("cfe-ar").textContent = money(ar) + " 元";
+    $("cfe-left").textContent = money(leftRev) + " / " + money(leftCost) + " 元";
+    var warn = cost > price ? "⚠ 预计总成本已经超过合同总价，这是亏损合同，要立刻确认预计损失 " + money(cost - price) + " 元，不能等完工。"
+      : "进度是按成本投入比推的，前提是「成本花得多就干得多」。";
+    $("cfe-note").textContent = warn
+      + "合同资产和应收账款要分开看：已经确认收入但还没到结算节点的是合同资产（有履约风险），"
+      + "已经开票的是应收（有信用风险）。已开票小于已确认收入，说明进度跑在结算前面，现金流会吃紧；"
+      + "反过来结算跑在前面就是合同负债。变更、索赔、奖励款只有在「很可能收到且能可靠计量」时才计入合同价。";
+  }
+
+  function calcRateAdj() {
+    var oldB = num($("sbr-old"), 0), newB = num($("sbr-new"), 0);
+    var pr = num($("sbr-pr"), 0) / 100, cr = num($("sbr-cr"), 0) / 100;
+    var mo = Math.max(0, Math.min(12, Math.round(num($("sbr-months"), 6))));
+    var wage = num($("sbr-wage"), 0);
+    var p0 = oldB * pr, p1 = newB * pr, c0 = oldB * cr, c1 = newB * cr;
+    var dp = p1 - p0, dc = c1 - c0, tot = dp + dc;
+    $("sbr-big").textContent = fmt(tot, 2);
+    $("sbr-p").textContent = money(p0) + " → " + money(p1) + " 元（" + (dp >= 0 ? "+" : "") + money(dp) + "）";
+    $("sbr-c").textContent = money(c0) + " → " + money(c1) + " 元（" + (dc >= 0 ? "+" : "") + money(dc) + "）";
+    $("sbr-net").textContent = (dp <= 0 ? "多拿 " : "少拿 ") + money(Math.abs(dp)) + " 元 / 月";
+    $("sbr-back").textContent = money(tot * mo) + " 元（个人 " + money(dp * mo) + "，单位 " + money(dc * mo) + "）";
+    $("sbr-year").textContent = money(tot * 12) + " 元（个人 " + money(dp * 12) + "，单位 " + money(dc * 12) + "）";
+    var cap = "未触及填写的基数";
+    if (wage > 0 && newB > 0 && newB / wage > 3) cap = "新基数超过工资 3 倍，检查是否填成上限";
+    if (newB < oldB) cap = "新基数比旧的低，注意是否漏了补差方向";
+    $("sbr-cap").textContent = cap;
+    $("sbr-note").textContent = "各地缴费基数按上年度全口径社平工资的 60%–300% 设上下限，工资低于下限按下限缴、高于上限按上限缴，"
+      + "所以「按实际工资缴」这句话只在区间内成立。调基后 1 月起的差额通常一次性补缴或退费，"
+      + "在职月份才补，年中入职的按入职月算；员工年中离职的，补差仍要结清。"
+      + "公积金是另一套上下限和另一套比例，别和社保混算。上面的比例要按当地险种组合填，"
+      + "个人一般只有养老 8%、医疗 2%、失业 0.3%–0.5%，单位还含工伤和生育。";
+  }
+
+  function calcCreditPolicy() {
+    var sales = num($("cpl-sales"), 0), cm = 1 - num($("cpl-vc"), 0) / 100;
+    var d1 = num($("cpl-d1"), 0), b1 = num($("cpl-b1"), 0) / 100;
+    var d2 = num($("cpl-d2"), 0), b2 = num($("cpl-b2"), 0) / 100;
+    var disc = num($("cpl-disc"), 0) / 100, dd = num($("cpl-dd"), 0);
+    var take = Math.min(1, Math.max(0, num($("cpl-take"), 0) / 100));
+    var k = num($("cpl-cost"), 0) / 100;
+    var o1 = sales / 360 * d1, oc1 = o1 * k, bad1 = sales * b1, net1 = sales * cm - oc1 - bad1;
+    var avgD = take * dd + (1 - take) * d2;
+    var o2 = sales / 360 * avgD, oc2 = o2 * k, dcost = sales * disc * take, bad2 = sales * b2;
+    var net2 = sales * cm - dcost - oc2 - bad2, diff = net2 - net1;
+    var ann = (d2 - dd) > 0 ? disc / (1 - disc) * 360 / (d2 - dd) : 0;
+    $("cpl-big").textContent = fmt(diff, 2);
+    $("cpl-o1").textContent = money(o1) + " / " + money(oc1) + " 元";
+    $("cpl-n1").textContent = money(bad1) + " / " + money(net1) + " 元";
+    $("cpl-ad").textContent = fmt(avgD, 1) + " 天";
+    $("cpl-o2").textContent = money(o2) + " / " + money(oc2) + " 元";
+    $("cpl-n2").textContent = money(dcost) + " / " + money(bad2) + " 元";
+    $("cpl-n3").textContent = money(net2) + " 元";
+    $("cpl-ann").textContent = ann > 0 ? pct(ann, 2) : "—";
+    var head = diff >= 0 ? "新政策更划算，一年多赚 " + money(diff) + " 元。"
+      : "新政策不划算，一年少赚 " + money(-diff) + " 元，除非短账期能带来更多订单。";
+    $("cpl-note").textContent = head
+      + " 折扣的真实代价要折成年化：" + (ann > 0 ? "放弃折扣等于按 " + pct(ann, 2) + " 年化借钱，" : "")
+      + " 比一般流贷贵得多，所以客户几乎都会享受折扣，实际享受比例别按宣传填、按历史数据填。"
+      + " 账期缩短省的只是资金占用，坏账率的下降才往往是大头；而折扣成本是硬支出，"
+      + " 三者要一起算，只看「账期从 60 天压到 30 天」是假优化。收紧信用还会掉一部分销量，这里按销售收入不变处理。";
+  }
+
+  function calcProjRev() {
+    var rev = num($("prj-rev"), 0), cost = num($("prj-cost"), 0), actual = num($("prj-actual"), 0);
+    var prior = num($("prj-prior"), 0), pcost = num($("prj-pcost"), 0), billed = num($("prj-billed"), 0);
+    if (rev <= 0 || cost <= 0) {
+      $("prj-big").textContent = "—"; $("prj-pct").textContent = "—"; $("prj-cum").textContent = "—";
+      $("prj-cst").textContent = "—"; $("prj-gp").textContent = "—"; $("prj-asset").textContent = "—";
+      $("prj-left").textContent = "—"; $("prj-done").textContent = "—";
+      $("prj-note").textContent = "合同总收入和预计总成本都要大于 0。";
+      return;
+    }
+    var pctDone = Math.min(1, Math.max(0, actual / cost));
+    var cum = rev * pctDone, period = cum - prior;
+    var pc = Math.max(0, actual - pcost);
+    var gpPeriod = period - pc, gpCum = cum - actual;
+    var asset = cum - billed, leftCost = Math.max(0, cost - actual);
+    $("prj-big").textContent = money(period);
+    $("prj-pct").textContent = pct(pctDone, 2);
+    $("prj-cum").textContent = money(cum) + " 元";
+    $("prj-cst").textContent = money(pc) + " 元";
+    $("prj-gp").textContent = money(gpPeriod) + " / " + money(gpCum) + " 元";
+    $("prj-asset").textContent = asset >= 0 ? money(asset) + " 元" : "合同负债 " + money(-asset) + " 元";
+    $("prj-left").textContent = money(leftCost) + " 元";
+    $("prj-done").textContent = "按完成合同法本期确认 0，差 " + money(period) + " 元收入往后推";
+    $("prj-note").textContent = "建造合同、工程、定制软件这类「在客户场地上造、别人拿去没用」的项目，"
+      + "只要履约进度能可靠计量，就必须按进度确认收入，不能等验收一次性确认（那是旧准则的做法）。"
+      + " 进度用「累计已发生成本 ÷ 预计总成本」最常用，但前提是成本与履约进度基本同步；"
+      + " 如果材料一次投入很多（比如钢结构、设备到货即入成本），投入法会高估进度，这时该用「已完成的工程量/工作量」或「已施工天数」。"
+      + " 预计总成本要随项目滚动更新，一旦预计总成本超过合同收入，差额要立即全额确认预计损失。"
+      + " 已结算小于已确认收入的部分是合同资产，不是应收，别混在应收账款里做坏账计提。";
+  }
+
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
@@ -7323,7 +7435,8 @@
     numwords: calcNumWords, duedate: calcDueDate, workday: calcWorkDay, cagr: calcCagr, apportion: calcApportion, grossup: calcGrossUp,
     trprice: calcTrPrice, esop: calcEsop, rdexp: calcRdExp, rollfc: calcRollFC,
     commission: calcCommission, capex: calcCapex, pooling: calcPooling, creditlimit: calcCreditLimit,
-    datemath: calcDatemath, pct3: calcPct3, xlhelp: calcXlHelp, csvrecon: calcCsvRecon
+    datemath: calcDatemath, pct3: calcPct3, xlhelp: calcXlHelp, csvrecon: calcCsvRecon,
+    contractperf: calcContractPerf, projrev: calcProjRev, creditpolicy: calcCreditPolicy, rateadj: calcRateAdj
   };
 
   var curCat = "hot", curSub = "";
@@ -7552,9 +7665,13 @@
 "cm-sales", "cm-ret", "cm-gm", "cm-sr", "cm-gr", "cm-achv", "cm-cash", "cpx-inv", "cpx-cf", "cpx-years", "cpx-rate", "cpx-rv", "pool-idle", "pool-a", "pool-b", "pool-in", "pool-out", "pool-demand", "pool-rate", "pool-wealth", "pool-equity", "crl-buy", "crl-term", "crl-vat", "crl-gm", "crl-netw", "crl-lev", "crl-late", "crl-cost", "bpl-rev", "bpl-grow", "bpl-gm", "bpl-opex", "bpl-dep", "bpl-tax", "bpl-dso", "bpl-dio", "bpl-dpo", "bpl-cash", "bpl-big", "bpl-rev2", "bpl-gp", "bpl-op", "bpl-margin", "bpl-wc", "bpl-nwc", "bpl-wcgap", "bpl-free", "bpl-body", "bpl-note", "rf-exp", "rf-reb", "rf-rate", "rf-lag", "rf-audit", "rf-cost", "rf-big", "rf-month", "rf-year", "rf-days", "rf-costv", "rf-gap", "rf-ten", "rf-opt", "rf-advice", "rf-body", "rf-note", "cal-oh", "cal-qa", "cal-qb", "cal-qc", "cal-ha", "cal-hb", "cal-hc", "cal-ma", "cal-mb", "cal-mc", "cal-ta", "cal-tb", "cal-tc", "cal-big", "cal-which", "cal-totals", "cal-r1", "cal-r2", "cal-r3", "cal-pick", "cal-price", "cal-body", "cal-note", "ic-fob", "ic-frt", "ic-ins", "ic-fx", "ic-duty", "ic-cons", "ic-vat", "ic-port", "ic-agent", "ic-qty", "ic-big", "ic-cif", "ic-dutyv", "ic-consv", "ic-vatv", "ic-fees", "ic-land", "ic-cash", "ic-ratio", "ic-body", "ic-note", "tp-cost", "tp-price", "tp-inner", "tp-ratea", "tp-rateb", "tp-lo", "tp-hi", "tp-big", "tp-a", "tp-b", "tp-profit", "tp-rate", "tp-low", "tp-high", "tp-save", "tp-per", "tp-body", "tp-note", "es-shares", "es-fair", "es-strike", "es-years", "es-leave", "es-tax", "es-big", "es-per", "es-qty", "es-flat", "es-acc", "es-diff", "es-dta", "es-deduct", "es-advice", "es-body", "es-note", "rd-labor", "rd-mat", "rd-dep", "rd-other", "rd-pct", "rd-tax", "rd-big", "rd-total", "rd-cap", "rd-effect", "rd-base", "rd-save", "rd-eff", "rd-lost", "rd-body", "rd-note", "rl-bud", "rl-passed", "rl-act", "rl-rest", "rl-gmb", "rl-gma", "rl-big", "rl-rate", "rl-gap", "rl-expect", "rl-pace", "rl-need", "rl-delta", "rl-gp", "rl-advice", "rl-body", "rl-note", "mob-q", "mob-vu", "mob-avo", "mob-price", "mob-extra", "mob-rent", "mob-fixall", "mob-big", "mob-self", "mob-buy", "mob-unit", "mob-crit", "mob-qcrit", "mob-pick", "mob-wrong", "mob-body", "mob-note", "ecl-a1", "ecl-a2", "ecl-a3", "ecl-a4", "ecl-a5", "ecl-r1", "ecl-r2", "ecl-r3", "ecl-r4", "ecl-r5", "ecl-adj", "ecl-prev", "ecl-big", "ecl-total", "ecl-base", "ecl-adjv", "ecl-delta", "ecl-ratio", "ecl-loss", "ecl-tax", "ecl-body", "ecl-note", "qf-cost", "qf-qty", "qf-dyn", "qf-port", "qf-gm", "qf-comm", "qf-fx", "qf-frt", "qf-ins", "qf-big", "qf-fob", "qf-comv", "qf-real", "qf-frtv", "qf-insv", "qf-cif", "qf-profit", "qf-fxrisk", "qf-body", "qf-note", "cap-q", "cap-p", "cap-va", "cap-ca", "cap-fa", "cap-vb", "cap-cb", "cap-fb", "cap-fixa", "cap-fixb", "cap-out", "cap-big", "cap-a", "cap-b", "cap-cm", "cap-fix", "cap-wrong", "cap-gap", "cap-outv", "cap-body", "cap-note", "mold-fee", "mold-life", "mold-price", "mold-vc", "mold-q", "mold-disc", "mold-big", "mold-per", "mold-perq", "mold-m1", "mold-m2", "mold-total", "mold-min1", "mold-verdict", "mold-body", "mold-note", "reb-base", "reb-gm", "reb-t1", "reb-p1", "reb-t2", "reb-p2", "reb-t3", "reb-p3", "reb-big", "reb-cur", "reb-now", "reb-rate", "reb-pick", "reb-crit", "reb-advice", "reb-body", "reb-note", "sc-q", "sc-mq", "sc-mp", "sc-maq", "sc-map", "sc-lh", "sc-lr", "sc-lah", "sc-lar", "sc-vr", "sc-va", "sc-fb", "sc-fa", "sc-big", "sc-mat", "sc-lab", "sc-voh", "sc-foh", "sc-dir", "sc-owner", "sc-ratio", "sc-body", "sc-note", "svc-d", "svc-sd", "svc-lt", "svc-sl", "svc-ann", "svc-lot", "svc-hold", "svc-out", "svc-big", "svc-z", "svc-ltd", "svc-rop", "svc-cost", "svc-total", "svc-best", "svc-up", "svc-body", "svc-note", "txj-rev", "txj-profit", "txj-ent", "txj-ad", "txj-fine", "txj-don", "txj-rd", "txj-rdr", "txj-pre", "txj-big", "txj-entv", "txj-adv", "txj-donv", "txj-finev", "txj-rdv", "txj-tax", "txj-due", "txj-rate", "txj-body", "txj-note", "spl-tot", "spl-t1", "spl-t2", "spl-t3", "spl-t4", "spl-t5", "spl-days", "spl-loss", "spl-big", "spl-top1", "spl-sum", "spl-hhi", "spl-level", "spl-gap", "spl-cost", "spl-advice", "spl-body", "spl-note", "dtc-loan", "dtc-eq", "dtc-rate", "dtc-bank", "dtc-mult", "dtc-big", "dtc-ratio", "dtc-lim", "dtc-paid", "dtc-ratecap", "dtc-multcap", "dtc-final", "dtc-tax", "dtc-advice", "dtc-note", "adp-cost", "adp-life", "adp-salv", "adp-tax", "adp-disc", "adp-big", "adp-acc", "adp-taxdep", "adp-diff", "adp-later", "adp-pv", "adp-net", "adp-yield", "adp-advice", "adp-body", "adp-note", "cwin-ra", "cwin-da", "cwin-ba", "cwin-fa", "cwin-sa", "cwin-ta", "cwin-ga", "cwin-rb", "cwin-db", "cwin-bb", "cwin-fb", "cwin-sb", "cwin-tb", "cwin-gb", "cwin-rc", "cwin-dc", "cwin-bc", "cwin-fc", "cwin-sc", "cwin-tc", "cwin-gc", "cwin-cost", "cwin-big", "cwin-rank", "cwin-total", "cwin-mix", "cwin-cuts", "cwin-occ", "cwin-worst", "cwin-advice", "cwin-body", "cwin-note", "upg-oldrun", "upg-oldmt", "upg-oldsale", "upg-oldlife", "upg-oldsalv", "upg-newinv", "upg-newlife", "upg-newrun", "upg-newmt", "upg-newsalv", "upg-rate", "upg-big", "upg-old", "upg-new", "upg-verdict", "upg-maxinv", "upg-energy", "upg-delay", "upg-body", "upg-note", "da-s1", "da-s12", "da-a1", "da-s2", "da-s21", "da-a2", "da-big", "da-d", "da-s", "da-r", "da-true", "da-sum", "da-pick", "da-body", "da-note", "po-ret", "po-np", "po-share", "po-ratio", "po-tax", "po-roe", "po-loan", "po-big", "po-div", "po-sharev", "po-keep", "po-nodiv", "po-ind", "po-risk", "po-alltax", "po-body", "po-note", "nw-amount", "nw-prefix", "ud-start", "ud-days", "ud-basis", "ud-amt", "ud-rate", "ud-today", "wd-a", "wd-b", "wd-hol", "wd-n", "cg-from", "cg-to", "cg-years", "apc-total", "apc-w", "gu-net", "gu-rate", "gu-spec", "gu-thr",
     "dtm-date", "dtm-months", "dtm-days",
     "pct-a", "pct-b", "pct-p1", "pct-p2",
-    "rk-tol"
+    "rk-tol",
+    "cfe-price", "cfe-cost", "cfe-actual", "cfe-billed", "cfe-cash",
+    "sbr-wage", "sbr-old", "sbr-new", "sbr-pr", "sbr-cr", "sbr-months",
+    "cpl-sales", "cpl-vc", "cpl-d1", "cpl-b1", "cpl-d2", "cpl-b2", "cpl-disc", "cpl-dd", "cpl-take", "cpl-cost",
+    "prj-rev", "prj-cost", "prj-actual", "prj-billed", "prj-prior", "prj-pcost"
 ];
-  var KEY = "finance-calc-v35";
+  var KEY = "finance-calc-v36";
   var CAT_KEY = "finance-calc-cat";
 
   /* ---------------- 现金流月历 ---------------- */
