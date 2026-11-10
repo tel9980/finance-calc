@@ -2054,7 +2054,8 @@
     repayvs: calcRepayVs, edu: calcEdu, insure: calcInsure, car: calcCar,
     bonus: calcBonus, deduct: calcDeduct, ladder: calcLadder, rentyield: calcRentYield,
     settle: calcSettle, balance: calcBalance, selfins: calcSelfIns, underpay: calcUnderpay,
-    loanways: calcLoanWays, dca: calcDCA, checkup: calcCheckup, calendar: calcCalendar
+    loanways: calcLoanWays, dca: calcDCA, checkup: calcCheckup, calendar: calcCalendar,
+    cashflow: calcCashflow, zeroloan: calcZeroLoan, riskalloc: calcRiskAlloc, penalty: calcPenalty
   };
 
   function activate(name) {
@@ -2122,9 +2123,275 @@
     "dc-amount", "dc-months", "dc-return", "dc-vol", "dc-hold", "dc-cash",
     "ck-income", "ck-expense", "ck-debt", "ck-edu", "ck-assets",
     "ck-haveLife", "ck-haveCI", "ck-haveAcc", "ck-premium",
-    "cl-total", "cl-count", "cl-gap", "cl-term", "cl-rate", "cl-start"
+    "cl-total", "cl-count", "cl-gap", "cl-term", "cl-rate", "cl-start",
+    "cf-open", "cf-income", "cf-payday", "cf-loan", "cf-loanday", "cf-card", "cf-cardday", "cf-living",
+    "zl-amount", "zl-months", "zl-fee", "zl-discount", "zl-rate",
+    "ra-age", "ra-years", "ra-dd", "ra-stable", "ra-cap",
+    "py-balance", "py-rate", "py-months", "py-lump", "py-fee", "py-invest"
   ];
-  var KEY = "finance-calc-v10";
+  var KEY = "finance-calc-v11";
+
+  /* ---------------- 现金流月历 ---------------- */
+  function calcCashflow() {
+    var open = Math.max(0, num($("cf-open"), 0));
+    var inc = Math.max(0, num($("cf-income"), 0));
+    var payday = Math.min(31, Math.max(1, Math.round(num($("cf-payday"), 10))));
+    var loan = Math.max(0, num($("cf-loan"), 0));
+    var loanday = Math.min(31, Math.max(1, Math.round(num($("cf-loanday"), 20))));
+    var card = Math.max(0, num($("cf-card"), 0));
+    var cardday = Math.min(31, Math.max(1, Math.round(num($("cf-cardday"), 25))));
+    var living = Math.max(0, num($("cf-living"), 0));
+    var daily = living / 30;
+
+    var evs = [];
+    if (inc > 0) evs.push({ day: payday, label: "发薪", amt: inc });
+    if (loan > 0) evs.push({ day: loanday, label: "房贷 / 房租", amt: -loan });
+    if (card > 0) evs.push({ day: cardday, label: "信用卡还款", amt: -card });
+    evs.sort(function (a, b) { return a.day - b.day; });
+
+    var bal = open, mn = open, mnDay = 1, rows = [], ei = 0;
+    for (var d = 1; d <= 30; d++) {
+      while (ei < evs.length && evs[ei].day === d) {
+        bal += evs[ei].amt;
+        rows.push({ day: d, label: evs[ei].label, amt: evs[ei].amt, bal: bal, key: true });
+        ei++;
+      }
+      bal -= daily;
+      if (bal < mn) { mn = bal; mnDay = d; }
+    }
+    rows.push({ day: 30, label: "月末", amt: 0, bal: bal, key: true });
+
+    var body = $("cf-body");
+    body.innerHTML = "";
+    var hasMinRow = false;
+    for (var r = 0; r < rows.length; r++) {
+      if (rows[r].day === mnDay && rows[r].key) hasMinRow = true;
+    }
+    var out = rows.slice();
+    if (!hasMinRow) {
+      out.push({ day: mnDay, label: "余额最低（日常开销累积所致）", amt: 0, bal: mn, key: false });
+      out.sort(function (a, b) { return a.day - b.day; });
+    }
+    for (var o = 0; o < out.length; o++) {
+      var it = out[o];
+      var cells = [it.day + " 日", it.label,
+        it.amt === 0 ? "—" : (it.amt > 0 ? "+" : "−") + money(Math.abs(it.amt)),
+        money(it.bal)];
+      var tr = document.createElement("tr");
+      for (var j = 0; j < cells.length; j++) {
+        var td = document.createElement("td");
+        td.textContent = cells[j];
+        tr.appendChild(td);
+      }
+      body.appendChild(tr);
+    }
+
+    var net = inc - loan - card - living;
+    var need = Math.max(0, open - mn);
+    var bigAmt = 0, bigName = "—";
+    if (loan > 0 && loan >= card && loan >= living) { bigAmt = loan; bigName = "房贷 / 房租 " + money(loan); }
+    else if (card >= living && card > 0) { bigAmt = card; bigName = "信用卡 " + money(card); }
+    else if (living > 0) { bigAmt = living; bigName = "日常开销 " + money(living); }
+
+    $("cf-min").textContent = money(mn);
+    $("cf-minday").textContent = "第 " + mnDay + " 天";
+    $("cf-end").textContent = yuan(bal);
+    $("cf-net").textContent = (net >= 0 ? "+" : "−") + money(Math.abs(net));
+    $("cf-need").textContent = mn >= 0
+      ? "不用额外备（最低点还剩 " + money(mn) + " 元）"
+      : money(open - mn) + " 元（现在差 " + money(-mn) + " 元）";
+    $("cf-big").textContent = bigName;
+
+    $("cf-note").textContent = "月初 " + money(open) + "、月收入 " + money(inc) + "（" + payday + " 日到账）、"
+      + "房贷/房租 " + money(loan) + "（" + loanday + " 日扣）、信用卡 " + money(card) + "（" + cardday + " 日还）、"
+      + "日常开销 " + money(living) + "（按每天 " + money(daily) + " 摊）。"
+      + " 月底算下来净结余 " + (net >= 0 ? "+" : "−") + money(Math.abs(net)) + "，看着还行；"
+      + " 但真正危险的是第 " + mnDay + " 天：那一刻账上只剩 " + money(mn) + " 元。"
+      + (mn < 0
+        ? " 已经破零了——发薪日之前要先垫 " + money(-mn) + " 元，否则就是信用卡取现或者花呗。"
+        : (mn < inc * 0.5
+          ? " 还没破零，但最紧的时候账上只剩 " + money(mn) + " 元，遇到一笔意外支出就会断。"
+          : " 最低点还剩 " + money(mn) + " 元，这个月的现金节奏是安全的。"))
+      + " 这就是「月底有结余、月中却周转不开」的由来：结余是整月平均的结果，现金流是按天发生的。"
+      + " 三个可操作的动作：① 把房贷扣款日调到发薪日后 1–3 天（多数银行 App 就能改），能省掉整个月的垫资；"
+      + "② 信用卡账单日和还款日错开，账单日刚过就花的钱有近 50 天免息期，把大额消费挪到账单日之后；"
+      + "③ 留一笔「缓冲金」＝ 上面那个最低点缺口 ×2，放货币基金，别动它。"
+      + " 这张表只算一个月，且假设日常开销每天均匀发生；真实情况是月初月末花得多，那最低点还会更低，缓冲金按缺口 ×2 备才稳。";
+  }
+
+  /* ---------------- 0 利率真实成本 ---------------- */
+  function calcZeroLoan() {
+    var A = Math.max(0, num($("zl-amount"), 0));
+    var n = months(num($("zl-months"), 24));
+    var fee = Math.max(0, num($("zl-fee"), 0));
+    var disc = Math.max(0, num($("zl-discount"), 0));
+    var r = Math.max(0, num($("zl-rate"), 0)) / 100;
+
+    var m = A / n;
+    /* IRR：t0 拿到 A 但先付手续费，之后每月还 m */
+    function npv(i) {
+      var v = A - fee;
+      for (var t = 1; t <= n; t++) v -= m / Math.pow(1 + i, t);
+      return v;
+    }
+    var lo = 0, hi = 1, irr = 0;
+    if (npv(0) < 0) {
+      for (var it = 0; it < 200; it++) {
+        var mid = (lo + hi) / 2;
+        if (npv(mid) < 0) lo = mid; else hi = mid;
+      }
+      irr = (lo + hi) / 2;
+    }
+    var real = irr * 12 * 100;
+
+    /* 留存资金按月递减的理财收益 */
+    var im = r / 12, gain = 0, b = A;
+    for (var t2 = 1; t2 <= n; t2++) { gain += b * im; b -= m; if (b < 0) b = 0; }
+
+    var cost = fee + disc;
+    var netv = gain - cost;
+
+    $("zl-real").textContent = fmt(real, 2);
+    $("zl-pay").textContent = yuan(m);
+    $("zl-feepct").textContent = A > 0 ? pct(fee / A, 2) : "—";
+    $("zl-feeapr").textContent = m > 0 ? fmt(fee / m, 2) + " 个月" : "—";
+    $("zl-cost").textContent = yuan(cost);
+    $("zl-gain").textContent = yuan(gain);
+    $("zl-net").textContent = netv >= 0
+      ? "贷款更划算 " + money(netv) + " 元"
+      : "全款更划算 " + money(-netv) + " 元";
+
+    $("zl-note").textContent = "「0 利率」只是把利息换了个名字叫手续费。" + money(A) + " 元分 " + n + " 期、每期 " + money(m)
+      + " 元，如果只收 " + money(fee) + " 元手续费，折成真实年化是 " + fmt(real, 2) + "%——"
+      + " 算法是把手续费摊到每期现金里算 IRR，和信用卡分期的口径一致。"
+      + (fee > 0 ? " 直观理解：手续费 " + pct(fee / A, 2) + " 听起来很低，但你的本金是逐月减少的，平均只占用一半，所以真实年化约等于费率 × 2 ÷ 年数。"
+                 : " 手续费填 0 时真实成本就是 0%，这套算法会老老实实告诉你「这次确实免费」。")
+      + " 另一半成本更容易被忽略：全款通常能多要优惠（" + money(disc) + " 元），贷款就拿不到，这笔钱也是贷款的代价。"
+      + " 把「手续费 " + money(fee) + " + 放弃的优惠 " + money(disc) + "」和「钱留在手上按 " + pct(r, 1) + " 赚到的 " + money(gain) + "」相减："
+      + (netv >= 0
+        ? "净赚 " + money(netv) + " 元，这种情况下贷款确实划算——但前提是你真的有稳定的理财去处，且不会把钱花掉。"
+        : "净亏 " + money(-netv) + " 元，全款更划算。这里最容易被销售话术套住的一句话就是「免息，等于白借」。")
+      + " 还有三件事要问清：① 手续费是一次性先收还是摊进月供（先收的实际成本更高）；② 是否捆绑保险、GPS、延保，这些都要折进总价；③ 提前还款是否还要收剩余手续费。"
+      + " 车贷、装修贷、家电分期都是这套算法，把金额和手续费换一下就行。";
+  }
+
+  /* ---------------- 风险测评与配置 ---------------- */
+  function calcRiskAlloc() {
+    var age = Math.min(80, Math.max(18, Math.round(num($("ra-age"), 30))));
+    var years = Math.max(0, num($("ra-years"), 10));
+    var dd = Math.max(0, Math.min(60, num($("ra-dd"), 20)));
+    var stable = $("ra-stable").value;
+    var cap = Math.max(0, num($("ra-cap"), 0));
+
+    var eq = 100 - age;
+    var adjY = years >= 10 ? 10 : (years >= 5 ? 0 : (years >= 3 ? -8 : -15));
+    var adjD = dd >= 30 ? 10 : (dd >= 20 ? 0 : (dd >= 10 ? -10 : -20));
+    var adjS = stable === "stable" ? 5 : (stable === "normal" ? 0 : -10);
+    eq = eq + adjY + adjD + adjS;
+    eq = Math.max(10, Math.min(90, Math.round(eq / 5) * 5));
+
+    var debt = Math.round((100 - eq) * 0.75);
+    var cash = 100 - eq - debt;
+    var ret = (eq * 0.06 + debt * 0.03 + cash * 0.015) / 100;
+    var worst = -(eq * 0.35) / 100 + (debt * 0.02 + cash * 0.015) / 100;
+    var level = eq <= 25 ? "保守型" : (eq <= 45 ? "稳健型" : (eq <= 65 ? "平衡型" : (eq <= 80 ? "进取型" : "激进型")));
+
+    $("ra-eq").textContent = eq + "";
+    $("ra-level").textContent = level;
+    $("ra-mix").textContent = eq + "% / " + debt + "% / " + cash + "%";
+    $("ra-amt").textContent = cap > 0
+      ? money(cap * eq / 100) + " / " + money(cap * debt / 100) + " / " + money(cap * cash / 100) + " 元"
+      : "填入金额后显示";
+    $("ra-ret").textContent = pct(ret, 2);
+    $("ra-loss").textContent = pct(Math.abs(worst), 1)
+      + (cap > 0 ? "（约 " + money(cap * Math.abs(worst)) + " 元）" : "");
+    $("ra-reb").textContent = eq >= 60 ? "每年一次，或偏离 5 个百分点就调回" : "每年一次，或偏离 10 个百分点就调回";
+
+    $("ra-note").textContent = "按年龄 " + age + " 岁、这笔钱 " + fmt(years, 0) + " 年不用、最多能忍 " + fmt(dd, 0) + "% 的回撤、收入"
+      + (stable === "stable" ? "稳定" : (stable === "normal" ? "一般" : "波动大"))
+      + "算，股票类资产给 " + eq + "%（基准是 100 − 年龄 = " + (100 - age) + "%，再按期限 " + (adjY >= 0 ? "+" : "") + adjY
+      + "、回撤容忍 " + (adjD >= 0 ? "+" : "") + adjD + "、收入稳定性 " + (adjS >= 0 ? "+" : "") + adjS + " 修正，上下限 10%–90%）。"
+      + " 长期预期年化 " + pct(ret, 2) + "（股票 6%、债券 3%、现金 1.5% 的长期中枢，不是今年的数字）；"
+      + " 但真正要先接受的是一头：股票极端年份跌 35% 时，这个组合大概亏 " + pct(Math.abs(worst), 1)
+      + (cap > 0 ? "，也就是 " + money(cap * Math.abs(worst)) + " 元" : "") + "。"
+      + " 判断标准很简单：把上面那个亏损金额念出来，如果这个数字会让你睡不着、或者你会在那时候清仓，那就把股票比例往下调 10–20 个百分点，一直调到你真能坐住为止。"
+      + " 配置上限是由「跌了会不会卖」决定的，不是由收益期望决定的——一个拿不住的 80% 股，长期收益不如一个拿得住的 50% 股。"
+      + " 几条纪律：① 先留 3–6 个月支出做应急金，这笔钱不进这个配置；② 债券部分用短债/中短债基金，别用长久期；"
+      + "③ 再平衡是这套方法里唯一真正「自动低买高卖」的动作，别省掉；④ 三年内要用的钱（首付、学费）一分都不要放股票。";
+  }
+
+  /* ---------------- 提前还款违约金临界点 ---------------- */
+  function calcPenalty() {
+    var P = Math.max(0, num($("py-balance"), 0));
+    var rate = Math.max(0, num($("py-rate"), 0)) / 100;
+    var N = months(num($("py-months"), 0));
+    var L = Math.min(Math.max(0, num($("py-lump"), 0)), P);
+    var fr = Math.max(0, num($("py-fee"), 0)) / 100;
+    var inv = Math.max(0, num($("py-invest"), 0)) / 100;
+
+    var i = rate / 12;
+    var pay = annuityPayment(P, i, N);
+    var baseInt = pay * N - P;
+
+    var bal = P - L, k = 0, intA = 0;
+    while (bal > 0.005 && k < 1200) {
+      var ip = bal * i;
+      var pr = pay - ip;
+      if (pr >= bal) pr = bal;
+      intA += ip; bal -= pr; k++;
+    }
+    var save = Math.max(0, baseInt - intA);
+    var penAmt = L * fr;
+    var netSave = save - penAmt;
+
+    /* 现金流 IRR：现在掏 L+违约金，换来「少还 N−k 期月供」 */
+    function irrOf(feeExtra) {
+      var f = function (x) {
+        var v = -(L + feeExtra);
+        for (var t = k + 1; t <= N; t++) v += pay / Math.pow(1 + x, t);
+        return v;
+      };
+      if (L <= 0 || k >= N) return 0;
+      if (f(0) <= 0) return 0;
+      var lo = -0.0001, hi = 0.5;
+      for (var it = 0; it < 200; it++) {
+        var mid = (lo + hi) / 2;
+        if (f(mid) > 0) lo = mid; else hi = mid;
+      }
+      return (lo + hi) / 2 * 12;
+    }
+    var irrWith = irrOf(penAmt) * 100;
+    var irrNo = irrOf(0) * 100;
+
+    $("py-net").textContent = money(netSave);
+    $("py-pay").textContent = yuan(pay) + " × " + N + " 期";
+    $("py-int0").textContent = yuan(baseInt);
+    $("py-int1").textContent = yuan(intA) + "（" + k + " 期还完）";
+    $("py-save").textContent = yuan(save);
+    $("py-feeamt").textContent = yuan(penAmt) + "（" + pct(fr, 2) + "）";
+    $("py-irr").textContent = pct(irrWith / 100, 2) + "（无违约金 " + pct(irrNo / 100, 2) + "）";
+    $("py-crit").textContent = pct(inv, 2) + " → " + (irrWith > inv * 100 ? "该还" : "不该还");
+
+    if (L <= 0) {
+      $("py-note").textContent = "先填「这次提前还多少」再看结论。判断逻辑很简单：提前还款等于一笔「按你自己的贷款利率」的无风险投资，"
+        + "所以只要你的贷款利率高于你能稳定拿到的税后理财收益，提前还就是划算的；违约金通常只是把这个收益压低零点几个百分点。";
+      return;
+    }
+    $("py-note").textContent = "提前还 " + money(L) + " 元、交 " + money(penAmt) + " 元违约金，换来「少还 "
+      + Math.max(0, N - k) + " 期月供」，省下利息 " + money(save) + " 元，净省 " + money(netSave) + " 元。"
+      + " 但「省了多少利息」这个数字有欺骗性——它没考虑时间。把这些现金流排到时间轴上算 IRR，"
+      + "这次提前还款的等效年化收益是 " + pct(irrWith / 100, 2) + "（不交违约金时 " + pct(irrNo / 100, 2) + "）。"
+      + " 而你的贷款利率是 " + pct(rate, 2) + "——两者本来就该相等，因为提前还款做的唯一一件事，就是「按原利率买回自己的债」。"
+      + " 所以别纠结省了多少利息，只问一句：这笔钱不还贷，能不能稳定拿到超过 " + pct(irrWith / 100, 2) + " 的税后收益？"
+      + (irrWith > inv * 100
+        ? " 你现在填的理财收益是 " + pct(inv, 2) + "，低于这个数，所以提前还是划算的，差距约 " + fmt((irrWith - inv * 100), 2) + " 个百分点，而且是无风险的。"
+        : " 你现在填的理财收益是 " + pct(inv, 2) + "，已经高过这个数，那就别提前还——但请确认这个收益是稳定到手的，不是某一年撞上的。")
+      + " 关于违约金本身：这次省息 " + money(save) + " 元对 " + money(L) + " 元本金，意味着违约金率要收到 "
+      + pct(save / (L > 0 ? L : 1), 1) + " 才刚好抵消，所以 1%–3% 的违约金基本不构成障碍，"
+      + "真正要注意的是「还款未满一年收违约金、每年只能还 N 次、必须是万元整数倍」这类条款，"
+      + "以及组合贷要先还利率高的商贷那头。最后一句提醒：提前还款换来的「省息」是纸面确定、现金不确定——"
+      + "它减少的是未来支出，不会让账上多出一分钱，所以必须先留足应急金再动手。";
+  }
 
   function save() {
     try {

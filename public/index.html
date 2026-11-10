@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>财务计算器 · 存款 贷款 房贷 个税 社保 保单体检 定投 到期日历</title>
-<meta name="description" content="免费的财务计算器（39 个模块）：存款利息、贷款月供与还款计划、组合贷、提前还款省息、复利与定投、攒钱目标、分期真实年化、年化收益、通胀购买力、个税与到手工资、租房还是买房、信用卡循环利息、汇率与单位换算、公积金可贷额度、利率调整后月供、二手房交易税费、AA 分摊、退休金测算、卖房换房、公积金月冲年冲、多币种折算、提前还款 vs 理财、教育金、保险保额、买车 vs 打车、年终奖拆分、专项附加扣除、存单阶梯、租售比、年度汇算退税、家庭资产负债、灵活就业社保、社保少缴核查、三种还法对撞、定投 vs 一次性、保单体检、到期日历。纯前端计算，不联网、不上传数据。">
+<title>财务计算器 · 存款 贷款 房贷 个税 社保 现金流 风险配置 违约金</title>
+<meta name="description" content="免费的财务计算器（43 个模块）：存款利息、贷款月供与还款计划、组合贷、提前还款省息、复利与定投、攒钱目标、分期真实年化、年化收益、通胀购买力、个税与到手工资、租房还是买房、信用卡循环利息、汇率与单位换算、公积金可贷额度、利率调整后月供、二手房交易税费、AA 分摊、退休金测算、卖房换房、公积金月冲年冲、多币种折算、提前还款 vs 理财、教育金、保险保额、买车 vs 打车、年终奖拆分、专项附加扣除、存单阶梯、租售比、年度汇算退税、家庭资产负债、灵活就业社保、社保少缴核查、三种还法对撞、定投 vs 一次性、保单体检、到期日历、现金流月历、0 利率真实成本、风险测评与资产配置、提前还款违约金临界点。纯前端计算，不联网、不上传数据。">
 <meta name="theme-color" content="#1e3a8a">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231e3a8a'/%3E%3Ctext x='16' y='23' font-size='17' text-anchor='middle' fill='%23fff' font-family='sans-serif'%3E%C2%A5%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="./style.css">
@@ -17,7 +17,7 @@
       <span class="mark">¥</span>
       <div>
         <h1>财务计算器</h1>
-        <p>存款 · 贷款 · 提前还款 · 复利 · 攒钱 · 分期 · 个税 · 汇算退税 · 年终奖 · 扣除 · 到手工资 · 社保 · 退休金 · 教育金 · 保险 · 租买 · 租售比 · 信用卡 · 公积金 · 换房 · AA · 多币种 · 存单阶梯 · 资产负债 · 还法对撞 · 保单体检 · 到期日历</p>
+        <p>存款 · 贷款 · 提前还款 · 复利 · 攒钱 · 分期 · 个税 · 汇算退税 · 年终奖 · 到手工资 · 社保 · 退休金 · 教育金 · 保险 · 租买 · 租售比 · 信用卡 · 公积金 · 换房 · 多币种 · 存单阶梯 · 资产负债 · 还法对撞 · 保单体检 · 到期日历 · 现金流月历 · 风险配置</p>
       </div>
     </div>
     <nav class="tabs" id="tabs" role="tablist">
@@ -60,6 +60,10 @@
       <button class="tab" data-tab="dca" role="tab">定投 vs 一次性</button>
       <button class="tab" data-tab="checkup" role="tab">保单体检</button>
       <button class="tab" data-tab="calendar" role="tab">到期日历</button>
+      <button class="tab" data-tab="cashflow" role="tab">现金流月历</button>
+      <button class="tab" data-tab="zeroloan" role="tab">0 利率真实成本</button>
+      <button class="tab" data-tab="riskalloc" role="tab">风险测评配置</button>
+      <button class="tab" data-tab="penalty" role="tab">违约金临界点</button>
     </nav>
   </div>
 </header>
@@ -2270,6 +2274,153 @@
           </table>
         </div>
         <p class="hint" id="cl-note"></p>
+      </div>
+    </div>
+  </section>
+
+
+  <section class="panel" id="panel-cashflow">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f"><span>月初手上的钱（元）</span>
+          <input id="cf-open" type="number" inputmode="decimal" min="0" step="1000" value="20000"></label>
+        <label class="f"><span>月收入（税后，元）</span>
+          <input id="cf-income" type="number" inputmode="decimal" min="0" step="1000" value="15000"></label>
+        <label class="f"><span>发薪日（1–31）</span>
+          <input id="cf-payday" type="number" inputmode="numeric" min="1" max="31" step="1" value="10"></label>
+        <label class="f"><span>房贷 / 房租月供（元）</span>
+          <input id="cf-loan" type="number" inputmode="decimal" min="0" step="100" value="5978.23"></label>
+        <label class="f"><span>房贷 / 房租扣款日</span>
+          <input id="cf-loanday" type="number" inputmode="numeric" min="1" max="31" step="1" value="20"></label>
+        <label class="f"><span>信用卡本期应还（元）</span>
+          <input id="cf-card" type="number" inputmode="decimal" min="0" step="100" value="3500"></label>
+        <label class="f"><span>信用卡还款日</span>
+          <input id="cf-cardday" type="number" inputmode="numeric" min="1" max="31" step="1" value="25"></label>
+        <label class="f"><span>日常开销（月合计，元）</span>
+          <input id="cf-living" type="number" inputmode="decimal" min="0" step="100" value="4500"></label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">月中最低余额</span><strong id="cf-min">—</strong><span class="unit">元</span></div>
+        <ul class="kv">
+          <li><span>最低余额出现在</span><b id="cf-minday">—</b></li>
+          <li><span>月末余额</span><b id="cf-end">—</b></li>
+          <li><span>本月净结余</span><b id="cf-net">—</b></li>
+          <li><span>月初至少要备多少才不破零</span><b id="cf-need">—</b></li>
+          <li><span>最大的单笔支出</span><b id="cf-big">—</b></li>
+        </ul>
+        <div class="tablebox">
+          <table>
+            <thead><tr><th>日</th><th>事件</th><th>金额</th><th>当日余额</th></tr></thead>
+            <tbody id="cf-body"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="cf-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-zeroloan">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f"><span>贷款金额（元）</span>
+          <input id="zl-amount" type="number" inputmode="decimal" min="0" step="10000" value="100000"></label>
+        <label class="f"><span>分几期（月）</span>
+          <input id="zl-months" type="number" inputmode="decimal" min="1" max="120" step="1" value="24"></label>
+        <label class="f"><span>手续费 / 服务费（元，一次性）</span>
+          <input id="zl-fee" type="number" inputmode="decimal" min="0" step="500" value="3000"></label>
+        <label class="f"><span>全款能拿到的优惠（元）</span>
+          <input id="zl-discount" type="number" inputmode="decimal" min="0" step="1000" value="5000"></label>
+        <label class="f"><span>你的钱能拿到的年化（%）</span>
+          <input id="zl-rate" type="number" inputmode="decimal" min="0" step="0.1" value="3"></label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">真实年化成本</span><strong id="zl-real">—</strong><span class="unit">%</span></div>
+        <ul class="kv">
+          <li><span>名义月供</span><b id="zl-pay">—</b></li>
+          <li><span>手续费相当于本金的</span><b id="zl-feepct">—</b></li>
+          <li><span>手续费相当于几个月月供</span><b id="zl-feeapr">—</b></li>
+          <li><span>总多付（手续费 + 放弃的优惠）</span><b id="zl-cost">—</b></li>
+          <li><span>钱留在手上的收益</span><b id="zl-gain">—</b></li>
+          <li><span>贷款比全款</span><b id="zl-net">—</b></li>
+        </ul>
+        <p class="hint" id="zl-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-riskalloc">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f"><span>年龄</span>
+          <input id="ra-age" type="number" inputmode="numeric" min="18" max="80" step="1" value="30"></label>
+        <label class="f"><span>这笔钱多久不用（年）</span>
+          <input id="ra-years" type="number" inputmode="decimal" min="0" step="1" value="10"></label>
+        <label class="f"><span>最多能忍住亏多少（%）</span>
+          <input id="ra-dd" type="number" inputmode="decimal" min="0" max="60" step="5" value="20"></label>
+        <label class="f"><span>收入稳定性</span>
+          <select id="ra-stable">
+            <option value="stable">稳定（体制内 / 大厂正式工）</option>
+            <option value="normal" selected>一般</option>
+            <option value="volatile">波动大（销售 / 创业 / 自由职业）</option>
+          </select></label>
+        <label class="f"><span>可投资金额（元）</span>
+          <input id="ra-cap" type="number" inputmode="decimal" min="0" step="10000" value="500000"></label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">股票类资产</span><strong id="ra-eq">—</strong><span class="unit">%</span></div>
+        <ul class="kv">
+          <li><span>风险等级</span><b id="ra-level">—</b></li>
+          <li><span>股票 / 债券 / 现金</span><b id="ra-mix">—</b></li>
+          <li><span>对应金额</span><b id="ra-amt">—</b></li>
+          <li><span>长期预期年化</span><b id="ra-ret">—</b></li>
+          <li><span>极端年份可能亏</span><b id="ra-loss">—</b></li>
+          <li><span>要不要再平衡 / 多久</span><b id="ra-reb">—</b></li>
+        </ul>
+        <p class="hint" id="ra-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-penalty">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f"><span>剩余贷款本金（元）</span>
+          <input id="py-balance" type="number" inputmode="decimal" min="0" step="10000" value="800000"></label>
+        <label class="f"><span>年利率（%）</span>
+          <input id="py-rate" type="number" inputmode="decimal" min="0" step="0.05" value="3.9"></label>
+        <label class="f"><span>剩余期数（月）</span>
+          <input id="py-months" type="number" inputmode="decimal" min="1" step="1" value="240"></label>
+        <label class="f"><span>这次提前还（元）</span>
+          <input id="py-lump" type="number" inputmode="decimal" min="0" step="10000" value="200000"></label>
+        <label class="f"><span>违约金（占提前还款额，%）</span>
+          <input id="py-fee" type="number" inputmode="decimal" min="0" step="0.5" value="1"></label>
+        <label class="f"><span>你的钱能拿到的年化（%）</span>
+          <input id="py-invest" type="number" inputmode="decimal" min="0" step="0.1" value="3"></label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">净省利息</span><strong id="py-net">—</strong><span class="unit">元</span></div>
+        <ul class="kv">
+          <li><span>提前还款前的月供</span><b id="py-pay">—</b></li>
+          <li><span>不提前还，剩余利息</span><b id="py-int0">—</b></li>
+          <li><span>提前还（缩期限）后剩余利息</span><b id="py-int1">—</b></li>
+          <li><span>省下的利息</span><b id="py-save">—</b></li>
+          <li><span>违约金</span><b id="py-feeamt">—</b></li>
+          <li><span>等效年化收益（含违约金）</span><b id="py-irr">—</b></li>
+          <li><span>临界：理财收益超过这个数才别还</span><b id="py-crit">—</b></li>
+        </ul>
+        <p class="hint" id="py-note"></p>
       </div>
     </div>
   </section>
