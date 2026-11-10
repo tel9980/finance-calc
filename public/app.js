@@ -6330,6 +6330,250 @@
       + "判断标准仍是「外协一台能不能带来正的边际贡献」。";
   }
 
+  function zOf(p) {
+    if (p <= 0.5) return 0;
+    if (p >= 0.9999) return 3.719;
+    var a = [-3.969683028665376e+01, 2.209460984245205e+02, -2.759285104469687e+02, 1.383577518672690e+02, -3.066479806614716e+01, 2.506628277459239e+00];
+    var b = [-5.447609879822406e+01, 1.615858368580409e+02, -1.556989798598866e+02, 6.680131188771972e+01, -1.328068155288572e+01];
+    var c = [-7.784894002430293e-03, -3.223964580411365e-01, -2.400758277161838e+00, -2.549732539343734e+00, 4.374664141464968e+00, 2.938163982698783e+00];
+    var d = [7.784695709041462e-03, 3.224671290700398e-01, 2.445134137142996e+00, 3.754408661907416e+00];
+    var q, r;
+    if (p < 0.02425) {
+      q = Math.sqrt(-2 * Math.log(p));
+      return (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
+        ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+    }
+    q = p - 0.5; r = q * q;
+    return (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q /
+      (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1);
+  }
+
+  /* ===== 模具摊销与最小批量 ===== */
+  function calcMold() {
+    var fee = Math.max(0, num($("mold-fee"), 0));
+    var life = Math.max(1, num($("mold-life"), 1));
+    var price = Math.max(0, num($("mold-price"), 0));
+    var vc = Math.max(0, num($("mold-vc"), 0));
+    var q = Math.max(1, num($("mold-q"), 1));
+    var disc = Math.max(0, num($("mold-disc"), 0));
+
+    var perLife = fee / life, perQ = fee / q;
+    var m1 = price - vc - perLife, m2 = disc - vc - perQ;
+    var total = q * (disc - vc) - fee;
+    var min1 = disc > vc ? fee / (disc - vc) : Infinity;
+    var min2 = price > vc ? fee / (price - vc) : Infinity;
+    var gap = min1 - q;
+
+    $("mold-big").textContent = isFinite(min1) ? fmt(Math.ceil(min1), 0) : "—";
+    $("mold-per").textContent = money(perLife) + " 元/件（按 " + fmt(life, 0) + " 件寿命）";
+    $("mold-perq").textContent = money(perQ) + " 元/件（按 " + fmt(q, 0) + " 件订单）";
+    $("mold-m1").textContent = money(m1) + " 元/件";
+    $("mold-m2").textContent = money(m2) + " 元/件";
+    $("mold-total").textContent = yuan(total) + "（扣完模具后）";
+    $("mold-min1").textContent = isFinite(min2) ? fmt(Math.ceil(min2), 0) + " 件" : "—";
+    $("mold-verdict").textContent = total >= 0
+      ? "可接：全年摊完模具还赚 " + fmt(Math.abs(total), 2) + " 元，余量 " + fmt(q - min1, 0) + " 件"
+      : "不足保本：还差 " + fmt(Math.ceil(gap), 0) + " 件，或单价需提到 " + money(vc + fee / q) + " 元";
+
+    var qs = [0.2, 0.4, 0.6, 0.8, 1.0], html = "";
+    for (var i = 0; i < qs.length; i++) {
+      var cq = life * qs[i];
+      var per = fee / cq;
+      var cm = disc - vc - per;
+      html += "<tr" + (cm < 0 ? ' class="c-warn"' : '') + "><td>" + fmt(cq, 0) + " 件</td><td>" + money(per)
+        + "</td><td>" + money(cm) + "</td><td>" + money(cm * cq) + "</td></tr>";
+    }
+    $("mold-body").innerHTML = html;
+
+    $("mold-note").textContent = "模具费是「先花出去、按件收回」的沉没性投入，判断能不能接单要用「这个客户能不能把模具摊平」，"
+      + "而不是按全厂寿命摊销出来的好看数字。本例按寿命摊是 " + money(perLife) + " 元/件，看着很有赚头；"
+      + "按这个客户的实际订单量摊是 " + money(perQ) + " 元/件，压价到 " + fmt(disc, 0) + " 元后每件只剩 "
+      + money(disc - vc - perQ) + " 元。真正的底线是保本批量 " + fmt(Math.ceil(min1), 0) + " 件——达不到这个量，"
+      + "这单越做越亏。另外模具的所有权、改模费用、客户跑单后模具怎么处理，都要落在合同里。";
+  }
+
+  /* ===== 阶梯返利 ===== */
+  function calcRebate() {
+    var base = Math.max(0, num($("reb-base"), 0));
+    var gm = Math.min(1, Math.max(0, num($("reb-gm"), 0) / 100));
+    var tiers = [
+      { t: Math.max(0, num($("reb-t1"), 0)), p: Math.max(0, num($("reb-p1"), 0)) / 100 },
+      { t: Math.max(0, num($("reb-t2"), 0)), p: Math.max(0, num($("reb-p2"), 0)) / 100 },
+      { t: Math.max(0, num($("reb-t3"), 0)), p: Math.max(0, num($("reb-p3"), 0)) / 100 }
+    ];
+    tiers.sort(function (x, y) { return x.t - y.t; });
+
+    function rateOf(s) {
+      var r = 0;
+      for (var i = 0; i < tiers.length; i++) if (s >= tiers[i].t) r = tiers[i].p;
+      return r;
+    }
+    var r0 = rateOf(base);
+    var net0 = base * gm - base * r0;
+    var curName = r0 > 0 ? "已达 " + pct(r0, 1) + " 档" : "未达任何档位（无返利）";
+
+    $("reb-cur").textContent = curName;
+    $("reb-now").textContent = fmt(base * r0, 2) + " 万 / " + fmt(net0, 2) + " 万元";
+    $("reb-rate").textContent = pct(1 - r0, 2) + "（返点即让价）";
+
+    var html = "", best = null;
+    for (var i = 0; i < tiers.length; i++) {
+      var t = tiers[i].t, p = tiers[i].p;
+      var reb = t * p, net = t * gm - reb, delta = net - net0;
+      var crit = gm > p ? net0 / (gm - p) : Infinity;
+      var need = t - base;
+      var tag;
+      if (base >= t) tag = "已达成";
+      else if (delta > 0) tag = "冲";
+      else tag = "不划算";
+      if (base < t && delta > 0 && (!best || delta > best.delta)) best = { t: t, p: p, delta: delta, net: net, need: need, crit: crit };
+      html += "<tr" + (tag === "冲" ? ' class="c-info"' : (tag === "不划算" ? ' class="c-warn"' : '')) + "><td>"
+        + fmt(t, 0) + " 万 / " + pct(p, 1) + "</td><td>" + fmt(reb, 2) + "</td><td>" + fmt(net, 2) + "</td><td>"
+        + (delta >= 0 ? "+" : "") + fmt(delta, 2) + "</td><td>" + (isFinite(crit) ? fmt(crit, 2) : "无法达成")
+        + "</td><td class=\"tal\">" + tag + "</td></tr>";
+    }
+    $("reb-body").innerHTML = html;
+
+    if (best) {
+      $("reb-big").textContent = fmt(best.delta, 2);
+      $("reb-pick").textContent = fmt(best.t, 0) + " 万 / " + pct(best.p, 1) + " 档（净毛利 " + fmt(best.net, 2) + " 万）";
+      $("reb-crit").textContent = isFinite(best.crit) ? fmt(best.crit, 2) + " 万元（相当于只需比现在多卖 "
+        + fmt(best.crit - base, 2) + " 万）" : "该档返点高于毛利率，越卖越亏";
+      $("reb-advice").textContent = best.crit <= best.t
+        ? "只要真能冲到 " + fmt(best.t, 0) + " 万就划算（临界点 " + fmt(best.crit, 2) + " 万低于门槛），可以把返点当促销工具用"
+        : "必须先过临界点 " + fmt(best.crit, 2) + " 万才不亏，冲不到门槛还不如不冲";
+    } else {
+      $("reb-big").textContent = base * (1 - r0) > 0 ? "0.00" : "—";
+      $("reb-pick").textContent = base >= tiers[tiers.length - 1].t ? "已在最高档，再冲没有增量" : "没有值得冲的档位";
+      $("reb-crit").textContent = "—";
+      $("reb-advice").textContent = "现有档位跳升幅度过大（返点接近甚至超过毛利率），建议把门槛做得更密、跳升更缓";
+    }
+
+    $("reb-note").textContent = "阶梯返利的坑在「全额返」：跨过门槛那一刻，前面已经卖掉的量也一起降价，所以不是「多卖 50 万只让 50 万」，"
+      + "而是全年的销售额都按新档返。判断标准是「净毛利增量为正」——边际贡献（增量销售 × 毛利率）要大于返利增量。"
+      + "本例从 " + fmt(base, 0) + " 万冲到下一档，临界点 " + (best && isFinite(best.crit) ? fmt(best.crit, 2) : "—")
+      + " 万；也就是说跨档的代价固定，销量越接近门槛越危险。返利还要注意：开票与返利的税务处理（销售折让需红字发票）、"
+      + "跨年返利的预提、以及客户为了拿返点年底压货次年退货。";
+  }
+
+  /* ===== 标准成本三差异 ===== */
+  function calcStdCost() {
+    var q = Math.max(0, num($("sc-q"), 0));
+    var mqS = Math.max(0, num($("sc-mq"), 0)), mpS = Math.max(0, num($("sc-mp"), 0));
+    var mqA = Math.max(0, num($("sc-maq"), 0)), mpA = Math.max(0, num($("sc-map"), 0));
+    var lhS = Math.max(0, num($("sc-lh"), 0)), lrS = Math.max(0, num($("sc-lr"), 0));
+    var lhA = Math.max(0, num($("sc-lah"), 0)), lrA = Math.max(0, num($("sc-lar"), 0));
+    var vr = Math.max(0, num($("sc-vr"), 0));
+    var va = Math.max(0, num($("sc-va"), 0));
+    var fb = Math.max(0, num($("sc-fb"), 0)), fa = Math.max(0, num($("sc-fa"), 0));
+
+    var mV = (mpA - mpS) * mqA, mQ = (mqA - mqS * q) * mpS;
+    var lV = (lrA - lrS) * lhA, lQ = (lhA - lhS * q) * lrS;
+    var vRate = lhA > 0 ? va / lhA : 0;
+    var vV = (vRate - vr) * lhA, vQ = (lhA - lhS * q) * vr;
+    var fV = fa - fb, fQ = 0;
+    var total = mV + mQ + lV + lQ + vV + vQ + fV + fQ;
+
+    var stdCost = q * (mqS * mpS + lhS * lrS + lhS * vr) + fb;
+    $("sc-big").textContent = (total >= 0 ? "超支 " : "节约 ") + fmt(Math.abs(total), 2);
+    $("sc-mat").textContent = money(mV) + " / " + money(mQ);
+    $("sc-lab").textContent = money(lV) + " / " + money(lQ);
+    $("sc-voh").textContent = money(vV) + " / " + money(vQ) + "（实际分配率 " + fmt(vRate, 2) + "）";
+    $("sc-foh").textContent = money(fV) + " / " + money(fQ) + "（按产量＝正常产能计）";
+    $("sc-dir").textContent = total >= 0 ? "不利差异（实际高于标准）" : "有利差异（实际低于标准）";
+
+    var pairs = [["材料", mV, "价差：采购部（买贵了）"], ["材料", mQ, "量差：生产部（用多了/废品）"],
+      ["人工", lV, "工资率差：人事/排班（工资涨、加班多）"], ["人工", lQ, "效率差：生产部（工时超了）"],
+      ["变动制费", vV, "耗费差：车间（水电耗材涨）"], ["变动制费", vQ, "效率差：跟工时走"],
+      ["固定制费", fV, "预算差：车间费用控制"], ["固定制费", fQ, "产量差：产能利用"]];
+    var worst = 0, worstName = "";
+    for (var i = 0; i < pairs.length; i++) if (pairs[i][1] > worst) { worst = pairs[i][1]; worstName = pairs[i][0] + pairs[i][2]; }
+    $("sc-owner").textContent = worst > 0 ? worstName + "（" + money(worst) + "，最大头）" : "各项均在标准内";
+    $("sc-ratio").textContent = stdCost > 0 ? pct(total / stdCost, 2) + "（标准成本 " + money(stdCost) + " 元）" : "—";
+
+    var html = "";
+    var rows = [["材料价差", mV, "价格"], ["材料量差", mQ, "用量"], ["人工工资率差", lV, "价格"],
+      ["人工效率差", lQ, "用量"], ["变动制费耗费差", vV, "价格"], ["变动制费效率差", vQ, "用量"],
+      ["固定制费耗费差", fV, "预算"], ["固定制费产量差", fQ, "产能"]];
+    for (var j = 0; j < rows.length; j++) {
+      html += "<tr" + (rows[j][1] > 0 ? ' class="c-warn"' : '') + "><td class=\"tal\">" + rows[j][0] + "</td><td>"
+        + (rows[j][1] >= 0 ? "+" : "") + fmt(rows[j][1], 2) + "</td><td class=\"tal\">" + rows[j][2] + "</td></tr>";
+    }
+    html += "<tr class=\"c-info\"><td class=\"tal\">合计</td><td>" + (total >= 0 ? "+" : "") + fmt(total, 2) + "</td><td class=\"tal\">—</td></tr>";
+    $("sc-body").innerHTML = html;
+
+    $("sc-note").textContent = "三差异法的关键是「价差用实际量、量差用标准价」，这样价、量两段加起来恰好等于总差异，不会重复计算。"
+      + "分完差异还要能追到人：价差归采购（涨价、急单空运），量差归生产（废品、工艺），工资率差归人事与排班，"
+      + "固定制费的产量差归销售没接够单。提醒一句：标准成本要定期修订，标准长期不动会变成「历史平均数」，"
+      + "差异里混着标准过时和真浪费，就失去管理意义；另外超支不一定全是坏事——赶工、加急往往换来更多订单。";
+  }
+
+  /* ===== 安全库存与服务水平 ===== */
+  function calcSvc() {
+    var d = Math.max(0, num($("svc-d"), 0));
+    var sd = Math.max(0, num($("svc-sd"), 0));
+    var lt = Math.max(0, num($("svc-lt"), 0));
+    var sl = Math.min(0.999, Math.max(0.5, num($("svc-sl"), 95) / 100));
+    var ann = Math.max(1, num($("svc-ann"), 1));
+    var lot = Math.max(1, num($("svc-lot"), 1));
+    var hold = Math.max(0, num($("svc-hold"), 0));
+    var outc = Math.max(0, num($("svc-out"), 0));
+
+    var sig = sd * Math.sqrt(lt);
+    var orders = ann / lot;
+    var z = zOf(sl);
+    var ss = z * sig;
+    var rop = d * lt + ss;
+
+    function cost(p) {
+      var zz = zOf(p), s2 = zz * sig;
+      var hc = s2 * hold;
+      var oc = orders * (1 - p) * outc;
+      return { ss: s2, hc: hc, oc: oc, tot: hc + oc, z: zz };
+    }
+    var now = cost(sl);
+    var hc = now.hc, oc = now.oc;
+
+    $("svc-big").textContent = fmt(ss, 0);
+    $("svc-z").textContent = fmt(z, 4) + "（对应 " + pct(sl, 1) + " 服务水平）";
+    $("svc-ltd").textContent = fmt(d * lt, 0) + " 件 / " + fmt(sig, 2) + " 件";
+    $("svc-rop").textContent = fmt(rop, 0) + " 件";
+    $("svc-cost").textContent = money(hc) + " / " + money(oc) + " 元";
+    $("svc-total").textContent = money(hc + oc) + " 元（年订货 " + fmt(orders, 1) + " 次）";
+
+    var best = null, html = "";
+    for (var p = 0.70; p <= 0.995; p += 0.005) {
+      var c = cost(p);
+      if (!best || c.tot < best.tot) { best = c; best.p = p; }
+    }
+    $("svc-best").textContent = pct(best.p, 1) + "（年总成本 " + money(best.tot) + " 元，安全库存 " + fmt(best.ss, 0) + " 件）";
+
+    var up = cost(0.99);
+    $("svc-up").textContent = "安全库存 +" + fmt(up.ss - ss, 0) + " 件（+" + pct(ss > 0 ? (up.ss / ss - 1) : 0, 1)
+      + "），年成本 " + money(up.tot - now.tot) + " 元";
+
+    var show = [0.80, 0.90, 0.95, 0.98, 0.99], mins = 1e18;
+    var data = [];
+    for (var i = 0; i < show.length; i++) {
+      var c2 = cost(show[i]);
+      data.push([show[i], c2]);
+      if (c2.tot < mins) mins = c2.tot;
+    }
+    for (var k = 0; k < data.length; k++) {
+      var pp = data[k][0], cc = data[k][1];
+      html += "<tr" + (Math.abs(cc.tot - mins) < 1e-6 ? ' class="c-info"' : '') + "><td>" + pct(pp, 0)
+        + "</td><td>" + fmt(cc.ss, 0) + "</td><td>" + fmt(d * lt + cc.ss, 0) + "</td><td>" + money(cc.hc)
+        + "</td><td>" + money(cc.oc) + "</td><td>" + money(cc.tot) + "</td></tr>";
+    }
+    $("svc-body").innerHTML = html;
+
+    $("svc-note").textContent = "安全库存＝z × 提前期内需求标准差，注意是「√提前期」放大日波动，不是把日标准差乘天数。"
+      + "服务水平不是越高越好，一边是多备货的持有成本、一边是缺货的损失，本例最省的是 " + pct(best.p, 1)
+      + " 左右。缺货代价高的品类（停线、罚款、客户流失）就该往上走；"
+      + "反过来，需求稳定、能当天补货的东西，安全库存可以压到很低。"
+      + "还有两个前提要满足：提前期本身要稳定（不然要另加一层缓冲），以及库存记录准确——账实不符时再高的服务水平也是假的。";
+  }
+
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
@@ -6360,6 +6604,7 @@
     taxburden: calcTaxBurden, sens: calcSens, consol: calcConsol, eoq: calcEoq,
     bplan: calcBPlan, refundflow: calcRefundFlow, costalloc: calcCostAlloc, importcost: calcImportCost,
     makeorbuy: calcMakeOrBuy, ecl: calcEcl, quotefx: calcQuoteFx, capacity: calcCapacity,
+    mold: calcMold, rebate: calcRebate, stdcost: calcStdCost, svc: calcSvc,
     trprice: calcTrPrice, esop: calcEsop, rdexp: calcRdExp, rollfc: calcRollFC,
     commission: calcCommission, capex: calcCapex, pooling: calcPooling, creditlimit: calcCreditLimit
   };
@@ -6517,9 +6762,9 @@
     "im-cost", "im-price", "im-finish", "im-sell", "im-had", "im-up", "im-tax",
     "fxg-usd", "fxg-signed", "fxg-book", "fxg-spot", "fxg-spread", "fxg-fwd",
 "tbr-sales", "tbr-out", "tbr-in", "tbr-begin", "tbr-prev", "tbr-ind", "tbr-surch", "sens-rev", "sens-vr", "sens-fix", "sens-shock", "sens-target", "cons-pm-rev", "cons-sub-rev", "cons-inter", "cons-pm-np", "cons-sub-np", "cons-unreal", "cons-mi", "cons-inv", "cons-sub-net", "cons-rec", "eoq-d", "eoq-k", "eoq-h", "eoq-day", "eoq-sd", "eoq-lt", "eoq-svc", "eoq-moq",
-"cm-sales", "cm-ret", "cm-gm", "cm-sr", "cm-gr", "cm-achv", "cm-cash", "cpx-inv", "cpx-cf", "cpx-years", "cpx-rate", "cpx-rv", "pool-idle", "pool-a", "pool-b", "pool-in", "pool-out", "pool-demand", "pool-rate", "pool-wealth", "pool-equity", "crl-buy", "crl-term", "crl-vat", "crl-gm", "crl-netw", "crl-lev", "crl-late", "crl-cost", "bpl-rev", "bpl-grow", "bpl-gm", "bpl-opex", "bpl-dep", "bpl-tax", "bpl-dso", "bpl-dio", "bpl-dpo", "bpl-cash", "bpl-big", "bpl-rev2", "bpl-gp", "bpl-op", "bpl-margin", "bpl-wc", "bpl-nwc", "bpl-wcgap", "bpl-free", "bpl-body", "bpl-note", "rf-exp", "rf-reb", "rf-rate", "rf-lag", "rf-audit", "rf-cost", "rf-big", "rf-month", "rf-year", "rf-days", "rf-costv", "rf-gap", "rf-ten", "rf-opt", "rf-advice", "rf-body", "rf-note", "cal-oh", "cal-qa", "cal-qb", "cal-qc", "cal-ha", "cal-hb", "cal-hc", "cal-ma", "cal-mb", "cal-mc", "cal-ta", "cal-tb", "cal-tc", "cal-big", "cal-which", "cal-totals", "cal-r1", "cal-r2", "cal-r3", "cal-pick", "cal-price", "cal-body", "cal-note", "ic-fob", "ic-frt", "ic-ins", "ic-fx", "ic-duty", "ic-cons", "ic-vat", "ic-port", "ic-agent", "ic-qty", "ic-big", "ic-cif", "ic-dutyv", "ic-consv", "ic-vatv", "ic-fees", "ic-land", "ic-cash", "ic-ratio", "ic-body", "ic-note", "tp-cost", "tp-price", "tp-inner", "tp-ratea", "tp-rateb", "tp-lo", "tp-hi", "tp-big", "tp-a", "tp-b", "tp-profit", "tp-rate", "tp-low", "tp-high", "tp-save", "tp-per", "tp-body", "tp-note", "es-shares", "es-fair", "es-strike", "es-years", "es-leave", "es-tax", "es-big", "es-per", "es-qty", "es-flat", "es-acc", "es-diff", "es-dta", "es-deduct", "es-advice", "es-body", "es-note", "rd-labor", "rd-mat", "rd-dep", "rd-other", "rd-pct", "rd-tax", "rd-big", "rd-total", "rd-cap", "rd-effect", "rd-base", "rd-save", "rd-eff", "rd-lost", "rd-body", "rd-note", "rl-bud", "rl-passed", "rl-act", "rl-rest", "rl-gmb", "rl-gma", "rl-big", "rl-rate", "rl-gap", "rl-expect", "rl-pace", "rl-need", "rl-delta", "rl-gp", "rl-advice", "rl-body", "rl-note", "mob-q", "mob-vu", "mob-avo", "mob-price", "mob-extra", "mob-rent", "mob-fixall", "mob-big", "mob-self", "mob-buy", "mob-unit", "mob-crit", "mob-qcrit", "mob-pick", "mob-wrong", "mob-body", "mob-note", "ecl-a1", "ecl-a2", "ecl-a3", "ecl-a4", "ecl-a5", "ecl-r1", "ecl-r2", "ecl-r3", "ecl-r4", "ecl-r5", "ecl-adj", "ecl-prev", "ecl-big", "ecl-total", "ecl-base", "ecl-adjv", "ecl-delta", "ecl-ratio", "ecl-loss", "ecl-tax", "ecl-body", "ecl-note", "qf-cost", "qf-qty", "qf-dyn", "qf-port", "qf-gm", "qf-comm", "qf-fx", "qf-frt", "qf-ins", "qf-big", "qf-fob", "qf-comv", "qf-real", "qf-frtv", "qf-insv", "qf-cif", "qf-profit", "qf-fxrisk", "qf-body", "qf-note", "cap-q", "cap-p", "cap-va", "cap-ca", "cap-fa", "cap-vb", "cap-cb", "cap-fb", "cap-fixa", "cap-fixb", "cap-out", "cap-big", "cap-a", "cap-b", "cap-cm", "cap-fix", "cap-wrong", "cap-gap", "cap-outv", "cap-body", "cap-note"
+"cm-sales", "cm-ret", "cm-gm", "cm-sr", "cm-gr", "cm-achv", "cm-cash", "cpx-inv", "cpx-cf", "cpx-years", "cpx-rate", "cpx-rv", "pool-idle", "pool-a", "pool-b", "pool-in", "pool-out", "pool-demand", "pool-rate", "pool-wealth", "pool-equity", "crl-buy", "crl-term", "crl-vat", "crl-gm", "crl-netw", "crl-lev", "crl-late", "crl-cost", "bpl-rev", "bpl-grow", "bpl-gm", "bpl-opex", "bpl-dep", "bpl-tax", "bpl-dso", "bpl-dio", "bpl-dpo", "bpl-cash", "bpl-big", "bpl-rev2", "bpl-gp", "bpl-op", "bpl-margin", "bpl-wc", "bpl-nwc", "bpl-wcgap", "bpl-free", "bpl-body", "bpl-note", "rf-exp", "rf-reb", "rf-rate", "rf-lag", "rf-audit", "rf-cost", "rf-big", "rf-month", "rf-year", "rf-days", "rf-costv", "rf-gap", "rf-ten", "rf-opt", "rf-advice", "rf-body", "rf-note", "cal-oh", "cal-qa", "cal-qb", "cal-qc", "cal-ha", "cal-hb", "cal-hc", "cal-ma", "cal-mb", "cal-mc", "cal-ta", "cal-tb", "cal-tc", "cal-big", "cal-which", "cal-totals", "cal-r1", "cal-r2", "cal-r3", "cal-pick", "cal-price", "cal-body", "cal-note", "ic-fob", "ic-frt", "ic-ins", "ic-fx", "ic-duty", "ic-cons", "ic-vat", "ic-port", "ic-agent", "ic-qty", "ic-big", "ic-cif", "ic-dutyv", "ic-consv", "ic-vatv", "ic-fees", "ic-land", "ic-cash", "ic-ratio", "ic-body", "ic-note", "tp-cost", "tp-price", "tp-inner", "tp-ratea", "tp-rateb", "tp-lo", "tp-hi", "tp-big", "tp-a", "tp-b", "tp-profit", "tp-rate", "tp-low", "tp-high", "tp-save", "tp-per", "tp-body", "tp-note", "es-shares", "es-fair", "es-strike", "es-years", "es-leave", "es-tax", "es-big", "es-per", "es-qty", "es-flat", "es-acc", "es-diff", "es-dta", "es-deduct", "es-advice", "es-body", "es-note", "rd-labor", "rd-mat", "rd-dep", "rd-other", "rd-pct", "rd-tax", "rd-big", "rd-total", "rd-cap", "rd-effect", "rd-base", "rd-save", "rd-eff", "rd-lost", "rd-body", "rd-note", "rl-bud", "rl-passed", "rl-act", "rl-rest", "rl-gmb", "rl-gma", "rl-big", "rl-rate", "rl-gap", "rl-expect", "rl-pace", "rl-need", "rl-delta", "rl-gp", "rl-advice", "rl-body", "rl-note", "mob-q", "mob-vu", "mob-avo", "mob-price", "mob-extra", "mob-rent", "mob-fixall", "mob-big", "mob-self", "mob-buy", "mob-unit", "mob-crit", "mob-qcrit", "mob-pick", "mob-wrong", "mob-body", "mob-note", "ecl-a1", "ecl-a2", "ecl-a3", "ecl-a4", "ecl-a5", "ecl-r1", "ecl-r2", "ecl-r3", "ecl-r4", "ecl-r5", "ecl-adj", "ecl-prev", "ecl-big", "ecl-total", "ecl-base", "ecl-adjv", "ecl-delta", "ecl-ratio", "ecl-loss", "ecl-tax", "ecl-body", "ecl-note", "qf-cost", "qf-qty", "qf-dyn", "qf-port", "qf-gm", "qf-comm", "qf-fx", "qf-frt", "qf-ins", "qf-big", "qf-fob", "qf-comv", "qf-real", "qf-frtv", "qf-insv", "qf-cif", "qf-profit", "qf-fxrisk", "qf-body", "qf-note", "cap-q", "cap-p", "cap-va", "cap-ca", "cap-fa", "cap-vb", "cap-cb", "cap-fb", "cap-fixa", "cap-fixb", "cap-out", "cap-big", "cap-a", "cap-b", "cap-cm", "cap-fix", "cap-wrong", "cap-gap", "cap-outv", "cap-body", "cap-note", "mold-fee", "mold-life", "mold-price", "mold-vc", "mold-q", "mold-disc", "mold-big", "mold-per", "mold-perq", "mold-m1", "mold-m2", "mold-total", "mold-min1", "mold-verdict", "mold-body", "mold-note", "reb-base", "reb-gm", "reb-t1", "reb-p1", "reb-t2", "reb-p2", "reb-t3", "reb-p3", "reb-big", "reb-cur", "reb-now", "reb-rate", "reb-pick", "reb-crit", "reb-advice", "reb-body", "reb-note", "sc-q", "sc-mq", "sc-mp", "sc-maq", "sc-map", "sc-lh", "sc-lr", "sc-lah", "sc-lar", "sc-vr", "sc-va", "sc-fb", "sc-fa", "sc-big", "sc-mat", "sc-lab", "sc-voh", "sc-foh", "sc-dir", "sc-owner", "sc-ratio", "sc-body", "sc-note", "svc-d", "svc-sd", "svc-lt", "svc-sl", "svc-ann", "svc-lot", "svc-hold", "svc-out", "svc-big", "svc-z", "svc-ltd", "svc-rop", "svc-cost", "svc-total", "svc-best", "svc-up", "svc-body", "svc-note"
 ];
-  var KEY = "finance-calc-v30";
+  var KEY = "finance-calc-v31";
   var CAT_KEY = "finance-calc-cat";
 
   /* ---------------- 现金流月历 ---------------- */
