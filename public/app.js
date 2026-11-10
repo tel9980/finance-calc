@@ -881,11 +881,166 @@
       "单位换算里 1 斤 = 500 克、1 亩 = 666.67 平方米、1 码 = 0.9144 米。";
   }
 
+
+  /* ================= 公积金可贷额度 ================= */
+  function annuityPV(pay, i, n) {
+    if (i <= 0) return pay * n;
+    return pay * (1 - Math.pow(1 + i, -n)) / i;
+  }
+
+  function calcFund() {
+    var bal = Math.max(0, num($("fd-balance"), 0));
+    var mon = Math.max(0, num($("fd-monthly"), 0));
+    var ratio = Math.max(0, num($("fd-ratio"), 24)) / 100;
+    var mult = Math.max(0, num($("fd-mult"), 15));
+    var years = Math.max(0, num($("fd-years"), 30));
+    var rate = Math.max(0, num($("fd-rate"), 2.85)) / 100;
+    var cap = Math.max(0, num($("fd-cap"), 0));
+    var price = Math.max(0, num($("fd-price"), 0));
+    var n = Math.max(1, Math.round(years * 12));
+
+    var byBal = bal * mult;
+    var base = ratio > 0 ? mon / ratio : 0;      // 缴存基数（个人+单位合计口径）
+    var affordable = base * 0.5;                 // 常见要求：月供 ≤ 缴存基数 50%
+    var byInc = annuityPV(affordable, rate / 12, n);
+    var byCap = cap;
+
+    var pick = { label: "账户余额 × 倍数", value: Math.max(0, byBal) };
+    [["按还款能力反推", byInc], ["当地最高限额", byCap]].forEach(function (it) {
+      if (it[1] < pick.value) pick = { label: it[0], value: Math.max(0, it[1]) };
+    });
+    var quota = Math.max(0, pick.value);
+
+    $("fd-by-balance").textContent = yuan(byBal);
+    $("fd-by-income").textContent = yuan(byInc) + "（月供上限 " + money(affordable) + "）";
+    $("fd-by-cap").textContent = yuan(byCap);
+    $("fd-limit").textContent = pick.label;
+    $("fd-quota").textContent = money(quota);
+    $("fd-pay").textContent = yuan(annuityPayment(quota, rate / 12, n)) + " × " + n + " 期";
+
+    if (price > 0) {
+      var gap = Math.max(0, price - quota);
+      $("fd-gap").textContent = yuan(gap) + "（约占房价 " + pct(gap / price, 1) + "）";
+    } else {
+      $("fd-gap").textContent = "填房价后可算";
+    }
+
+    $("fd-note").textContent = "各地公积金中心口径差异很大，这里给三种最常见算法的结果并取最小值，请以当地为准："
+      + "①余额倍数法：账户余额 × " + mult + " 倍；"
+      + "②还款能力法：月缴存额 " + money(mon) + " ÷ 缴存比例 " + pct(ratio, 0) + " ≈ 缴存基数 " + money(base)
+      + "，按月供不超过基数 50%（" + money(affordable) + "），以 " + pct(rate, 2) + " 的公积金利率、" + n + " 期反推现值；"
+      + "③当地最高限额 " + money(cap) + "（单人/双人、首套/二套限额不同）。"
+      + "另外多数城市要求连续足额缴存 6–12 个月、且贷款额不超过房屋总价的 70%–80%，额度批下来前别急着签合同。";
+  }
+
+  /* ================= 利率调整后的月供（LPR 重定价） ================= */
+  function calcLpr() {
+    var P = Math.max(0, num($("lp-principal"), 0));
+    var rOld = Math.max(0, num($("lp-old"), 0)) / 100 / 12;
+    var rNew = Math.max(0, num($("lp-new"), 0)) / 100 / 12;
+    var n = Math.max(1, Math.round(num($("lp-months"), 0)));
+
+    var payOld = annuityPayment(P, rOld, n);
+    var payNew = annuityPayment(P, rNew, n);
+    var intOld = Math.max(0, payOld * n - P);
+    var intNew = Math.max(0, payNew * n - P);
+    var saveMonth = payOld - payNew;
+    var saveTotal = intOld - intNew;
+
+    $("lp-old-pay").textContent = yuan(payOld);
+    $("lp-new-pay").textContent = yuan(payNew);
+    $("lp-save-label").textContent = saveMonth >= 0 ? "每月少还" : "每月多还";
+    $("lp-save-month").textContent = money(Math.abs(saveMonth));
+    $("lp-interest").textContent = money(intOld) + " → " + money(intNew);
+    $("lp-save-total").textContent = (saveMonth >= 0 ? "少付 " : "多付 ") + money(Math.abs(saveTotal))
+      + " 元（每年约 " + money(Math.abs(saveMonth) * 12) + "）";
+
+    var lpr = num($("lp-lpr"), 3.4), bp = num($("lp-bp"), 0);
+    $("lp-calc-rate").textContent = pct((lpr + bp / 100) / 100, 3);
+
+    $("lp-note").textContent = "算法：期限不变、按剩余本金重新用等额本息算月供。"
+      + (saveMonth >= 0
+        ? "利率从 " + pct(rOld * 12, 2) + " 降到 " + pct(rNew * 12, 2) + "，每月少还 " + money(saveMonth) + " 元，剩余 " + n + " 期合计少付利息 " + money(saveTotal) + " 元。"
+        : "利率上升，每月多还 " + money(-saveMonth) + " 元，剩余 " + n + " 期合计多付利息 " + money(-saveTotal) + " 元。")
+      + "LPR 换算：执行利率 = LPR + 加点，1BP = 0.01%。加点在合同期内通常固定不变，只有到重定价日（多为每年 1 月 1 日或放款日对应月）才按最新 LPR 调整，所以别把「LPR 降了」直接当成「我下个月就少还」。";
+  }
+
+  /* ================= 二手房交易税费 ================= */
+  function calcDeed() {
+    var price = Math.max(0, num($("dd-price"), 0));
+    var deedRate = Math.max(0, num($("dd-deed"), 1)) / 100;
+    var hold = $("dd-hold").value;
+    var vatRate = Math.max(0, num($("dd-vat"), 5.3)) / 100;
+    var itMode = $("dd-income-tax").value;
+    var agentRate = Math.max(0, num($("dd-agent"), 2)) / 100;
+    var other = Math.max(0, num($("dd-other"), 0));
+    var cost = Math.max(0, num($("dd-cost"), 0));
+
+    var deedAmt = price * deedRate;
+    var agentAmt = price * agentRate;
+    var vatAmt = hold === "0" ? price * vatRate : 0;
+    var diff = Math.max(0, price - cost);
+    var itAmt = itMode === "0" ? 0 : (itMode === "20" ? diff * 0.2 : price * 0.01);
+    var total = deedAmt + agentAmt + vatAmt + itAmt + other;
+    var buyer = price + deedAmt + agentAmt + other;
+
+    $("dd-deed-amt").textContent = yuan(deedAmt);
+    $("dd-agent-amt").textContent = yuan(agentAmt);
+    $("dd-vat-amt").textContent = vatAmt > 0 ? yuan(vatAmt) : "免征";
+    $("dd-it-amt").textContent = itMode === "0" ? "免征" : yuan(itAmt) + (itMode === "20" ? "（差额 " + money(diff) + " × 20%）" : "（成交价 × 1%）");
+    $("dd-other-amt").textContent = yuan(other);
+    $("dd-total").textContent = money(total);
+    $("dd-buyer").textContent = yuan(buyer);
+    $("dd-ratio").textContent = price > 0 ? pct(total / price, 2) : "—";
+
+    var first = $("dd-first").value, area = num($("dd-area"), 0);
+    var sug = first === "1" ? (area > 0 && area <= 90 ? "1%（首套 90㎡ 及以下）" : "1.5%（首套 90㎡ 以上）")
+      : (first === "2" ? "1%–2%（二套，各地不同）" : "3% 起（三套及以上）");
+    $("dd-note").textContent = "按你填的「第 " + first + " 套 / " + (area > 0 ? area + "㎡" : "面积未填") + "」，契税常见税率是 " + sug + "，当前按 " + pct(deedRate, 2) + " 计算。"
+      + "税费是「谁名下、第几套、面积多大、持有几年」四个变量一起决定的，这里按最常见的规则估算："
+      + "契税由买方交（税率自己填，首套 90㎡ 及以下多为 1%、90㎡ 以上 1.5%，二套各地 1%–2%，三套起常按 3%）；"
+      + "增值税及附加在持有满 2 年时免征（北上广深非普通住宅另有规定），不满 2 年按全额约 5.3% 计；"
+      + "个税「满五唯一」免征，否则按核定 1% 或差额 20% 计（能提供原值凭证才可走差额）。"
+      + "中介费一般由买方承担（可谈），其他杂费含评估、登记、公证、贷款服务费等。实际以当地税务核定为准，签约前让中介出一份税费清单。";
+  }
+
+  /* ================= AA 分摊 ================= */
+  function calcSplit() {
+    var total = Math.max(0, num($("sp-total"), 0));
+    var people = Math.max(1, Math.round(num($("sp-people"), 1)));
+    var feeRate = Math.max(0, num($("sp-fee"), 0)) / 100;
+    var roundTo = num($("sp-round"), 0);
+    var who = $("sp-who").value;
+
+    var feeAmt = total * feeRate;
+    var gross = total + feeAmt;
+    var each0 = gross / people;
+    var each = each0;
+    if (who === "self") {
+      each = roundTo > 0 ? Math.floor(each0 / roundTo) * roundTo : Math.round(each0 * 100) / 100;
+    }
+    var selfPay = who === "self" ? gross - each * (people - 1) : each0;
+    var check = each * (people - 1) + selfPay;
+
+    $("sp-gross").textContent = yuan(gross);
+    $("sp-fee-amt").textContent = yuan(feeAmt);
+    $("sp-each").textContent = money(each);
+    $("sp-others").textContent = people > 1 ? yuan(each) + " × " + (people - 1) + " 人" : "—";
+    $("sp-self").textContent = yuan(selfPay) + (who === "self" && selfPay >= each - 0.0001 ? "（含零头 " + money(selfPay - each) + "）" : "");
+    $("sp-check").textContent = yuan(check);
+    $("sp-note").textContent = "算法：（消费总额 " + money(total) + " + 服务费 " + pct(feeRate, 2) + "）÷ " + people + " 人 = 每人 " + money(each0) + "。"
+      + (who === "self" && roundTo > 0
+        ? "按「抹到 " + roundTo + " 元」处理，其他人各付 " + money(each) + "，零头 " + money(gross - each * people) + " 由发起人承担，收款合计 " + money(check) + " 与实付一致。"
+        : "每人金额先四舍五入到分，差出来的几分钱由发起人补，收款合计与实付一致。")
+      + " 聚餐 AA 里最容易吵的两件事：服务费有没有算进人均、以及有没有人没喝酒/没吃某道菜——后者建议单独把酒水剔除后再按人数分。";
+  }
+
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
     annual: calcAnnual, inflation: calcInflation, tax: calcTax, deal: calcDeal,
-    salary: calcSalary, rentbuy: calcRentBuy, card: calcCard, fx: calcFx
+    salary: calcSalary, rentbuy: calcRentBuy, card: calcCard, fx: calcFx,
+    fund: calcFund, lpr: calcLpr, deed: calcDeed, split: calcSplit
   };
 
   function activate(name) {
@@ -936,9 +1091,13 @@
     "rb-price", "rb-down", "rb-rate", "rb-years", "rb-rent", "rb-hold",
     "rb-growth", "rb-rgrowth", "rb-invest", "rb-cost",
     "cd-balance", "cd-min", "cd-rate", "cd-days",
-    "fx-amount", "fx-cur", "fx-rate", "fx-fee", "fx-cat", "fx-value", "fx-from", "fx-to"
+    "fx-amount", "fx-cur", "fx-rate", "fx-fee", "fx-cat", "fx-value", "fx-from", "fx-to",
+    "fd-balance", "fd-monthly", "fd-ratio", "fd-mult", "fd-years", "fd-rate", "fd-cap", "fd-price",
+    "lp-principal", "lp-old", "lp-new", "lp-months", "lp-lpr", "lp-bp",
+    "dd-price", "dd-area", "dd-first", "dd-deed", "dd-hold", "dd-vat", "dd-income-tax", "dd-agent", "dd-other", "dd-cost",
+    "sp-total", "sp-people", "sp-fee", "sp-round", "sp-who"
   ];
-  var KEY = "finance-calc-v4";
+  var KEY = "finance-calc-v5";
 
   function save() {
     try {
@@ -962,6 +1121,68 @@
       }
     } catch (err) { /* 忽略损坏数据 */ }
   }
+
+
+  /* ---------------- 复制结果 / 下载 CSV ---------------- */
+  function snapshot() {
+    var panel = document.querySelector(".panel.is-on");
+    var tab = document.querySelector(".tab.is-on");
+    if (!panel) return { name: "", rows: [] };
+    var rows = [];
+    var big = panel.querySelector(".big");
+    if (big) {
+      var k = big.querySelector(".k"), v = big.querySelector("strong");
+      if (k && v) rows.push([k.textContent.trim(), v.textContent.trim() + (big.querySelector(".unit") ? " " + big.querySelector(".unit").textContent.trim() : "")]);
+    }
+    var kv = panel.querySelectorAll(".kv li");
+    for (var i = 0; i < kv.length; i++) {
+      var sp = kv[i].querySelector("span"), b = kv[i].querySelector("b");
+      if (sp && b) rows.push([sp.textContent.trim(), b.textContent.trim()]);
+    }
+    var note = panel.querySelector(".hint");
+    return { name: tab ? tab.textContent.trim() : "", rows: rows, note: note ? note.textContent.trim() : "" };
+  }
+
+  function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text);
+    }
+    return new Promise(function (res, rej) {
+      var ta = document.createElement("textarea");
+      ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand("copy"); res(); } catch (e) { rej(e); }
+      document.body.removeChild(ta);
+    });
+  }
+
+  $("btn-copy").addEventListener("click", function () {
+    var snap = snapshot(), lines = ["【财务计算器】" + snap.name];
+    snap.rows.forEach(function (r) { lines.push(r[0] + "：" + r[1]); });
+    if (snap.note) lines.push("说明：" + snap.note);
+    lines.push("（" + new Date().toLocaleString("zh-CN") + " 计算）");
+    var btn = this, old = btn.textContent;
+    copyText(lines.join("\n")).then(function () {
+      btn.textContent = "已复制"; setTimeout(function () { btn.textContent = old; }, 1300);
+    }).catch(function () {
+      btn.textContent = "复制失败，请手动选择"; setTimeout(function () { btn.textContent = old; }, 1600);
+    });
+  });
+
+  $("btn-csv").addEventListener("click", function () {
+    var snap = snapshot();
+    var esc = function (v) { return '"' + String(v).replace(/"/g, '""') + '"'; };
+    var rows = [["模块", snap.name], ["生成时间", new Date().toLocaleString("zh-CN")], ["项目", "数值"]];
+    snap.rows.forEach(function (r) { rows.push(r); });
+    if (snap.note) rows.push(["说明", snap.note]);
+    var csv = "\ufeff" + rows.map(function (r) { return r.map(esc).join(","); }).join("\r\n");
+    var blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "财务计算器-" + snap.name.replace(/\s/g, "") + ".csv";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+  });
 
   // 单位下拉随类别变化
   $("fx-cat").addEventListener("change", function () { fillUnits(); calcFx(); save(); });

@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>财务计算器 · 存款 贷款 提前还款 复利 个税 到手工资 信用卡 汇率</title>
-<meta name="description" content="免费的财务计算器（15 个模块）：存款利息、贷款月供与还款计划、组合贷、提前还款省息、复利与定投、攒钱目标、分期真实年化、年化收益、通胀购买力、个税与到手工资、租房还是买房、信用卡循环利息、汇率与单位换算。纯前端计算，不联网、不上传数据。">
+<title>财务计算器 · 存款 贷款 提前还款 公积金额度 二手房税费 到手工资</title>
+<meta name="description" content="免费的财务计算器（19 个模块）：存款利息、贷款月供与还款计划、组合贷、提前还款省息、复利与定投、攒钱目标、分期真实年化、年化收益、通胀购买力、个税与到手工资、租房还是买房、信用卡循环利息、汇率与单位换算、公积金可贷额度、利率调整后月供、二手房交易税费、AA 分摊。纯前端计算，不联网、不上传数据。">
 <meta name="theme-color" content="#1e3a8a">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231e3a8a'/%3E%3Ctext x='16' y='23' font-size='17' text-anchor='middle' fill='%23fff' font-family='sans-serif'%3E%C2%A5%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="./style.css">
@@ -17,7 +17,7 @@
       <span class="mark">¥</span>
       <div>
         <h1>财务计算器</h1>
-        <p>存款 · 贷款 · 提前还款 · 复利 · 攒钱 · 分期 · 年化 · 通胀 · 个税 · 到手工资 · 租买 · 信用卡 · 换算</p>
+        <p>存款 · 贷款 · 组合贷 · 提前还款 · 复利 · 攒钱 · 分期 · 个税 · 到手工资 · 租买 · 信用卡 · 公积金 · 房贷重定价 · 二手房税费 · AA 分摊</p>
       </div>
     </div>
     <nav class="tabs" id="tabs" role="tablist">
@@ -36,11 +36,20 @@
       <button class="tab" data-tab="rentbuy" role="tab">租房还是买房</button>
       <button class="tab" data-tab="card" role="tab">信用卡利息</button>
       <button class="tab" data-tab="fx" role="tab">汇率单位</button>
+      <button class="tab" data-tab="fund" role="tab">公积金额度</button>
+      <button class="tab" data-tab="lpr" role="tab">利率调整月供</button>
+      <button class="tab" data-tab="deed" role="tab">二手房税费</button>
+      <button class="tab" data-tab="split" role="tab">AA 分摊</button>
     </nav>
   </div>
 </header>
 
 <main class="wrap">
+
+  <div class="tools">
+    <button class="ghost" id="btn-copy" type="button">复制本页结果</button>
+    <button class="ghost" id="btn-csv" type="button">下载 CSV</button>
+  </div>
 
   <!-- ================= 存款 ================= -->
   <section class="panel is-on" id="panel-deposit">
@@ -849,6 +858,251 @@
           <li><span>换算关系</span><b id="fx-unit-formula">—</b></li>
         </ul>
         <p class="hint" id="fx-note"></p>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ================= 公积金可贷额度 ================= -->
+  <section class="panel" id="panel-fund">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f">
+          <span>公积金账户余额（元）</span>
+          <input id="fd-balance" type="number" inputmode="decimal" min="0" step="1000" value="50000">
+        </label>
+        <label class="f">
+          <span>每月缴存额（个人+单位，元）</span>
+          <input id="fd-monthly" type="number" inputmode="decimal" min="0" step="100" value="2400">
+        </label>
+        <label class="f">
+          <span>缴存比例（个人+单位，%）</span>
+          <input id="fd-ratio" type="number" inputmode="decimal" min="1" step="2" value="24">
+          <em>两边各 12% 就填 24；按你实际缴存比例填</em>
+        </label>
+        <label class="f">
+          <span>余额倍数（很多城市 10–20 倍）</span>
+          <input id="fd-mult" type="number" inputmode="decimal" min="0" step="1" value="15">
+        </label>
+        <label class="f">
+          <span>贷款年限（年）</span>
+          <input id="fd-years" type="number" inputmode="decimal" min="0" step="5" value="30">
+        </label>
+        <label class="f">
+          <span>公积金贷款年利率（%）</span>
+          <input id="fd-rate" type="number" inputmode="decimal" min="0" step="0.05" value="2.85">
+        </label>
+        <label class="f">
+          <span>当地最高限额（元，单人/双人不同）</span>
+          <input id="fd-cap" type="number" inputmode="decimal" min="0" step="10000" value="1200000">
+        </label>
+        <label class="f">
+          <span>想买的房子总价（元，可留 0）</span>
+          <input id="fd-price" type="number" inputmode="decimal" min="0" step="50000" value="2000000">
+        </label>
+      </div>
+
+      <div class="card res">
+        <h2>结果（取各口径最小值）</h2>
+        <div class="big">
+          <span class="k">大致可贷额度</span>
+          <strong id="fd-quota">—</strong>
+          <span class="unit">元</span>
+        </div>
+        <ul class="kv">
+          <li><span>口径一：账户余额 × 倍数</span><b id="fd-by-balance">—</b></li>
+          <li><span>口径二：按还款能力反推</span><b id="fd-by-income">—</b></li>
+          <li><span>口径三：当地最高限额</span><b id="fd-by-cap">—</b></li>
+          <li><span>受限于</span><b id="fd-limit">—</b></li>
+          <li><span>按此额度贷款月供</span><b id="fd-pay">—</b></li>
+          <li><span>房款还需自筹（首付+缺口）</span><b id="fd-gap">—</b></li>
+        </ul>
+        <p class="hint" id="fd-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 利率调整 / LPR 重定价 ================= -->
+  <section class="panel" id="panel-lpr">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f">
+          <span>剩余贷款本金（元）</span>
+          <input id="lp-principal" type="number" inputmode="decimal" min="0" step="10000" value="800000">
+        </label>
+        <label class="f">
+          <span>原执行利率（%）</span>
+          <input id="lp-old" type="number" inputmode="decimal" min="0" step="0.05" value="3.90">
+        </label>
+        <label class="f">
+          <span>新执行利率（%）</span>
+          <input id="lp-new" type="number" inputmode="decimal" min="0" step="0.05" value="3.10">
+        </label>
+        <label class="f">
+          <span>剩余期数（月）</span>
+          <input id="lp-months" type="number" inputmode="decimal" min="0" step="12" value="240">
+        </label>
+        <h2 class="sub">LPR + 加点 换算（可选）</h2>
+        <label class="f">
+          <span>LPR（%）与加点（BP，1BP=0.01%）</span>
+          <span class="row">
+            <input id="lp-lpr" type="number" inputmode="decimal" step="0.05" value="3.40">
+            <input id="lp-bp" type="number" inputmode="decimal" step="5" value="-30">
+          </span>
+          <em>执行利率 = LPR + 加点；加点在合同期内一般固定，LPR 每次重定价日才变</em>
+        </label>
+      </div>
+
+      <div class="card res">
+        <h2>结果（等额本息、期限不变）</h2>
+        <div class="big">
+          <span class="k" id="lp-save-label">每月少还</span>
+          <strong id="lp-save-month">—</strong>
+          <span class="unit">元</span>
+        </div>
+        <ul class="kv">
+          <li><span>原月供</span><b id="lp-old-pay">—</b></li>
+          <li><span>新月供</span><b id="lp-new-pay">—</b></li>
+          <li><span>剩余总利息（原 → 新）</span><b id="lp-interest">—</b></li>
+          <li><span>剩余期限总共少付</span><b id="lp-save-total">—</b></li>
+          <li><span>LPR+加点 换算出的执行利率</span><b id="lp-calc-rate">—</b></li>
+        </ul>
+        <p class="hint" id="lp-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 二手房交易税费 ================= -->
+  <section class="panel" id="panel-deed">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f">
+          <span>成交价 / 网签价（元）</span>
+          <input id="dd-price" type="number" inputmode="decimal" min="0" step="50000" value="2000000">
+        </label>
+        <label class="f">
+          <span>建筑面积（㎡）</span>
+          <input id="dd-area" type="number" inputmode="decimal" min="0" step="5" value="90">
+        </label>
+        <label class="f">
+          <span>买方第几套</span>
+          <select id="dd-first">
+            <option value="1" selected>首套</option>
+            <option value="2">二套</option>
+            <option value="3">三套及以上</option>
+          </select>
+        </label>
+        <label class="f">
+          <span>契税税率（%）</span>
+          <input id="dd-deed" type="number" inputmode="decimal" min="0" step="0.5" value="1">
+          <em>首套 90㎡ 及以下多为 1%，90㎡ 以上 1.5%；二套多为 1%–2%，以当地为准</em>
+        </label>
+        <label class="f">
+          <span>卖方持有年限</span>
+          <select id="dd-hold">
+            <option value="2" selected>满 2 年（免增值税）</option>
+            <option value="0">不满 2 年（要交增值税）</option>
+          </select>
+        </label>
+        <label class="f">
+          <span>增值税及附加税率（%）</span>
+          <input id="dd-vat" type="number" inputmode="decimal" min="0" step="0.1" value="5.3">
+        </label>
+        <label class="f">
+          <span>卖方个税</span>
+          <select id="dd-income-tax">
+            <option value="1" selected>核定征收 1%（按成交价）</option>
+            <option value="0">满五唯一，免征</option>
+            <option value="20">差额 20%</option>
+          </select>
+        </label>
+        <label class="f">
+          <span>中介费率（%）</span>
+          <input id="dd-agent" type="number" inputmode="decimal" min="0" step="0.5" value="2">
+        </label>
+        <label class="f">
+          <span>其他杂费（评估/登记/公证等，元）</span>
+          <input id="dd-other" type="number" inputmode="decimal" min="0" step="500" value="2000">
+        </label>
+        <label class="f">
+          <span>卖方原购房价（元，算差额个税用）</span>
+          <input id="dd-cost" type="number" inputmode="decimal" min="0" step="50000" value="1200000">
+        </label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big">
+          <span class="k">税费合计</span>
+          <strong id="dd-total">—</strong>
+          <span class="unit">元</span>
+        </div>
+        <ul class="kv">
+          <li><span>契税（买方）</span><b id="dd-deed-amt">—</b></li>
+          <li><span>中介费</span><b id="dd-agent-amt">—</b></li>
+          <li><span>增值税及附加（卖方）</span><b id="dd-vat-amt">—</b></li>
+          <li><span>个税（卖方）</span><b id="dd-it-amt">—</b></li>
+          <li><span>其他杂费</span><b id="dd-other-amt">—</b></li>
+          <li><span>买方要准备（房款+买方税费）</span><b id="dd-buyer">—</b></li>
+          <li><span>税费占成交价</span><b id="dd-ratio">—</b></li>
+        </ul>
+        <p class="hint" id="dd-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= AA 分摊 ================= -->
+  <section class="panel" id="panel-split">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f">
+          <span>消费总额（元）</span>
+          <input id="sp-total" type="number" inputmode="decimal" min="0" step="50" value="1288">
+        </label>
+        <label class="f">
+          <span>参与人数（含自己）</span>
+          <input id="sp-people" type="number" inputmode="numeric" min="1" step="1" value="6">
+        </label>
+        <label class="f">
+          <span>服务费 / 小费（%）</span>
+          <input id="sp-fee" type="number" inputmode="decimal" min="0" step="1" value="10">
+        </label>
+        <label class="f">
+          <span>抹零方式</span>
+          <select id="sp-round">
+            <option value="0" selected>精确到分</option>
+            <option value="1">抹到元</option>
+            <option value="10">抹到 10 元</option>
+          </select>
+        </label>
+        <label class="f">
+          <span>谁承担抹零差额</span>
+          <select id="sp-who">
+            <option value="self" selected>发起人（自己多出）</option>
+            <option value="all">大家平摊（不抹零）</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big">
+          <span class="k">每人应付</span>
+          <strong id="sp-each">—</strong>
+          <span class="unit">元</span>
+        </div>
+        <ul class="kv">
+          <li><span>含服务费的实付总额</span><b id="sp-gross">—</b></li>
+          <li><span>其中服务费</span><b id="sp-fee-amt">—</b></li>
+          <li><span>其他人各付</span><b id="sp-others">—</b></li>
+          <li><span>发起人（你）实际付</span><b id="sp-self">—</b></li>
+          <li><span>收款合计核对</span><b id="sp-check">—</b></li>
+        </ul>
+        <p class="hint" id="sp-note"></p>
       </div>
     </div>
   </section>
