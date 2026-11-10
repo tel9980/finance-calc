@@ -71,11 +71,18 @@ ok(String(focusInfo.tag).includes('skip'), '第一次 Tab 没有落在跳转链�
 ok(parseFloat(focusInfo.outline) > 0, '焦点没有可见的外框');
 
 /* 新功能：目标反推、72 格逐月、年报图表 */
-await page.click('.cat[data-cat="family"]'); await page.click('.tab[data-tab="yearcmp"]'); await page.waitForTimeout(900);
-const goalTxt = await page.evaluate(() => (document.getElementById('yc-goal') || {}).textContent || '');
+await page.click('.cat[data-cat="family"]'); await page.click('.tab[data-tab="yearcmp"]');
+let goalTxt = '';
+for (let i = 0; i < 40; i++) {                       // 线上 family chunk 129 KB，冷启动可能要几秒
+  goalTxt = await page.evaluate(() => (document.getElementById('yc-goal') || {}).textContent || '');
+  if (/每年|每月/.test(goalTxt)) break;
+  await page.waitForTimeout(250);
+}
 ok(/每年|每月/.test(goalTxt), '目标反推没有给出每年/每月金额');
-await page.click('.tab[data-tab="monthly"]'); await page.waitForTimeout(900);
-ok(await page.evaluate(() => document.querySelectorAll('#panel-monthly input[id^="mtg-"]').length) === 72, '逐月分类不是 72 格');
+await page.click('.tab[data-tab="monthly"]'); await page.waitForTimeout(600);
+let cells = 0;
+for (let i = 0; i < 24; i++) { cells = await page.evaluate(() => document.querySelectorAll('#panel-monthly input[id^="mtg-"]').length); if (cells === 72) break; await page.waitForTimeout(250); }
+ok(cells === 72, '逐月分类不是 72 格（实际 ' + cells + '）');
 await page.click('.tab[data-tab="yearreport"]'); await page.waitForTimeout(1200);
 const charts = await page.evaluate(() => ['yrp-chart1', 'yrp-chart2'].map(id => { const c = document.getElementById(id); if (!c) return -1; const g = c.getContext('2d'); const d = g.getImageData(0, 0, c.width, c.height).data; let k = 0; for (let i = 3; i < d.length; i += 4) if (d[i]) k++; return k; }));
 ok(charts.every(n => n > 500), '年报里的图没有画出来（' + charts.join(',') + '）');
