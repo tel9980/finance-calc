@@ -28,7 +28,7 @@
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"WebApplication","name":"财务计算器","alternateName":"Finance Calculator","url":"https://js.1211.cc.cd/","applicationCategory":"FinanceApplication","operatingSystem":"Any","inLanguage":"zh-CN","isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"CNY"},"description":"184 个模块的免费财务计算器，覆盖个人理财与公司财务。纯前端计算，数据不上传。","featureList":"存款利息、贷款月供、提前还款、组合贷、个税与到手工资、社保公积金、租房还是买房、资产负债、FIRE、公司财务报表与税务测算"}
 </script>
-<link rel="stylesheet" href="./assets/style.890df79db7.css">
+<link rel="stylesheet" href="./assets/style.53c800197a.css">
 </head>
 <body>
 <a class="skip" href="#panels">跳到计算区</a>
@@ -71,6 +71,9 @@
       <button class="sub" data-grp="report" role="tab">报表分析</button>
     </nav>
     <nav class="tabs" id="tabs" role="tablist">
+<!-- 184 个模块标签（构建时内联到核心 JS，运行时 renderTabs 渲染，省首屏 HTML）
+     新增模块：在这里加一行 <button class="tab" data-tab="xx" data-cat="分类" role="tab">名称</button>
+     然后 node scripts/build.mjs -->
       <button class="tab" data-tab="healthcheck" data-cat="hot" role="tab" data-py="jtcwtj jiatingcaiwutijian" data-alias="tijian caiwutijian jk">家庭财务体检</button>
         <button class="tab" data-tab="housecash" data-cat="house family" role="tab" data-py="gfycxzc goufangyicixingzhichu" data-alias="goufang yicixing shoufu sf">购房一次性支出</button>
         <button class="tab" data-tab="planner" data-cat="family hot" role="tab" data-py="zhghmfh zuheguihuamaifanghou" data-alias="guihua zhdai maifanghou">组合规划·买房后</button>
@@ -589,6 +592,6 @@
   </p>
 </main>
 
-<script src="./assets/app.1db5bd09ac.js"></script>
+<script src="./assets/app.b42d9d4b3d.js"></script>
 </body>
 </html>

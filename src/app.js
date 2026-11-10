@@ -8708,7 +8708,7 @@
       ["餐饮日用", "bxsp-food", 10, 15],
       ["其他", "bxsp-other", 10, 15]
     ];
-    var rows = [], total = 0, over = [], low = [], top = { name: "", v: 0 }, h = "";
+    var rows = [], total = 0, over = [], low = [], worse = [], top = { name: "", v: 0 }, h = "";
     for (var i = 0; i < defs.length; i++) {
       var v = Math.max(0, num($(defs[i][1]), 0));
       total += v;
@@ -8716,8 +8716,15 @@
       var share = inc > 0 ? v / inc * 100 : 0;
       var lo = defs[i][2], hi = defs[i][3], judge = "合理", cls = "";
       if (inc > 0) {
-        if (share > hi) { judge = "偏高"; cls = "c-warn"; over.push(defs[i][0]); }
-        else if (share < lo) { judge = "偏低"; cls = "c-soft"; low.push(defs[i][0]); }
+        if (share > hi) {
+          over.push(defs[i][0]);
+          if (share - hi >= 5) { judge = "严重偏高"; cls = "c-bad"; worse.push(defs[i][0]); }
+          else { judge = "偏高"; cls = "c-warn"; }
+        } else if (share < lo) {
+          low.push(defs[i][0]);
+          if (lo - share >= 5) { judge = "严重偏低"; cls = "c-bad"; worse.push(defs[i][0]); }
+          else { judge = "偏低"; cls = "c-soft"; }
+        }
       }
       rows.push({ name: defs[i][0], v: v, share: share, lo: lo, hi: hi, judge: judge, cls: cls });
     }
@@ -8725,7 +8732,11 @@
     var sav = Math.max(0, num($("bxsp-save"), 0));
     var savShare = inc > 0 ? sav / inc * 100 : 0;
     var savOk = savShare >= goal;
-    rows.push({ name: "储蓄/投资", v: sav, share: savShare, lo: Math.max(0, goal - 3), hi: goal, judge: savOk ? "达标" : "不足", cls: savOk ? "" : "c-warn", rangeTxt: "≥" + goal + "%" });
+    var savGap = goal - savShare;
+    rows.push({ name: "储蓄/投资", v: sav, share: savShare, lo: Math.max(0, goal - 3), hi: goal,
+      judge: savOk ? "达标" : (savGap >= 5 ? "严重不足" : "不足"),
+      cls: savOk ? "" : (savGap >= 5 ? "c-bad" : "c-warn"),
+      rangeTxt: "≥" + goal + "%" });
     for (var r = 0; r < rows.length; r++) {
       h += "<tr class=\"" + rows[r].cls + "\"><td class=\"tal\">" + rows[r].name + "</td><td>" + money(rows[r].v)
         + "</td><td>" + fmt(rows[r].share) + "%</td><td>" + (rows[r].rangeTxt || (rows[r].lo + "–" + rows[r].hi + "%")) + "</td><td>" + rows[r].judge + "</td></tr>";
@@ -8741,6 +8752,9 @@
     if ($("bxsp-year")) $("bxsp-year").textContent = money(left * 12) + " 元";
     if ($("bxsp-top")) $("bxsp-top").textContent = top.name + " " + fmt(inc > 0 ? top.v / inc * 100 : 0) + "%";
     if ($("bxsp-over")) $("bxsp-over").textContent = over.length ? over.join("、") : "没有";
+    if ($("bxsp-worst")) $("bxsp-worst").textContent = worse.length
+      ? worse.join("、") + "（偏离参考区间 5 个百分点以上，标红）"
+      : (savOk ? "没有偏离过大的项" : "储蓄/投资（差 " + fmt(Math.max(0, savGap)) + " 个百分点）");
     if ($("bxsp-sv")) $("bxsp-sv").textContent = money(sav + Math.max(0, left)) + " 元（" + fmt(inc > 0 ? (sav + Math.max(0, left)) / inc * 100 : 0) + "%）";
     if ($("bxsp-score")) $("bxsp-score").textContent = score + " 分";
     if ($("bxsp-links")) $("bxsp-links").innerHTML = "住 → <a href=\"#rentbuy\">租房vs买房</a>、<a href=\"#housecash\">购房一次性支出</a>；"
@@ -8752,7 +8766,8 @@
     else tip = "储蓄率 " + fmt(rate) + "% 已经达标（目标 " + goal + "%），可以优先把应急金补到 6 个月支出。";
     if ($("bxsp-note")) $("bxsp-note").textContent = tip
       + " 参考区间是经验值：住 25–30%、教育 10–15%、保险 5–10%、交通 5–10%、餐饮日用 10–15%、其他 10–15%；"
-      + "一线城市住房占比普遍超 30%，不必硬套，关键是「先存后花」。评分只看 6 类支出，储蓄/投资那一行只做达标提醒（目标 " + goal + "%）。";
+      + "一线城市住房占比普遍超 30%，不必硬套，关键是「先存后花」。评分只看 6 类支出，储蓄/投资那一行只做达标提醒（目标 " + goal + "%）。"
+      + " 表里偏红＝偏离参考区间 5 个百分点以上，优先动这几格；浅橙/浅蓝是小幅偏离。";
   }
 
   /* ---------------- 12 个月记账小结 ---------------- */
@@ -8803,6 +8818,29 @@
   var MONTH_CATS = [["住（房贷/房租/物业）", "mt-c1", "#1e3a8a"], ["吃（餐饮/日用/超市）", "mt-c2", "#2563eb"],
     ["教育（学费/培训）", "mt-c3", "#7c3aed"], ["保险", "mt-c4", "#0891b2"], ["交通（车/打车/油）", "mt-c5", "#f97316"], ["其他（医疗/人情/娱乐）", "mt-c6", "#64748b"]];
 
+  /* 72 格一键摊平：按上面 6 类的金额占比，把每个月的支出摊到 6 个分类里 */
+  function fillMonthGrid() {
+    var w = [], sum = 0, k, m;
+    for (k = 1; k <= 6; k++) { var cv = Math.max(0, num($("mt-c" + k), 0)); w.push(cv); sum += cv; }
+    if (sum <= 0) { w = [84000, 54000, 36000, 18000, 24000, 23000]; sum = w.reduce(function (x, y) { return x + y; }, 0); }
+    var filled = 0;
+    for (m = 1; m <= 12; m++) {
+      var t = Math.max(0, num($("mt-m" + m), 0));
+      if (t <= 0) continue;
+      var acc = 0;
+      for (k = 1; k <= 6; k++) {
+        var el = $("mtg-" + m + "-" + k);
+        if (!el) continue;
+        var v = k < 6 ? Math.round(t * w[k - 1] / sum / 10) * 10 : Math.max(0, t - acc);
+        el.value = v;
+        acc += v;
+      }
+      filled++;
+    }
+    save();
+    runCalc("monthly");
+    toast("已按 6 类占比摊平 " + filled + " 个月（每行合计＝该月支出），再按实际改几格即可。", 4200);
+  }
   function readMonthGrid() {
     var mat = [], total = 0, filled = 0;
     for (var m = 1; m <= 12; m++) {
@@ -10768,6 +10806,8 @@
     PENDING_PARAMS = null;
     applyParams(s, true);
   }
+
+  tap("mtg-fill", "click", function () { fillMonthGrid(); });
 
   /* ---------------- 启动 ---------------- */
   restore();

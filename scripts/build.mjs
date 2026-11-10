@@ -11,12 +11,14 @@ const read = f => fs.readFileSync(f, 'utf8');
 const hash8 = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 10);
 
 let src = read(path.join(ROOT, 'src/app.js'));
-const html = read(path.join(PUB, 'index.html'));
+let html = read(path.join(PUB, 'index.html'));
+/* 标签按钮的单一来源：src/tabs.html（构建时内联到核心 JS，首屏 HTML 不含 184 个按钮） */
+let tabsSrc = read(path.join(ROOT, 'src/tabs.html'));
 
 /* ---------- 1. tab -> 分类 ---------- */
 const tabCat = {};
 const tabSub = {};
-for (const m of html.matchAll(/<button class="tab[^"]*"([^>]*)>/g)) {
+for (const m of tabsSrc.matchAll(/<button class="tab[^"]*"([^>]*)>/g)) {
   const attrs = m[1];
   const id = /data-tab="([^"]+)"/.exec(attrs);
   const cat = /data-cat="([^"]+)"/.exec(attrs);
@@ -198,6 +200,17 @@ for (const grp of groups) {
   written.push(name);
 }
 
+/* ---------- 6.9 标签静态块：注入拼音/别名，序列化成字符串给核心 JS ---------- */
+tabsSrc = tabsSrc.replace(/<button class="tab([^"]*)"([^>]*)>/g, (all, cls, attrs) => {
+  const idm = /data-tab="([^"]+)"/.exec(attrs);
+  if (!idm) return all;
+  const id = idm[1];
+  let a = attrs.replace(/\s*data-(py|alias)="[^"]*"/g, '');
+  if (pyMap[id]) a += ' data-py="' + pyMap[id].replace(/"/g, '') + '"';
+  if (ALIAS[id]) a += ' data-alias="' + ALIAS[id].replace(/"/g, '') + '"';
+  return '<button class="tab' + cls + '"' + a + '>';
+});
+
 /* ---------- 7. core 运行时 ---------- */
 const chunkOfJs = '{ ' + entries.map(([k]) => '"' + k + '": "' + groupOf[k] + '"').join(', ') + ' }';
 const tabsJs = '{ ' + keys.map(k => '"' + k + '": 1').join(', ') + ' }';
@@ -215,6 +228,7 @@ const runtime = [
   '  Object.keys(CORE_CALC).forEach(function (k) { calcMap[k] = CORE_CALC[k]; });',
   '  var chunkReady = {};',
   '  var PANEL_HTML = {}, ACTIVE = null;',
+
   '  function mountPanels(grp) {',
   '    var set = PANEL_HTML[grp];',
   '    if (!set) return;',
@@ -324,7 +338,9 @@ const cssName = 'style.' + cssHash + '.css';
 fs.writeFileSync(path.join(ASSETS, cssName), css);
 written.push(cssName);
 
-/* ---------- 9. 重写 index.html ---------- */
+/* ---------- 9. 重写 index.html（标签块从 src/tabs.html 写回，单一来源） ---------- */
+html = html.replace(/<nav class="tabs" id="tabs" role="tablist">[\s\S]*?<\/nav>/, '<nav class="tabs" id="tabs" role="tablist">\n' + tabsSrc.trim() + '\n    </nav>');
+
 let out = html
   .replace(/<!-- PANELS-CORE:START -->[\s\S]*?<!-- PANELS-CORE:END -->/, '<!-- PANELS-CORE:START -->\n' + corePanelsHtml + '  <!-- PANELS-CORE:END -->')
   .replace(/<link rel="stylesheet" href="\.\/assets\/style\.[^"]*\.css">/, '<link rel="stylesheet" href="./assets/' + cssName + '">')

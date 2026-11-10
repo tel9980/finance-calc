@@ -347,3 +347,6 @@ html[data-theme="dark"] :focus-visible{outline-color:#93b4f7}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#1e3a8a;color:#fff;padding:10px 16px;border-radius:999px;font-size:13.5px;z-index:70;box-shadow:0 8px 24px rgba(15,23,42,.28)}
 @media (prefers-reduced-motion: reduce){*{animation-duration:.001ms !important;transition-duration:.001ms !important}}
 @media print{a.skip,.toast{display:none !important}}
+.mtgact{margin:10px 0 6px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+tr.c-bad td{background:#fdecec}
+html[data-theme="dark"] tr.c-bad td{background:#3a1d22}
