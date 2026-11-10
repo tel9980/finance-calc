@@ -4610,6 +4610,209 @@
       " 想快就三招：把能自动化的（折旧、摊销、税金）固化成模板；能提前的（对账、暂估）月中就开始；实在不行先出「初版报表」标注待调整项，别为了完美误了申报期。";
   }
 
+
+  /* ---------------- 应收保理 / 贴现 ---------------- */
+  function calcFactoring() {
+    var amt = Math.max(0, num($("fc-amt"), 0));
+    var days = Math.max(1, Math.round(num($("fc-days"), 90)));
+    var rate = Math.max(0, num($("fc-rate"), 0)) / 100;
+    var feeR = Math.max(0, num($("fc-fee"), 0)) / 100;
+    var marginR = Math.min(100, Math.max(0, num($("fc-margin"), 0))) / 100;
+    var loanR = Math.max(0, num($("fc-loan"), 0)) / 100;
+
+    var interest = amt * rate * days / 365;
+    var fee = amt * feeR;
+    var hold = amt * marginR;
+    var cost = interest + fee;
+    var netIn = amt - cost - hold;
+    var nominal = amt > 0 ? cost / amt * 365 / days : 0;
+    var real = netIn > 0 ? cost / netIn * 365 / days : 0;
+    var holdCost = hold * rate * days / 365;
+    var allin = netIn > 0 ? (cost + holdCost) / netIn * 365 / days : 0;
+    var loanCost = amt * loanR * days / 365;
+    var diff = cost - loanCost;
+
+    $("fc-net").textContent = money(netIn) + " 元";
+    $("fc-int").textContent = money(interest) + " 元";
+    $("fc-feeamt").textContent = money(fee) + " 元（" + pct(feeR) + "）";
+    $("fc-hold").textContent = money(hold) + " 元";
+    $("fc-cost").textContent = money(cost) + " 元";
+    $("fc-nominal").textContent = pct(nominal);
+    $("fc-real").textContent = pct(real);
+    $("fc-allin").textContent = pct(allin);
+    $("fc-diff").textContent = (diff >= 0 ? "+" : "") + money(diff) + " 元" + (diff > 0 ? "（保理更贵）" : "（保理更便宜）");
+
+    var terms = [30, 60, 90, 120, 180], html = "", i;
+    for (i = 0; i < terms.length; i++) {
+      var d = terms[i];
+      var c = amt * rate * d / 365 + fee;
+      var n = amt - c - hold;
+      var nm = amt > 0 ? c / amt * 365 / d : 0;
+      var rl = n > 0 ? c / n * 365 / d : 0;
+      var hit = d === days;
+      html += '<tr class="' + (hit ? "c-info" : "") + '"><td>' + d + " 天" + (hit ? "（本次）" : "") + "</td><td>" + money(c) +
+        "</td><td>" + pct(nm) + "</td><td>" + pct(rl) + "</td></tr>";
+    }
+    $("fc-body").innerHTML = html;
+
+    $("fc-note").textContent =
+      " 这笔保理实际到账 " + money(netIn) + " 元，综合成本 " + money(cost) + " 元，折成真实年化 " + pct(real) + "。" +
+      "为什么真实年化比名义年化高：① 手续费按应收账款全额一次性收，不按天数摊；② 保证金被扣着但不计息，能用的钱变少了。" +
+      " 判断标准：拿真实年化去比自己的替代融资成本（流贷 " + pct(loanR) + "）。本例保理比借流贷多花 " + money(diff) + " 元，" +
+      (diff > 0 ? "如果应收质量好、能拿到流贷，就先用流贷。" : "保理反而更便宜，优先做保理。") +
+      " 另外三个容易被忽略的点：有追索权保理本质是借款（应收继续挂在表上），无追索权才是真卖断（可以出表）；" +
+      "带追索权的话客户不还钱你要回购；保理商还会查买方资信，账期越长、买方越弱，费率越高。" +
+      " 表里可以看到：期限越短，手续费被摊得越薄，年化反而越高——所以拿保理给 30 天的应收做短期周转是最贵的。";
+  }
+
+  /* ---------------- 呆滞库存清理决策 ---------------- */
+  function calcDeadStock() {
+    var q = Math.max(0, num($("ds-q"), 0));
+    var costU = Math.max(0, num($("ds-cost"), 0));
+    var price = Math.max(0, num($("ds-price"), 0));
+    var prob = Math.min(100, Math.max(0, num($("ds-prob"), 0))) / 100;
+    var store = Math.max(0, num($("ds-store"), 0));
+    var cut = Math.max(0, num($("ds-cut"), 0));
+    var scrapFee = Math.max(0, num($("ds-scrap"), 0));
+    var scrapVal = Math.max(0, num($("ds-val"), 0));
+
+    var a = prob * price - store;
+    var b = cut;
+    var c = scrapVal - scrapFee;
+    var extra = (b - a) * q;
+    var totalB = b * q, book = costU * q;
+
+    $("ds-extra").textContent = money(extra) + " 元";
+    $("ds-a").textContent = money(a) + " 元" + (a < 0 ? "（等下去净亏）" : "");
+    $("ds-b").textContent = money(b) + " 元";
+    $("ds-c").textContent = money(c) + " 元";
+    $("ds-crit").textContent = money(a) + " 元";
+    $("ds-total").textContent = money(totalB) + " / 亏 " + money(book - totalB) + " 元";
+    $("ds-storeamt").textContent = money(store * q) + " 元";
+
+    var verdict;
+    if (b >= a && b >= c) verdict = "降价清仓：每件比继续等多 " + money(b - a);
+    else if (a >= b && a >= c) verdict = "继续等原价：只要概率够，等着更划算";
+    else verdict = "直接报废：清仓价太低，处理掉止损";
+    $("ds-verdict").textContent = verdict;
+
+    var prices = [cut * 0.75, cut, cut * 1.25, cut * 1.5], html = "", i;
+    for (i = 0; i < prices.length; i++) {
+      var p = Math.round(prices[i] * 100) / 100;
+      var tot = p * q, adv = (p - a) * q;
+      html += "<tr" + (adv < 0 ? ' class="c-warn"' : "") + "><td>" + money(p) + " 元</td><td>" + money(tot) +
+        "</td><td>" + (adv >= 0 ? "+" : "") + money(adv) + "</td><td>" + (adv >= 0 ? "清仓更划算" : "不如继续等") + "</td></tr>";
+    }
+    $("ds-body").innerHTML = html;
+
+    $("ds-note").textContent =
+      " 三个方案每件净回收：继续等原价 " + money(a) + " 元（" + pct(prob, 0) + " 概率卖 " + money(price) + " 元，再扣一年仓储 " + money(store) + "）、" +
+      "降价清仓 " + money(b) + " 元、直接报废 " + money(c) + " 元。结论：" + verdict + "。" +
+      " 关键一句：单位成本 " + money(costU) + " 元已经花出去了，是沉没成本，不该进这个比较——" +
+      "决策只看「从现在往后每件还能拿回多少」。所以账面亏 " + money(book - totalB) + " 元这件事，清不清仓都会发生，" +
+      "清仓只是把它从「藏在存货里」变成「摆到利润表上」，同时把现金拿回来。" +
+      " 临界售价是 " + money(a) + " 元：只要有人愿意出这个价以上，清掉就比继续等强，别为了「不亏本卖」把货压到报废。" +
+      " 实操上还要考虑：清仓会不会冲击正价渠道（走尾货、员工内购、B 端打包）；如果是管理不善造成的霉烂变质，进项税要转出；" +
+      "正常降价销售不转出；报废损失税前扣除要留盘点表、审批和处置凭证。";
+  }
+
+  /* ---------------- 供应商账期谈判 ---------------- */
+  function calcApTalk() {
+    var buy = Math.max(0, num($("tn-buy"), 0));
+    var now = Math.max(0, num($("tn-now"), 0));
+    var target = Math.max(0, num($("tn-target"), 0));
+    var rate = Math.max(0, num($("tn-rate"), 0)) / 100;
+    var markup = Math.max(0, num($("tn-markup"), 0)) / 100;
+
+    var ext = target - now;
+    var occ = ext > 0 ? buy * ext / 30 : 0;
+    var gain = occ * rate * ext / 365;
+    var cost = buy * markup;
+    var net = gain - cost;
+    var crit = buy > 0 ? gain / buy : 0;
+
+    $("tn-gain").textContent = money(gain) + " 元/月";
+    $("tn-ext").textContent = (ext > 0 ? "+" : "") + ext + " 天" + (ext <= 0 ? "（没延长就不用谈）" : "");
+    $("tn-occ").textContent = money(occ) + " 元";
+    $("tn-cost").textContent = money(cost) + " 元（" + pct(markup) + "）";
+    $("tn-net").textContent = (net >= 0 ? "+" : "") + money(net) + " 元" + (net >= 0 ? "（划算）" : "（不划算）");
+    $("tn-crit").textContent = pct(crit);
+    $("tn-year").textContent = money(net * 12) + " 元";
+
+    var verdict;
+    if (net > 0) verdict = "接受：加价 " + pct(markup) + " 低于可承受上限 " + pct(crit);
+    else if (crit > 0) verdict = "不接受：加价 " + pct(markup) + " 高于上限，最多能给到 " + pct(crit) + " 或要求降到 " + money(crit * buy) + " 元/月以内";
+    else verdict = "不延长：没有可量的资金收益";
+    $("tn-verdict").textContent = verdict;
+
+    var terms = [45, 60, 75, 90], html = "", i;
+    for (i = 0; i < terms.length; i++) {
+      var d = terms[i], e = d - now;
+      var o = e > 0 ? buy * e / 30 : 0;
+      var g = o * rate * e / 365;
+      var cr = buy > 0 ? g / buy : 0;
+      html += '<tr class="' + (d === target ? "c-info" : "") + '"><td>' + d + " 天</td><td>" + money(o) + "</td><td>" + money(g) + "</td><td>" + pct(cr) + "</td></tr>";
+    }
+    $("tn-body").innerHTML = html;
+
+    $("tn-note").textContent =
+      " 账期从 " + now + " 天谈到 " + target + " 天，等于多占用供应商 " + money(occ) + " 元，" +
+      "按你的资金成本 " + pct(rate) + " 算，这段无息资金值 " + money(gain) + " 元/月。供应商为此要加价 " + money(cost) + " 元/月，" +
+      "净 " + (net >= 0 ? "赚 " : "亏 ") + money(Math.abs(net)) + " 元/月，一年 " + money(net * 12) + " 元。" +
+      " 换算成一句能直接谈判的话：加价率只要低于 " + pct(crit) + " 就接，高于就要求打折或用别的方式补（比如免运费、缩短交期、承担包装）。" +
+      " 三个提醒：① 这是现金流游戏，不是利润游戏——延长账期不增加利润，只改善现金，供应商加价却是实打实的成本进毛利；" +
+      "② 别忘了早付折扣（2/10 net 30 那种）的反面：放弃折扣的年化成本通常远高于资金成本，谈判时先算清折不折得起；" +
+      "③ 账期拉长会得罪小供应商（他们也缺钱），把最长账期留给大供应商，小供应商用准时付款换价格。";
+  }
+
+  /* ---------------- 13 周滚动现金流 ---------------- */
+  function calcCash13() {
+    var open = num($("wk-open"), 0);
+    var inflow = Math.max(0, num($("wk-in"), 0));
+    var outflow = Math.max(0, num($("wk-out"), 0));
+    var e1 = Math.max(0, num($("wk-e1"), 0)), w1 = Math.round(num($("wk-w1"), 0));
+    var e2 = Math.max(0, num($("wk-e2"), 0)), w2 = Math.round(num($("wk-w2"), 0));
+    var safe = Math.max(0, num($("wk-safe"), 0));
+
+    var bal = open, min = open, minWeek = 0, below = [], html = "", w;
+    var totalIn = 0, totalOut = 0;
+    for (w = 1; w <= 13; w++) {
+      var once = (w === w1 ? -e1 : 0) + (w === w2 ? -e2 : 0);
+      var netW = inflow - outflow + once;
+      bal += netW;
+      totalIn += inflow;
+      totalOut += outflow - once;
+      if (bal < min) { min = bal; minWeek = w; }
+      if (bal < safe) below.push(w);
+      html += "<tr" + (bal < safe ? ' class="c-warn"' : "") + "><td>第 " + w + " 周</td><td>" + money(inflow) + "</td><td>" + money(outflow) +
+        "</td><td>" + (once === 0 ? "—" : money(once)) + "</td><td>" + money(bal) + "</td></tr>";
+    }
+    $("wk-body").innerHTML = html;
+
+    var gap = safe - min;
+    $("wk-min").textContent = money(min) + " 元";
+    $("wk-minw").textContent = "第 " + minWeek + " 周";
+    $("wk-below").textContent = below.length + " 周" + (below.length ? "（第 " + below.join("、") + " 周）" : "");
+    $("wk-gap").textContent = (gap > 0 ? money(gap) + " 元" : "0 元（没跌破）");
+    $("wk-end").textContent = money(bal) + " 元";
+    $("wk-net").textContent = (bal - open >= 0 ? "+" : "") + money(bal - open) + " 元";
+
+    var verdict;
+    if (min < 0) verdict = "危险：第 " + minWeek + " 周现金会转负，必须提前安排融资或推迟付款";
+    else if (gap > 0) verdict = "偏紧：" + below.length + " 周低于安全线，最低点距安全线差 " + money(gap) + " 元，先备好授信额度";
+    else verdict = "安全：13 周内始终高于安全线，最低 " + money(min) + " 元";
+    $("wk-verdict").textContent = verdict;
+
+    $("wk-note").textContent =
+      " 13 周最低现金 " + money(min) + " 元，出现在第 " + minWeek + " 周；期末 " + money(bal) + " 元，13 周净变动 " + money(bal - open) + " 元。" +
+      " 这张表的用处不是预测得多准，而是提前看清「哪一周会紧」——现金流危机几乎都是时点错配，不是全年没钱。" +
+      " 判断顺序：先看会不会转负（要立刻安排），再看能否守住安全线（备授信），最后看期末是否在改善（结构性失血还是季节性）。" +
+      " 三条止血手段按优先级：① 催收（把大客户的收款日往前挪，比融资便宜）；② 谈付款节奏（工资、税金、货款错开同一周）；" +
+      "③ 融资（银行授信、票据、保理），这一步放最后，因为最贵。" +
+      " 口径提醒：按「钱真正进出账户的日期」排，不是按合同日期；税金和工资是硬时点不能挪；" +
+      "已开未收的承兑汇票、已被质押的保证金不算可用现金，别把它们算进期初。";
+  }
+
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
@@ -4633,7 +4836,8 @@
     payage: calcPayAge, costcard: calcCostCard, budgetvar: calcBudgetVar, finreport: calcFinReport,
     invoice: calcInvoice, expbudget: calcExpBudget, efficiency: calcEfficiency, cashstmt: calcCashStmt,
     invstock: calcInvStock, exportrebate: calcExport, tieout: calcTieOut, feetrend: calcFeeTrend,
-    mpbe: calcMpbe, payroll: calcPayroll, assetdiff: calcAssetDiff, monthclose: calcMonthClose
+    mpbe: calcMpbe, payroll: calcPayroll, assetdiff: calcAssetDiff, monthclose: calcMonthClose,
+    factoring: calcFactoring, deadstock: calcDeadStock, aptalk: calcApTalk, cash13: calcCash13
   };
 
   function setCat(cat) {
@@ -4775,9 +4979,13 @@
     "mb-fc", "mb-p1", "mb-v1", "mb-q1", "mb-p2", "mb-v2", "mb-q2", "mb-p3", "mb-v3", "mb-q3", "mb-target",
     "pc-gross", "pc-si", "pc-hf", "pc-tax", "pc-other", "pc-act", "pc-tax2", "pc-cosi", "pc-cohf", "pc-rev", "pc-head",
     "ad-cost", "ad-dep", "ad-rv", "ad-cd", "ad-comp", "ad-ins", "ad-vat", "ad-tr",
-    "mw-total", "mw-done", "mw-key", "mw-days", "mw-per", "mw-people"
+    "mw-total", "mw-done", "mw-key", "mw-days", "mw-per", "mw-people",
+    "fc-amt", "fc-days", "fc-rate", "fc-fee", "fc-margin", "fc-loan",
+    "ds-q", "ds-cost", "ds-price", "ds-prob", "ds-store", "ds-cut", "ds-scrap", "ds-val",
+    "tn-buy", "tn-now", "tn-target", "tn-rate", "tn-markup",
+    "wk-open", "wk-in", "wk-out", "wk-e1", "wk-w1", "wk-e2", "wk-w2", "wk-safe"
   ];
-  var KEY = "finance-calc-v22";
+  var KEY = "finance-calc-v23";
   var CAT_KEY = "finance-calc-cat";
 
   /* ---------------- 现金流月历 ---------------- */
