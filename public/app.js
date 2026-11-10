@@ -7165,6 +7165,128 @@
     $("gu-note").textContent = "招聘谈薪最常被问的一句：「到手 2 万，税前要多少？」按月度预扣表反推，本例税前约 2.60 万，公司实际成本还要加单位社保公积金约 25%。注意：社保有缴费基数上下限（各地不同，这里按工资全额算），年终奖若单独计税会让全年税负不同；谈 offer 时说的「总包」要问清是否含单位社保、是否含年终奖。";
   }
 
+  function calcDatemath() {
+    var d = parseDate($("dtm-date").value);
+    var mo = Math.round(num($("dtm-months"), 0)), dy = Math.round(num($("dtm-days"), 0));
+    if (!d) {
+      $("dtm-big").textContent = "—"; $("dtm-week").textContent = "—";
+      $("dtm-gap").textContent = "—"; $("dtm-rule").textContent = "—"; $("dtm-doy").textContent = "—";
+      $("dtm-note").textContent = "起始日期请按 2026-01-31 的格式填写。";
+      return;
+    }
+    var mid = addMonths(d, mo);
+    var r = dy ? new Date(mid.getFullYear(), mid.getMonth(), mid.getDate() + dy) : mid;
+    var clamped = mid.getDate() !== d.getDate();
+    var gap = Math.round((r.getTime() - d.getTime()) / 86400000);
+    var wd = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"][r.getDay()];
+    var doy = Math.round((r - new Date(r.getFullYear(), 0, 1)) / 86400000) + 1;
+    var isEnd = r.getDate() === new Date(r.getFullYear(), r.getMonth() + 1, 0).getDate();
+    $("dtm-big").textContent = fmtDate(r);
+    $("dtm-week").textContent = wd;
+    $("dtm-gap").textContent = (gap >= 0 ? "+" : "") + gap + " 天（" + (gap / 30.44).toFixed(2) + " 个月）";
+    $("dtm-rule").textContent = clamped ? "已按月末截断（" + fmtDate(mid) + "）" : (isEnd ? "正好落在月末" : "按日对日，未截断");
+    $("dtm-doy").textContent = "第 " + doy + " 天" + (isEnd ? "，且是当月最后一天" : "");
+    $("dtm-note").textContent = "「N 个月后」按对日算：起始日不存在的那天以月末为准（1/31 加 1 个月是 2/28 或 2/29），"
+      + "所以同一个合同写「3 个月」和写「90 天」能差一两天。到期日遇法定节假日、周末是否顺延，"
+      + "要看合同或票据约定，工具不会自动顺延；票据到期日按《票据法》另有规定，别直接套。";
+  }
+
+  function calcPct3() {
+    var a = num($("pct-a"), 0), b = num($("pct-b"), 0);
+    var p1 = num($("pct-p1"), 0), p2 = num($("pct-p2"), 0);
+    var diff = b - a, grow = a !== 0 ? diff / a : 0;
+    var share = a !== 0 ? b / a : 0, share2 = b !== 0 ? a / b : 0;
+    var pp = p2 - p1, rel = p1 !== 0 ? pp / p1 : 0;
+    $("pct-big").textContent = a !== 0 ? fmt(grow * 100, 2) : "—";
+    $("pct-diff").textContent = money(diff) + " 元";
+    $("pct-share").textContent = a !== 0 ? pct(share, 2) : "—";
+    $("pct-share2").textContent = b !== 0 ? pct(share2, 2) : "—";
+    $("pct-pp").textContent = fmt(pp, 2) + " 个百分点";
+    $("pct-rel").textContent = p1 !== 0 ? pct(rel, 2) : "—";
+    $("pct-demo").textContent = "A 每 100 元变成 " + fmt(a !== 0 ? b / a * 100 : 0, 2) + " 元";
+    $("pct-note").textContent = "三个东西别混：占比是「部分 ÷ 整体」，增幅是「差额 ÷ 原来的数」，"
+      + "百分点是两个百分数相减的结果。30% 到 33% 是「涨了 3 个百分点」，相对变化是 "
+      + pct(rel, 2) + "，说成「涨了 3%」会差 10 倍。分母为 0 或为负（比如利润由负转正）时，"
+      + "增幅没有意义，直接看绝对差额。";
+  }
+
+  var XL_ROWS = [
+    ["按条件求和", "=SUMIFS(金额列, 部门列, \"销售部\", 月份列, \">=\"&DATE(2026,1,1))"],
+    ["多条件查找", "=XLOOKUP(1,(A:A=姓名)*(B:B=月份),C:C,\"未找到\")"],
+    ["左表补齐右表", "=IFNA(VLOOKUP($A2,表2!$A:$D,3,FALSE),\"\")"],
+    ["老版本兜底", "=INDEX(表2!C:C,MATCH($A2,表2!A:A,0))"],
+    ["去重清单", "=UNIQUE(明细!B2:B1000)"],
+    ["排序", "=SORT(明细!A2:D100,4,-1)"],
+    ["条件筛选", "=FILTER(明细!A2:D100,明细!D2:D100>10000,\"无\")"],
+    ["按分隔符拆列", "=TEXTSPLIT(A2,\"-\")"],
+    ["取中间几位", "=MID(A2,7,8)"],
+    ["当月最后一天", "=EOMONTH(A2,0)"],
+    ["推 N 个工作日", "=WORKDAY(A2,10,节假日!A:A)"],
+    ["两个日期差月", "=DATEDIF(A2,B2,\"m\")"],
+    ["四舍五入到分", "=ROUND(A2,2)"],
+    ["账龄分档", "=LOOKUP(TODAY()-A2,{0,31,91,181,366},{\"未到期\",\"1-30\",\"31-90\",\"91-180\",\"180+\"})"],
+    ["累计求和", "=SUM($C$2:C2)"],
+    ["分类小计", "=SUMIF($B:$B,$B2,$C:$C)"],
+    ["两级下拉", "=INDIRECT(\"字典!\"&$A2)"],
+    ["标出重复项", "=COUNTIF($A:$A,$A2)>1"],
+    ["LET 少写重复", "=LET(x,SUMIFS(C:C,A:A,A2),IF(x>0,x*0.05,0))"],
+    ["透视式汇总", "=GROUPBY(区域,金额,SUM)"],
+    ["千分位文本", "=TEXT(A2,\"#,##0.00\")"],
+    ["把空值显示为 0", "=IFERROR(N(A2),0)"]
+  ];
+  function calcXlHelp() {
+    var box = $("xl-body");
+    if (!box) return;
+    var esc = function (v) {
+      return String(v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    };
+    box.innerHTML = XL_ROWS.map(function (r) {
+      return "<tr><td class=\"tal\">" + esc(r[0]) + "</td><td class=\"tal\"><code>" + esc(r[1]) + "</code></td></tr>";
+    }).join("");
+  }
+
+  function parseAmounts(str) {
+    var m = String(str || "").replace(/[,，¥$、\s]+/g, " ").match(/-?\d+(?:\.\d+)?/g) || [];
+    return m.map(function (x) { return parseFloat(x); }).filter(function (x) { return isFinite(x); });
+  }
+
+  function calcCsvRecon() {
+    var book = parseAmounts($("rk-book").value), bank = parseAmounts($("rk-bank").value);
+    var tol = Math.abs(num($("rk-tol"), 0.01));
+    var used = bank.map(function () { return false; });
+    var missBook = [], missBank = [];
+    book.forEach(function (v) {
+      var hit = -1;
+      for (var i = 0; i < bank.length; i++) {
+        if (!used[i] && Math.abs(bank[i] - v) <= tol) { hit = i; break; }
+      }
+      if (hit >= 0) used[hit] = true; else missBook.push(v);
+    });
+    for (var j = 0; j < bank.length; j++) if (!used[j]) missBank.push(bank[j]);
+    var sb = book.reduce(function (s, v) { return s + v; }, 0);
+    var sk = bank.reduce(function (s, v) { return s + v; }, 0);
+    var diff = sk - sb;
+    var unAll = missBook.map(function (v) { return ["账面有、流水没有", v]; })
+      .concat(missBank.map(function (v) { return ["流水有、账面没有", v]; }));
+    var unSum = unAll.reduce(function (s, r) { return s + r[1]; }, 0);
+    $("rk-big").textContent = fmt(diff, 2);
+    $("rk-booksum").textContent = book.length + " 笔 / " + money(sb) + " 元";
+    $("rk-banksum").textContent = bank.length + " 笔 / " + money(sk) + " 元";
+    $("rk-unmatch").textContent = unAll.length + " 笔（账面缺 " + missBook.length + " / 流水缺 " + missBank.length + "）";
+    $("rk-unsum").textContent = money(unSum) + " 元";
+    $("rk-body").innerHTML = unAll.length
+      ? unAll.slice(0, 30).map(function (r) {
+        return "<tr><td class=\"tal\">" + r[0] + "</td><td>" + money(r[1]) + "</td></tr>";
+      }).join("")
+      : "<tr><td class=\"tal\" colspan=\"2\">两边的金额全部配对成功</td></tr>";
+    $("rk-note").textContent = unAll.length === 0
+      ? "双向金额完全配对。注意：这只证明「金额和笔数对得上」，不等于业务实质对得上——"
+        + "还需要核日期、对方户名、摘要，避免两笔金额相同但业务不同的款项互相抵消。"
+      : "未匹配合计 " + money(unSum) + " 元，与净差额不同是正常的：一正一负两笔未达会互相抵消。"
+        + "先查是不是在途（银行已收未入账、公司已付未扣款），再查手续费、利息、代扣代缴这类「账面没记」的项目，"
+        + "最后才是真正的错账或漏记。同金额多笔按出现顺序配对，所以明细顺序不影响结果。";
+  }
+
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
@@ -7200,30 +7322,77 @@
     custwin: calcCustWin, upgrade: calcUpgrade, deptalloc: calcDeptAlloc, payout: calcPayout,
     numwords: calcNumWords, duedate: calcDueDate, workday: calcWorkDay, cagr: calcCagr, apportion: calcApportion, grossup: calcGrossUp,
     trprice: calcTrPrice, esop: calcEsop, rdexp: calcRdExp, rollfc: calcRollFC,
-    commission: calcCommission, capex: calcCapex, pooling: calcPooling, creditlimit: calcCreditLimit
+    commission: calcCommission, capex: calcCapex, pooling: calcPooling, creditlimit: calcCreditLimit,
+    datemath: calcDatemath, pct3: calcPct3, xlhelp: calcXlHelp, csvrecon: calcCsvRecon
   };
 
-  var curCat = "hot";
+  var curCat = "hot", curSub = "";
+  var FAV_KEY = "finance-calc-fav";
+  var favList = [];
+  try { favList = JSON.parse(localStorage.getItem(FAV_KEY) || "[]") || []; } catch (e) { favList = []; }
+  function isFav(id) { return favList.indexOf(id) >= 0; }
+  function saveFav() {
+    try { localStorage.setItem(FAV_KEY, JSON.stringify(favList)); } catch (e) {}
+    refreshCounts();
+  }
+  function refreshCounts() {
+    var chips = document.querySelectorAll(".cat");
+    for (var c = 0; c < chips.length; c++) {
+      var cat = chips[c].dataset.cat, label = chips[c].dataset.label || chips[c].textContent.trim();
+      var n = cat === "fav" ? favList.length
+        : document.querySelectorAll('.tab[data-cat~="' + cat + '"]').length;
+      chips[c].textContent = label + " " + n;
+    }
+  }
+  function applyFilter() {
+    var tb = document.querySelectorAll(".tab");
+    for (var t = 0; t < tb.length; t++) {
+      var el = tb[t], cat = el.dataset.cat || "", ok;
+      if (curCat === "fav") ok = isFav(el.dataset.tab);
+      else ok = cat.split(/\s+/).indexOf(curCat) >= 0;
+      if (ok && curCat === "acct" && curSub) ok = (el.dataset.grp || "") === curSub;
+      el.hidden = !ok;
+    }
+    var subs = $("subs");
+    if (subs) subs.hidden = curCat !== "acct";
+    var tn = $("tabs");
+    if (tn) tn.classList.toggle("tall", curCat === "acct" && !curSub);
+  }
   function setCat(cat) {
-    curCat = cat;
+    curCat = cat; curSub = "";
     var chips = document.querySelectorAll(".cat");
     for (var c = 0; c < chips.length; c++) chips[c].classList.toggle("is-on", chips[c].dataset.cat === cat);
-    var tb = document.querySelectorAll(".tab");
-    for (var t = 0; t < tb.length; t++) tb[t].hidden = tb[t].dataset.cat.split(/\s+/).indexOf(cat) < 0;
+    var sb = document.querySelectorAll(".sub");
+    for (var s = 0; s < sb.length; s++) sb[s].classList.toggle("is-on", sb[s].dataset.grp === "");
+    applyFilter();
     try { localStorage.setItem(CAT_KEY, cat); } catch (e) {}
+  }
+  function setSub(grp) {
+    curSub = grp;
+    var sb = document.querySelectorAll(".sub");
+    for (var s = 0; s < sb.length; s++) sb[s].classList.toggle("is-on", sb[s].dataset.grp === grp);
+    applyFilter();
   }
 
   function activate(name) {
     var self = document.querySelector('.tab[data-tab="' + name + '"]');
+    var qb = $("q");
+    if (qb && qb.value) { qb.value = ""; applyFilter(); }
     if (self && self.hidden) setCat(self.dataset.cat.split(/\s+/)[0]);
     var tabs = document.querySelectorAll(".tab");
-    for (var i = 0; i < tabs.length; i++) tabs[i].classList.toggle("is-on", tabs[i].dataset.tab === name);
+    for (var i = 0; i < tabs.length; i++) {
+      var on = tabs[i].dataset.tab === name;
+      tabs[i].classList.toggle("is-on", on);
+      tabs[i].setAttribute("aria-selected", on ? "true" : "false");
+    }
     var panels = document.querySelectorAll(".panel");
     for (var j = 0; j < panels.length; j++) panels[j].classList.toggle("is-on", panels[j].id === "panel-" + name);
     if (calcMap[name]) calcMap[name]();
     if (location.hash !== "#" + name) history.replaceState(null, "", "#" + name);
     var onTab = document.querySelector(".tab.is-on");
     if (onTab && onTab.scrollIntoView) onTab.scrollIntoView({ block: "nearest", inline: "center" });
+    var fv = $("btn-fav");
+    if (fv) { var f = isFav(name); fv.textContent = f ? "★ 已置顶" : "☆ 置顶"; fv.classList.toggle("on", f); }
   }
 
   $("tabs").addEventListener("click", function (e) {
@@ -7232,8 +7401,11 @@
   });
 
   window.addEventListener("hashchange", function () {
-    var n = location.hash.replace("#", "");
-    if (n && calcMap[n]) activate(n);
+    var st = hashTarget();
+    if (st.name && calcMap[st.name]) {
+      activate(st.name);
+      if (st.params) { applyParams(st.params); calcMap[st.name](); }
+    }
   });
 
   $("cats").addEventListener("click", function (e) {
@@ -7247,12 +7419,20 @@
 
   if ($("q")) $("q").addEventListener("input", function () {
     var q = this.value.trim().toLowerCase();
-    var tb = document.querySelectorAll(".tab");
-    if (!q) { setCat(curCat); return; }
+    var tb = document.querySelectorAll(".tab"), subs = $("subs");
+    if (!q) { applyFilter(); return; }
+    if (subs) subs.hidden = true;
     for (var i = 0; i < tb.length; i++) {
       var hit = tb[i].textContent.toLowerCase().indexOf(q) >= 0 || tb[i].dataset.tab.indexOf(q) >= 0;
       tb[i].hidden = !hit;
     }
+  });
+  if ($("subs")) $("subs").addEventListener("click", function (e) {
+    var s = e.target.closest(".sub");
+    if (!s) return;
+    setSub(s.dataset.grp);
+    var first = document.querySelector(".tab:not([hidden])");
+    if (first) activate(first.dataset.tab);
   });
 
   $("ln-toggle").addEventListener("click", function () {
@@ -7369,9 +7549,12 @@
     "im-cost", "im-price", "im-finish", "im-sell", "im-had", "im-up", "im-tax",
     "fxg-usd", "fxg-signed", "fxg-book", "fxg-spot", "fxg-spread", "fxg-fwd",
 "tbr-sales", "tbr-out", "tbr-in", "tbr-begin", "tbr-prev", "tbr-ind", "tbr-surch", "sens-rev", "sens-vr", "sens-fix", "sens-shock", "sens-target", "cons-pm-rev", "cons-sub-rev", "cons-inter", "cons-pm-np", "cons-sub-np", "cons-unreal", "cons-mi", "cons-inv", "cons-sub-net", "cons-rec", "eoq-d", "eoq-k", "eoq-h", "eoq-day", "eoq-sd", "eoq-lt", "eoq-svc", "eoq-moq",
-"cm-sales", "cm-ret", "cm-gm", "cm-sr", "cm-gr", "cm-achv", "cm-cash", "cpx-inv", "cpx-cf", "cpx-years", "cpx-rate", "cpx-rv", "pool-idle", "pool-a", "pool-b", "pool-in", "pool-out", "pool-demand", "pool-rate", "pool-wealth", "pool-equity", "crl-buy", "crl-term", "crl-vat", "crl-gm", "crl-netw", "crl-lev", "crl-late", "crl-cost", "bpl-rev", "bpl-grow", "bpl-gm", "bpl-opex", "bpl-dep", "bpl-tax", "bpl-dso", "bpl-dio", "bpl-dpo", "bpl-cash", "bpl-big", "bpl-rev2", "bpl-gp", "bpl-op", "bpl-margin", "bpl-wc", "bpl-nwc", "bpl-wcgap", "bpl-free", "bpl-body", "bpl-note", "rf-exp", "rf-reb", "rf-rate", "rf-lag", "rf-audit", "rf-cost", "rf-big", "rf-month", "rf-year", "rf-days", "rf-costv", "rf-gap", "rf-ten", "rf-opt", "rf-advice", "rf-body", "rf-note", "cal-oh", "cal-qa", "cal-qb", "cal-qc", "cal-ha", "cal-hb", "cal-hc", "cal-ma", "cal-mb", "cal-mc", "cal-ta", "cal-tb", "cal-tc", "cal-big", "cal-which", "cal-totals", "cal-r1", "cal-r2", "cal-r3", "cal-pick", "cal-price", "cal-body", "cal-note", "ic-fob", "ic-frt", "ic-ins", "ic-fx", "ic-duty", "ic-cons", "ic-vat", "ic-port", "ic-agent", "ic-qty", "ic-big", "ic-cif", "ic-dutyv", "ic-consv", "ic-vatv", "ic-fees", "ic-land", "ic-cash", "ic-ratio", "ic-body", "ic-note", "tp-cost", "tp-price", "tp-inner", "tp-ratea", "tp-rateb", "tp-lo", "tp-hi", "tp-big", "tp-a", "tp-b", "tp-profit", "tp-rate", "tp-low", "tp-high", "tp-save", "tp-per", "tp-body", "tp-note", "es-shares", "es-fair", "es-strike", "es-years", "es-leave", "es-tax", "es-big", "es-per", "es-qty", "es-flat", "es-acc", "es-diff", "es-dta", "es-deduct", "es-advice", "es-body", "es-note", "rd-labor", "rd-mat", "rd-dep", "rd-other", "rd-pct", "rd-tax", "rd-big", "rd-total", "rd-cap", "rd-effect", "rd-base", "rd-save", "rd-eff", "rd-lost", "rd-body", "rd-note", "rl-bud", "rl-passed", "rl-act", "rl-rest", "rl-gmb", "rl-gma", "rl-big", "rl-rate", "rl-gap", "rl-expect", "rl-pace", "rl-need", "rl-delta", "rl-gp", "rl-advice", "rl-body", "rl-note", "mob-q", "mob-vu", "mob-avo", "mob-price", "mob-extra", "mob-rent", "mob-fixall", "mob-big", "mob-self", "mob-buy", "mob-unit", "mob-crit", "mob-qcrit", "mob-pick", "mob-wrong", "mob-body", "mob-note", "ecl-a1", "ecl-a2", "ecl-a3", "ecl-a4", "ecl-a5", "ecl-r1", "ecl-r2", "ecl-r3", "ecl-r4", "ecl-r5", "ecl-adj", "ecl-prev", "ecl-big", "ecl-total", "ecl-base", "ecl-adjv", "ecl-delta", "ecl-ratio", "ecl-loss", "ecl-tax", "ecl-body", "ecl-note", "qf-cost", "qf-qty", "qf-dyn", "qf-port", "qf-gm", "qf-comm", "qf-fx", "qf-frt", "qf-ins", "qf-big", "qf-fob", "qf-comv", "qf-real", "qf-frtv", "qf-insv", "qf-cif", "qf-profit", "qf-fxrisk", "qf-body", "qf-note", "cap-q", "cap-p", "cap-va", "cap-ca", "cap-fa", "cap-vb", "cap-cb", "cap-fb", "cap-fixa", "cap-fixb", "cap-out", "cap-big", "cap-a", "cap-b", "cap-cm", "cap-fix", "cap-wrong", "cap-gap", "cap-outv", "cap-body", "cap-note", "mold-fee", "mold-life", "mold-price", "mold-vc", "mold-q", "mold-disc", "mold-big", "mold-per", "mold-perq", "mold-m1", "mold-m2", "mold-total", "mold-min1", "mold-verdict", "mold-body", "mold-note", "reb-base", "reb-gm", "reb-t1", "reb-p1", "reb-t2", "reb-p2", "reb-t3", "reb-p3", "reb-big", "reb-cur", "reb-now", "reb-rate", "reb-pick", "reb-crit", "reb-advice", "reb-body", "reb-note", "sc-q", "sc-mq", "sc-mp", "sc-maq", "sc-map", "sc-lh", "sc-lr", "sc-lah", "sc-lar", "sc-vr", "sc-va", "sc-fb", "sc-fa", "sc-big", "sc-mat", "sc-lab", "sc-voh", "sc-foh", "sc-dir", "sc-owner", "sc-ratio", "sc-body", "sc-note", "svc-d", "svc-sd", "svc-lt", "svc-sl", "svc-ann", "svc-lot", "svc-hold", "svc-out", "svc-big", "svc-z", "svc-ltd", "svc-rop", "svc-cost", "svc-total", "svc-best", "svc-up", "svc-body", "svc-note", "txj-rev", "txj-profit", "txj-ent", "txj-ad", "txj-fine", "txj-don", "txj-rd", "txj-rdr", "txj-pre", "txj-big", "txj-entv", "txj-adv", "txj-donv", "txj-finev", "txj-rdv", "txj-tax", "txj-due", "txj-rate", "txj-body", "txj-note", "spl-tot", "spl-t1", "spl-t2", "spl-t3", "spl-t4", "spl-t5", "spl-days", "spl-loss", "spl-big", "spl-top1", "spl-sum", "spl-hhi", "spl-level", "spl-gap", "spl-cost", "spl-advice", "spl-body", "spl-note", "dtc-loan", "dtc-eq", "dtc-rate", "dtc-bank", "dtc-mult", "dtc-big", "dtc-ratio", "dtc-lim", "dtc-paid", "dtc-ratecap", "dtc-multcap", "dtc-final", "dtc-tax", "dtc-advice", "dtc-note", "adp-cost", "adp-life", "adp-salv", "adp-tax", "adp-disc", "adp-big", "adp-acc", "adp-taxdep", "adp-diff", "adp-later", "adp-pv", "adp-net", "adp-yield", "adp-advice", "adp-body", "adp-note", "cwin-ra", "cwin-da", "cwin-ba", "cwin-fa", "cwin-sa", "cwin-ta", "cwin-ga", "cwin-rb", "cwin-db", "cwin-bb", "cwin-fb", "cwin-sb", "cwin-tb", "cwin-gb", "cwin-rc", "cwin-dc", "cwin-bc", "cwin-fc", "cwin-sc", "cwin-tc", "cwin-gc", "cwin-cost", "cwin-big", "cwin-rank", "cwin-total", "cwin-mix", "cwin-cuts", "cwin-occ", "cwin-worst", "cwin-advice", "cwin-body", "cwin-note", "upg-oldrun", "upg-oldmt", "upg-oldsale", "upg-oldlife", "upg-oldsalv", "upg-newinv", "upg-newlife", "upg-newrun", "upg-newmt", "upg-newsalv", "upg-rate", "upg-big", "upg-old", "upg-new", "upg-verdict", "upg-maxinv", "upg-energy", "upg-delay", "upg-body", "upg-note", "da-s1", "da-s12", "da-a1", "da-s2", "da-s21", "da-a2", "da-big", "da-d", "da-s", "da-r", "da-true", "da-sum", "da-pick", "da-body", "da-note", "po-ret", "po-np", "po-share", "po-ratio", "po-tax", "po-roe", "po-loan", "po-big", "po-div", "po-sharev", "po-keep", "po-nodiv", "po-ind", "po-risk", "po-alltax", "po-body", "po-note", "nw-amount", "nw-prefix", "ud-start", "ud-days", "ud-basis", "ud-amt", "ud-rate", "ud-today", "wd-a", "wd-b", "wd-hol", "wd-n", "cg-from", "cg-to", "cg-years", "apc-total", "apc-w", "gu-net", "gu-rate", "gu-spec", "gu-thr"
+"cm-sales", "cm-ret", "cm-gm", "cm-sr", "cm-gr", "cm-achv", "cm-cash", "cpx-inv", "cpx-cf", "cpx-years", "cpx-rate", "cpx-rv", "pool-idle", "pool-a", "pool-b", "pool-in", "pool-out", "pool-demand", "pool-rate", "pool-wealth", "pool-equity", "crl-buy", "crl-term", "crl-vat", "crl-gm", "crl-netw", "crl-lev", "crl-late", "crl-cost", "bpl-rev", "bpl-grow", "bpl-gm", "bpl-opex", "bpl-dep", "bpl-tax", "bpl-dso", "bpl-dio", "bpl-dpo", "bpl-cash", "bpl-big", "bpl-rev2", "bpl-gp", "bpl-op", "bpl-margin", "bpl-wc", "bpl-nwc", "bpl-wcgap", "bpl-free", "bpl-body", "bpl-note", "rf-exp", "rf-reb", "rf-rate", "rf-lag", "rf-audit", "rf-cost", "rf-big", "rf-month", "rf-year", "rf-days", "rf-costv", "rf-gap", "rf-ten", "rf-opt", "rf-advice", "rf-body", "rf-note", "cal-oh", "cal-qa", "cal-qb", "cal-qc", "cal-ha", "cal-hb", "cal-hc", "cal-ma", "cal-mb", "cal-mc", "cal-ta", "cal-tb", "cal-tc", "cal-big", "cal-which", "cal-totals", "cal-r1", "cal-r2", "cal-r3", "cal-pick", "cal-price", "cal-body", "cal-note", "ic-fob", "ic-frt", "ic-ins", "ic-fx", "ic-duty", "ic-cons", "ic-vat", "ic-port", "ic-agent", "ic-qty", "ic-big", "ic-cif", "ic-dutyv", "ic-consv", "ic-vatv", "ic-fees", "ic-land", "ic-cash", "ic-ratio", "ic-body", "ic-note", "tp-cost", "tp-price", "tp-inner", "tp-ratea", "tp-rateb", "tp-lo", "tp-hi", "tp-big", "tp-a", "tp-b", "tp-profit", "tp-rate", "tp-low", "tp-high", "tp-save", "tp-per", "tp-body", "tp-note", "es-shares", "es-fair", "es-strike", "es-years", "es-leave", "es-tax", "es-big", "es-per", "es-qty", "es-flat", "es-acc", "es-diff", "es-dta", "es-deduct", "es-advice", "es-body", "es-note", "rd-labor", "rd-mat", "rd-dep", "rd-other", "rd-pct", "rd-tax", "rd-big", "rd-total", "rd-cap", "rd-effect", "rd-base", "rd-save", "rd-eff", "rd-lost", "rd-body", "rd-note", "rl-bud", "rl-passed", "rl-act", "rl-rest", "rl-gmb", "rl-gma", "rl-big", "rl-rate", "rl-gap", "rl-expect", "rl-pace", "rl-need", "rl-delta", "rl-gp", "rl-advice", "rl-body", "rl-note", "mob-q", "mob-vu", "mob-avo", "mob-price", "mob-extra", "mob-rent", "mob-fixall", "mob-big", "mob-self", "mob-buy", "mob-unit", "mob-crit", "mob-qcrit", "mob-pick", "mob-wrong", "mob-body", "mob-note", "ecl-a1", "ecl-a2", "ecl-a3", "ecl-a4", "ecl-a5", "ecl-r1", "ecl-r2", "ecl-r3", "ecl-r4", "ecl-r5", "ecl-adj", "ecl-prev", "ecl-big", "ecl-total", "ecl-base", "ecl-adjv", "ecl-delta", "ecl-ratio", "ecl-loss", "ecl-tax", "ecl-body", "ecl-note", "qf-cost", "qf-qty", "qf-dyn", "qf-port", "qf-gm", "qf-comm", "qf-fx", "qf-frt", "qf-ins", "qf-big", "qf-fob", "qf-comv", "qf-real", "qf-frtv", "qf-insv", "qf-cif", "qf-profit", "qf-fxrisk", "qf-body", "qf-note", "cap-q", "cap-p", "cap-va", "cap-ca", "cap-fa", "cap-vb", "cap-cb", "cap-fb", "cap-fixa", "cap-fixb", "cap-out", "cap-big", "cap-a", "cap-b", "cap-cm", "cap-fix", "cap-wrong", "cap-gap", "cap-outv", "cap-body", "cap-note", "mold-fee", "mold-life", "mold-price", "mold-vc", "mold-q", "mold-disc", "mold-big", "mold-per", "mold-perq", "mold-m1", "mold-m2", "mold-total", "mold-min1", "mold-verdict", "mold-body", "mold-note", "reb-base", "reb-gm", "reb-t1", "reb-p1", "reb-t2", "reb-p2", "reb-t3", "reb-p3", "reb-big", "reb-cur", "reb-now", "reb-rate", "reb-pick", "reb-crit", "reb-advice", "reb-body", "reb-note", "sc-q", "sc-mq", "sc-mp", "sc-maq", "sc-map", "sc-lh", "sc-lr", "sc-lah", "sc-lar", "sc-vr", "sc-va", "sc-fb", "sc-fa", "sc-big", "sc-mat", "sc-lab", "sc-voh", "sc-foh", "sc-dir", "sc-owner", "sc-ratio", "sc-body", "sc-note", "svc-d", "svc-sd", "svc-lt", "svc-sl", "svc-ann", "svc-lot", "svc-hold", "svc-out", "svc-big", "svc-z", "svc-ltd", "svc-rop", "svc-cost", "svc-total", "svc-best", "svc-up", "svc-body", "svc-note", "txj-rev", "txj-profit", "txj-ent", "txj-ad", "txj-fine", "txj-don", "txj-rd", "txj-rdr", "txj-pre", "txj-big", "txj-entv", "txj-adv", "txj-donv", "txj-finev", "txj-rdv", "txj-tax", "txj-due", "txj-rate", "txj-body", "txj-note", "spl-tot", "spl-t1", "spl-t2", "spl-t3", "spl-t4", "spl-t5", "spl-days", "spl-loss", "spl-big", "spl-top1", "spl-sum", "spl-hhi", "spl-level", "spl-gap", "spl-cost", "spl-advice", "spl-body", "spl-note", "dtc-loan", "dtc-eq", "dtc-rate", "dtc-bank", "dtc-mult", "dtc-big", "dtc-ratio", "dtc-lim", "dtc-paid", "dtc-ratecap", "dtc-multcap", "dtc-final", "dtc-tax", "dtc-advice", "dtc-note", "adp-cost", "adp-life", "adp-salv", "adp-tax", "adp-disc", "adp-big", "adp-acc", "adp-taxdep", "adp-diff", "adp-later", "adp-pv", "adp-net", "adp-yield", "adp-advice", "adp-body", "adp-note", "cwin-ra", "cwin-da", "cwin-ba", "cwin-fa", "cwin-sa", "cwin-ta", "cwin-ga", "cwin-rb", "cwin-db", "cwin-bb", "cwin-fb", "cwin-sb", "cwin-tb", "cwin-gb", "cwin-rc", "cwin-dc", "cwin-bc", "cwin-fc", "cwin-sc", "cwin-tc", "cwin-gc", "cwin-cost", "cwin-big", "cwin-rank", "cwin-total", "cwin-mix", "cwin-cuts", "cwin-occ", "cwin-worst", "cwin-advice", "cwin-body", "cwin-note", "upg-oldrun", "upg-oldmt", "upg-oldsale", "upg-oldlife", "upg-oldsalv", "upg-newinv", "upg-newlife", "upg-newrun", "upg-newmt", "upg-newsalv", "upg-rate", "upg-big", "upg-old", "upg-new", "upg-verdict", "upg-maxinv", "upg-energy", "upg-delay", "upg-body", "upg-note", "da-s1", "da-s12", "da-a1", "da-s2", "da-s21", "da-a2", "da-big", "da-d", "da-s", "da-r", "da-true", "da-sum", "da-pick", "da-body", "da-note", "po-ret", "po-np", "po-share", "po-ratio", "po-tax", "po-roe", "po-loan", "po-big", "po-div", "po-sharev", "po-keep", "po-nodiv", "po-ind", "po-risk", "po-alltax", "po-body", "po-note", "nw-amount", "nw-prefix", "ud-start", "ud-days", "ud-basis", "ud-amt", "ud-rate", "ud-today", "wd-a", "wd-b", "wd-hol", "wd-n", "cg-from", "cg-to", "cg-years", "apc-total", "apc-w", "gu-net", "gu-rate", "gu-spec", "gu-thr",
+    "dtm-date", "dtm-months", "dtm-days",
+    "pct-a", "pct-b", "pct-p1", "pct-p2",
+    "rk-tol"
 ];
-  var KEY = "finance-calc-v34";
+  var KEY = "finance-calc-v35";
   var CAT_KEY = "finance-calc-cat";
 
   /* ---------------- 现金流月历 ---------------- */
@@ -7725,18 +7908,218 @@
   $("fx-cat").addEventListener("change", function () { fillUnits(); calcFx(); save(); });
   fillUnits();
 
+  /* ---------------- 置顶 / 分享链接 / 底稿 / 预设 / 主题 ---------------- */
+  function hashTarget() {
+    var h = (location.hash || "").replace("#", "");
+    var parts = h.split("?");
+    return { name: parts[0] || "", params: parts[1] || "" };
+  }
+
+  function panelEls() {
+    var panel = document.querySelector(".panel.is-on");
+    if (!panel) return [];
+    var els = panel.querySelectorAll("input,select");
+    return [].slice.call(els).filter(function (el) { return el.id && el.type !== "search"; });
+  }
+
+  function panelParams() {
+    return panelEls().map(function (el) {
+      return [encodeURIComponent(el.id), encodeURIComponent(el.value == null ? "" : el.value)];
+    }).filter(function (kv) { return kv[1] !== ""; })
+      .map(function (kv) { return kv[0] + "=" + kv[1]; });
+  }
+
+  function buildShare() {
+    var t = document.querySelector(".tab.is-on");
+    var name = t ? t.dataset.tab : "deposit";
+    var qs = panelParams().join("&");
+    return location.origin + location.pathname + "#" + name + (qs ? "?" + qs : "");
+  }
+
+  function applyParams(str) {
+    if (!str) return;
+    str.split("&").forEach(function (kv) {
+      var i = kv.indexOf("=");
+      if (i < 0) return;
+      var el = document.getElementById(decodeURIComponent(kv.slice(0, i)));
+      if (!el || !el.tagName) return;
+      el.value = decodeURIComponent(kv.slice(i + 1));
+    });
+  }
+
+  if ($("btn-fav")) $("btn-fav").addEventListener("click", function () {
+    var t = document.querySelector(".tab.is-on");
+    if (!t) return;
+    var id = t.dataset.tab;
+    if (isFav(id)) favList = favList.filter(function (x) { return x !== id; });
+    else favList.push(id);
+    saveFav();
+    if (curCat === "fav") applyFilter();
+    var on = isFav(id);
+    this.textContent = on ? "★ 已置顶" : "☆ 置顶";
+    this.classList.toggle("on", on);
+  });
+
+  function flash(btn, txt) {
+    if (!btn) return;
+    var old = btn.textContent;
+    btn.textContent = txt;
+    setTimeout(function () { btn.textContent = old; }, 1400);
+  }
+
+  if ($("btn-link")) $("btn-link").addEventListener("click", function () {
+    var btn = this;
+    copyText(buildShare()).then(function () { flash(btn, "链接已复制"); })
+      .catch(function () { flash(btn, "复制失败，请手动复制地址栏"); });
+  });
+
+  if ($("btn-md")) $("btn-md").addEventListener("click", function () {
+    var snap = snapshot(), panel = document.querySelector(".panel.is-on"), md = [];
+    md.push("# 财务计算器 · " + (snap.name || "计算"));
+    md.push("");
+    md.push("> 生成时间 " + new Date().toLocaleString("zh-CN") + "　·　来源 " + location.origin + location.pathname);
+    md.push("");
+    md.push("## 一、输入参数");
+    md.push("");
+    var labels = panel ? panel.querySelectorAll("label.f") : [];
+    for (var i = 0; i < labels.length; i++) {
+      var sp = labels[i].querySelector("span"), el = labels[i].querySelector("input,select,textarea");
+      if (!sp || !el) continue;
+      var raw = el.value == null ? "" : el.value;
+      if (el.tagName === "SELECT" && el.selectedIndex >= 0) raw = el.options[el.selectedIndex].textContent;
+      var v = String(raw).replace(/\s*\n\s*/g, " / ");
+      md.push("- " + sp.textContent.trim() + "：" + (v === "" ? "（空）" : v));
+    }
+    md.push("");
+    md.push("## 二、计算结果");
+    md.push("");
+    snap.rows.forEach(function (r) { md.push("- **" + r[0] + "**：" + r[1]); });
+    var tbody = panel ? panel.querySelector("tbody") : null;
+    if (tbody && tbody.rows.length) {
+      md.push("");
+      md.push("## 三、明细（前 20 行）");
+      md.push("");
+      var head = panel.querySelector("thead tr");
+      if (head) md.push("| " + [].map.call(head.children, function (th) { return th.textContent.trim(); }).join(" | ") + " |");
+      if (head) md.push("|" + [].map.call(head.children, function () { return "---"; }).join("|") + "|");
+      for (var r2 = 0; r2 < tbody.rows.length && r2 < 20; r2++) {
+        md.push("| " + [].map.call(tbody.rows[r2].children, function (td) { return td.textContent.trim(); }).join(" | ") + " |");
+      }
+      if (tbody.rows.length > 20) md.push("| … 共 " + tbody.rows.length + " 行，完整数据请用「下载 CSV」 |  |");
+    }
+    var hasTable = !!(tbody && tbody.rows.length);
+    if (snap.note) { md.push(""); md.push("## " + (hasTable ? "四" : "三") + "、口径说明"); md.push(""); md.push(snap.note); }
+    md.push("");
+    md.push("*本底稿由财务计算器生成，纯前端计算、数据未上传。所有结果按页面默认假设的公式推算，"
+      + "实际以合同、票据、当地政策和银行/税务口径为准。*");
+    var blob = new Blob([md.join("\n")], { type: "text/markdown;charset=utf-8" });
+    var link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "财务计算器-" + (snap.name || "底稿").replace(/\s/g, "") + ".md";
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    setTimeout(function () { URL.revokeObjectURL(link.href); }, 2000);
+    flash(this, "已导出 .md");
+  });
+
+  var PRE_KEY = "finance-calc-presets";
+  var presets = [];
+  try { presets = JSON.parse(localStorage.getItem(PRE_KEY) || "[]") || []; } catch (e) { presets = []; }
+  function savePresets() {
+    try { localStorage.setItem(PRE_KEY, JSON.stringify(presets)); } catch (e) {}
+    renderPresets();
+  }
+  function renderPresets() {
+    var sel = $("preset");
+    if (!sel) return;
+    var cur = sel.value, opts = ['<option value="">参数预设 ' + (presets.length || "") + "</option>"];
+    presets.forEach(function (p, i) {
+      opts.push('<option value="' + i + '">' + p.name + "（" + p.module + "）</option>");
+    });
+    sel.innerHTML = opts.join("");
+    sel.value = cur && presets[+cur] ? cur : "";
+  }
+  if ($("btn-preset-save")) $("btn-preset-save").addEventListener("click", function () {
+    var t = document.querySelector(".tab.is-on");
+    var module = t ? t.dataset.tab : "";
+    var name = t ? t.textContent.trim() : "计算";
+    var label = window.prompt("给这套参数起个名字（只存在本机浏览器）", name + " · 常用情形");
+    if (!label) return;
+    var data = {};
+    panelEls().forEach(function (el) { data[el.id] = el.value; });
+    presets = presets.filter(function (p) { return !(p.module === module && p.name === label); });
+    presets.push({ name: label, module: module, data: data });
+    savePresets();
+    flash(this, "已存为预设");
+  });
+  if ($("btn-preset-del")) $("btn-preset-del").addEventListener("click", function () {
+    var sel = $("preset");
+    if (!sel || sel.value === "") { flash(this, "先在左边选一个预设"); return; }
+    presets.splice(+sel.value, 1);
+    sel.value = "";
+    savePresets();
+    flash(this, "已删除");
+  });
+  if ($("preset")) $("preset").addEventListener("change", function () {
+    var i = this.value;
+    if (i === "") return;
+    var p = presets[+i];
+    if (!p) return;
+    if (calcMap[p.module]) activate(p.module);
+    Object.keys(p.data).forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.value = p.data[id];
+    });
+    if (calcMap[p.module]) calcMap[p.module]();
+    save();
+  });
+
+  var THEME_KEY = "finance-calc-theme";
+  function setTheme(t) {
+    document.documentElement.setAttribute("data-theme", t);
+    try { localStorage.setItem(THEME_KEY, t); } catch (e) {}
+    var b = $("btn-theme");
+    if (b) b.textContent = t === "dark" ? "浅色" : "深色";
+  }
+  if ($("btn-theme")) $("btn-theme").addEventListener("click", function () {
+    setTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark");
+  });
+  (function () {
+    var t = "";
+    try { t = localStorage.getItem(THEME_KEY) || ""; } catch (e) {}
+    if (!t) t = (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
+    setTheme(t);
+  })();
+
+  document.addEventListener("keydown", function (e) {
+    var tag = (document.activeElement && document.activeElement.tagName) || "";
+    if (e.key === "/" && !/^(INPUT|TEXTAREA|SELECT)$/.test(tag)) {
+      if ($("q")) { e.preventDefault(); $("q").focus(); $("q").select(); }
+      return;
+    }
+    if (e.key === "Escape" && document.activeElement === $("q")) {
+      $("q").value = ""; applyFilter(); $("q").blur();
+      return;
+    }
+    if ((e.key === "ArrowRight" || e.key === "ArrowLeft") && /(^| )tab( |$)/.test(document.activeElement.className || "")) {
+      var list = [].filter.call(document.querySelectorAll(".tab"), function (x) { return !x.hidden; });
+      var idx = list.indexOf(document.activeElement);
+      if (idx < 0) return;
+      var nx = list[idx + (e.key === "ArrowRight" ? 1 : -1)];
+      if (nx) { e.preventDefault(); nx.focus(); }
+    }
+  });
+
   /* ---------------- 启动 ---------------- */
   restore();
-  var chipsAll = document.querySelectorAll(".cat");
-  for (var ci = 0; ci < chipsAll.length; ci++) {
-    var cnt = document.querySelectorAll('.tab[data-cat~="' + chipsAll[ci].dataset.cat + '"]').length;
-    chipsAll[ci].textContent = chipsAll[ci].textContent + " " + cnt;
-  }
+  refreshCounts();
+  renderPresets();
   var savedCat = "hot";
   try { savedCat = localStorage.getItem(CAT_KEY) || "hot"; } catch (e) {}
   if (!document.querySelector('.cat[data-cat="' + savedCat + '"]')) savedCat = "hot";
   setCat(savedCat);
-  var start = (location.hash || "").replace("#", "");
-  activate(calcMap[start] ? start : "deposit");
+  var st0 = hashTarget();
+  var startName = calcMap[st0.name] ? st0.name : "deposit";
+  activate(startName);
+  if (st0.params) { applyParams(st0.params); if (calcMap[startName]) calcMap[startName](); }
   $("ver").textContent = "财务计算器 · 纯前端 · 更新于 " + new Date().toISOString().slice(0, 10);
 })();

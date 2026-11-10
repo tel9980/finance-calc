@@ -3,6 +3,7 @@
   --bg:#f4f6fb; --card:#ffffff; --line:#e2e8f0;
   --accent:#1e3a8a; --accent2:#2563eb; --soft:#eef2ff;
   --good:#047857; --warn:#b45309;
+  --field:#fbfcfe; --field-focus:#ffffff; --thead:#f1f5f9; --rowline:#f1f5f9;
   --radius:14px;
   --shadow:0 1px 2px rgba(15,23,42,.06),0 8px 24px -12px rgba(15,23,42,.18);
 }
@@ -90,11 +91,11 @@ button{font:inherit;cursor:pointer}
 .f > span:first-child,.f > .row + span{display:block;font-size:13px;color:var(--ink2);margin-bottom:6px}
 .f input[type=number],.f input[type=date],.f select{
   width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;
-  background:#fbfcfe;font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums;
+  background:var(--field);font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums;
   transition:border-color .15s,box-shadow .15s;
 }
 .f input[type=number]:focus,.f input[type=date]:focus,.f select:focus{
-  outline:none;border-color:var(--accent2);box-shadow:0 0 0 3px rgba(37,99,235,.14);background:#fff
+  outline:none;border-color:var(--accent2);box-shadow:0 0 0 3px rgba(37,99,235,.14);background:var(--field-focus)
 }
 .f em{display:block;font-style:normal;font-size:12px;color:var(--ink3);margin-top:5px}
 .row{display:flex;gap:8px}
@@ -127,18 +128,18 @@ button{font:inherit;cursor:pointer}
 
 /* ---------- table ---------- */
 .ghost{
-  appearance:none;border:1px solid var(--line);background:#fff;color:var(--accent2);
+  appearance:none;border:1px solid var(--line);background:var(--card);color:var(--accent2);
   padding:5px 12px;border-radius:8px;font-size:13px;
 }
 .ghost:hover{background:var(--soft);border-color:#c7d2fe}
 .tablebox{max-height:420px;overflow:auto;border:1px solid var(--line);border-radius:10px}
 table{width:100%;border-collapse:collapse;font-size:13px}
 thead th{
-  position:sticky;top:0;background:#f1f5f9;color:var(--ink2);font-weight:600;
+  position:sticky;top:0;background:var(--thead);color:var(--ink2);font-weight:600;
   padding:9px 10px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap;
 }
 thead th:first-child{text-align:center}
-tbody td{padding:8px 10px;text-align:right;border-bottom:1px solid #f1f5f9;color:var(--ink)}
+tbody td{padding:8px 10px;text-align:right;border-bottom:1px solid var(--rowline);color:var(--ink)}
 tbody td:first-child{text-align:center;color:var(--ink3)}
 tbody tr:nth-child(even){background:#fbfcfe}
 tbody tr:hover{background:var(--soft)}
@@ -172,3 +173,79 @@ td.tal { text-align: left; }
 .q::placeholder{color:rgba(255,255,255,.72)}
 .q:focus{outline:none;border-color:#fff;background:rgba(255,255,255,.2)}
 .q::-webkit-search-cancel-button{-webkit-appearance:none}
+
+/* ---------- 工具条多按钮换行 ---------- */
+.tools{flex-wrap:wrap;align-items:center}
+.tools .ghost{padding:5px 10px}
+.ghost.on{background:var(--soft);border-color:#c7d2fe;color:var(--accent);font-weight:650}
+select.ghost{max-width:210px}
+
+/* ---------- 二级分组（公司财务） ---------- */
+.subs{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.sub{
+  appearance:none;border:1px dashed rgba(255,255,255,.4);background:transparent;color:#dfe8fb;
+  padding:3px 10px;border-radius:8px;font-size:12.5px;cursor:pointer;white-space:nowrap;
+  transition:background .15s,color .15s;
+}
+.sub:hover{background:rgba(255,255,255,.16)}
+.sub.is-on{background:rgba(255,255,255,.92);border-style:solid;border-color:transparent;color:var(--accent);font-weight:650}
+
+/* ---------- 面板里的文本域与公式 ---------- */
+.f textarea{
+  width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:9px;
+  background:var(--card);color:var(--ink);font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;
+  resize:vertical;min-height:96px;
+}
+.f textarea:focus{outline:2px solid var(--soft);border-color:#c7d2fe}
+td code{
+  font:12.5px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--soft);
+  padding:2px 5px;border-radius:5px;white-space:pre-wrap;word-break:break-all;
+}
+
+/* ---------- 深色模式 ---------- */
+html[data-theme="dark"]{
+  --ink:#e6edf7; --ink2:#a9b6c9; --ink3:#8496ad;
+  --bg:#0a1018; --card:#121b28; --line:#243349;
+  --accent:#8fb4ff; --accent2:#7fa9f5; --soft:#1a2740;
+  --good:#34d399; --warn:#fbbf24;
+  --shadow:0 1px 2px rgba(0,0,0,.45),0 10px 28px -14px rgba(0,0,0,.75);
+  --field:#0f1826; --field-focus:#121b28; --thead:#16212f; --rowline:#1b2637;
+}
+html[data-theme="dark"] .hd{background:linear-gradient(135deg,#0f1c33,#132b4d 60%,#0b3c55)}
+html[data-theme="dark"] .tab.is-on{background:#0a1018;color:#dbe7ff}
+html[data-theme="dark"] .cat.is-on,html[data-theme="dark"] .sub.is-on{background:#dbe7ff;border-color:#dbe7ff;color:#12203a}
+html[data-theme="dark"] thead th{background:var(--thead)}
+html[data-theme="dark"] tbody td{border-bottom-color:#1b2637}
+html[data-theme="dark"] tbody tr:nth-child(even){background:#16212f}
+html[data-theme="dark"] tbody tr.c-bad{background:#2a1414}
+html[data-theme="dark"] tbody tr.c-soft{background:#291717}
+html[data-theme="dark"] tbody tr.c-warn{background:#2a2110}
+html[data-theme="dark"] tbody tr.c-info{background:#141f33}
+html[data-theme="dark"] .ghost{background:#16212f;color:#9fc0ff}
+@media (max-width:660px){
+  .tools{gap:6px;justify-content:flex-start}
+  .tools .ghost{font-size:12px;padding:4px 8px}
+}
+
+/* 页头：一句话简介 + 可展开的模块清单 */
+.tagline{margin:3px 0 0;font-size:13px;color:rgba(255,255,255,.86)}
+.allmods{margin-top:7px;font-size:12px;color:rgba(255,255,255,.8)}
+.allmods summary{
+  cursor:pointer;list-style:none;display:inline-block;padding:3px 11px;
+  border:1px solid rgba(255,255,255,.35);border-radius:999px;color:#eef3ff;
+}
+.allmods summary::-webkit-details-marker{display:none}
+.allmods summary:hover{background:rgba(255,255,255,.16)}
+.allmods p{margin:8px 0 0;line-height:1.65}
+
+/* 公司财务「全部」时标签很多，限高内部滚动，别把首屏顶下去 */
+.tabs.tall{max-height:136px;overflow-y:auto}
+@media (max-width:660px){
+  .tagline,.allmods{display:none}
+  .cats,.subs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+  .cats::-webkit-scrollbar,.subs::-webkit-scrollbar{display:none}
+  .cat,.sub{flex:0 0 auto}
+  .tabs.tall{max-height:none;overflow-x:auto;overflow-y:hidden}
+}
+
+.subs[hidden]{display:none}
