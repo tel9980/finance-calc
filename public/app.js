@@ -3264,6 +3264,202 @@
       + "真记错的必须做凭证更正，不能靠调节表抹平。";
   }
 
+  /* ---------------- 差旅报销单合计 ---------------- */
+  function calcExpense() {
+    var days = Math.max(1, Math.round(num($("ex-days"), 1)));
+    var nights = Math.max(0, Math.round(num($("ex-nights"), 0)));
+    var hotel = Math.max(0, num($("ex-hotel"), 0));
+    var hstd = Math.max(0, num($("ex-hstd"), 0));
+    var mealStd = Math.max(0, num($("ex-meal"), 0));
+    var local = Math.max(0, num($("ex-local"), 0));
+    var travel = Math.max(0, num($("ex-travel"), 0));
+    var other = Math.max(0, num($("ex-other"), 0));
+
+    var hotelTotal = nights * hotel;
+    var overPer = Math.max(0, hotel - hstd);
+    var over = overPer * nights;
+    var hotelOk = hotelTotal - over;
+    var meal = days * mealStd;
+    var total = hotelTotal + meal + local + travel + other;
+    var paid = total - over;
+    var vatHotel = Math.round(hotelOk / 1.06 * 0.06 * 100) / 100;
+    var vatTravel = Math.round(travel / 1.09 * 0.09 * 100) / 100;
+    var vat = vatHotel + vatTravel;
+    var cost = paid - vat;
+
+    $("ex-paid").textContent = money(paid);
+    $("ex-total").textContent = yuan(total);
+    $("ex-over").textContent = over > 0.005 ? yuan(over) : "无超标";
+    $("ex-vat").textContent = yuan(vat) + "（住宿 " + money(vatHotel) + " + 交通 " + money(vatTravel) + "）";
+    $("ex-cost").textContent = yuan(cost);
+    $("ex-day").textContent = yuan(paid / days);
+
+    var rows = [
+      ["住宿", money(hotel) + " × " + nights + " 晚", money(hotelOk),
+        over > 0.005 ? "超标 " + money(overPer) + "/晚，共 " + money(over) + " 自付" : "未超标"],
+      ["餐补", money(mealStd) + " × " + days + " 天", money(meal), "按天包干，不用票"],
+      ["市内交通", "—", money(local), "打车/地铁，可凭票"],
+      ["城际交通", "—", money(travel), "火车/机票，9% 可抵扣"],
+      ["其他", "—", money(other), "杂费"]
+    ];
+    var html = "";
+    for (var i = 0; i < rows.length; i++) {
+      html += "<tr><td>" + rows[i][0] + "</td><td>" + rows[i][1] + "</td><td>" +
+        rows[i][2] + "</td><td>" + rows[i][3] + "</td></tr>";
+    }
+    html += "<tr><td><b>合计</b></td><td>—</td><td><b>" + money(paid) + "</b></td><td>已扣超标 " +
+      money(over) + "</td></tr>";
+    $("ex-body").innerHTML = html;
+
+    $("ex-note").textContent = "报销口径：住宿、城际交通按含税金额报销，但只有取得增值税专用发票（或按规定可抵扣的客票）"
+      + "才能抵扣进项税——住宿 6%、铁路/航空运输 9%，餐补和餐饮发票不能抵扣。所以同样一张 1,350 元的住宿单，"
+      + "专票比普票给公司省 " + money(vatHotel) + " 元，这也是财务催着要专票的原因。"
+      + "超标部分属于个人消费，不能报销也不能抵税；若要税前扣除，还得并入工资薪金代扣个税。";
+  }
+
+  /* ---------------- 应收账款账龄 ---------------- */
+  function calcAging() {
+    var bs = [
+      Math.max(0, num($("ag-b1"), 0)), Math.max(0, num($("ag-b2"), 0)),
+      Math.max(0, num($("ag-b3"), 0)), Math.max(0, num($("ag-b4"), 0))
+    ];
+    var raw = ($("ag-rates") && $("ag-rates").value || "5,10,30,50").split(/[,，\s]+/);
+    var rs = [];
+    for (var i = 0; i < 4; i++) {
+      var p = parseFloat(raw[i]);
+      rs.push(isFinite(p) ? Math.max(0, Math.min(100, p)) / 100 : 0);
+    }
+    var have = Math.max(0, num($("ag-have"), 0));
+    var names = ["1 年以内", "1–2 年", "2–3 年", "3 年以上"];
+
+    var total = 0, prov = 0;
+    for (var j = 0; j < 4; j++) { total += bs[j]; prov += bs[j] * rs[j]; }
+    var delta = prov - have;
+    var net = total - prov;
+
+    $("ag-prov").textContent = money(prov);
+    $("ag-total").textContent = yuan(total);
+    $("ag-rate").textContent = total > 0 ? pct(prov / total) : "—";
+    $("ag-have-out").textContent = yuan(have);
+    $("ag-delta").textContent = (delta >= 0 ? "补提 " + money(delta) : "冲回 " + money(-delta)) + " 元";
+    $("ag-net").textContent = yuan(net);
+
+    var html = "";
+    for (var k = 0; k < 4; k++) {
+      html += "<tr><td>" + names[k] + "</td><td>" + money(bs[k]) + "</td><td>" +
+        (total > 0 ? pct(bs[k] / total) : "—") + "</td><td>" + pct(rs[k]) + "</td><td>" +
+        money(bs[k] * rs[k]) + "</td></tr>";
+    }
+    html += "<tr><td><b>合计</b></td><td><b>" + money(total) + "</b></td><td>100.00%</td><td>" +
+      (total > 0 ? pct(prov / total) : "—") + "</td><td><b>" + money(prov) + "</b></td></tr>";
+    $("ag-body").innerHTML = html;
+
+    $("ag-note").textContent = "计提比例是公司的会计估计（准则要求按预期信用损失计提），没有法定固定比例，"
+      + "但要有依据并能解释：通常 1 年以内 5%、1–2 年 10–30%、2–3 年 30–50%、3 年以上 50–100%，"
+      + "个别认定（对方已破产、诉讼中）可单独全额计提。注意会计计提不等于税前扣除——"
+      + "坏账准备在汇算时要做纳税调增，只有实际发生损失、按规定留存证据（法院判决、破产清算、逾期 3 年以上等）才能税前扣除，"
+      + "「按 5‰ 计提可扣除」是早已废止的旧规定，别再用了。"
+      + (delta > 0.005 ? " 本期需补提 " + money(delta) + " 元。" : (delta < -0.005 ? " 本期可冲回 " + money(-delta) + " 元。" : " 本期无需调整。"));
+  }
+
+  /* ---------------- 资金排期 ---------------- */
+  function calcFunding() {
+    var open = Math.max(0, num($("fg-open"), 0));
+    var events = [];
+    function pushEv(amt, day, name) {
+      if (Math.abs(amt) > 0.005) events.push({ amt: amt, day: Math.max(1, Math.min(30, Math.round(day))), name: name });
+    }
+    var inflow = Math.max(0, num($("fg-in"), 0));
+    if (inflow > 0.005) events.push({ amt: inflow, day: Math.max(1, Math.min(30, Math.round(num($("fg-ind"), 25)))), name: "客户回款" });
+    pushEv(-Math.max(0, num($("fg-a"), 0)), num($("fg-ad"), 10), "工资社保");
+    pushEv(-Math.max(0, num($("fg-b"), 0)), num($("fg-bd"), 15), "供应商货款");
+    pushEv(-Math.max(0, num($("fg-c"), 0)), num($("fg-cd"), 20), "税金");
+    pushEv(-Math.max(0, num($("fg-d"), 0)), num($("fg-dd"), 5), "其他支出");
+    events.sort(function (x, y) { return x.day - y.day; });
+
+    var bal = open, minBal = open, minDay = 0, firstNeg = 0, html = "", net = 0;
+    for (var i = 0; i < events.length; i++) {
+      bal += events[i].amt;
+      net += events[i].amt;
+      if (bal < minBal) { minBal = bal; minDay = events[i].day; }
+      if (bal < -0.005 && !firstNeg) firstNeg = events[i].day;
+      html += "<tr" + (bal < -0.005 ? ' style="background:#fff1f1"' : "") + "><td>" + events[i].day + " 日</td><td>" +
+        events[i].name + "</td><td>" + (events[i].amt >= 0 ? "+" : "−") + money(Math.abs(events[i].amt)) +
+        "</td><td>" + money(bal) + "</td></tr>";
+    }
+    html += "<tr><td>30 日</td><td><b>月末结存</b></td><td>—</td><td><b>" + money(bal) + "</b></td></tr>";
+    $("fg-body").innerHTML = html;
+
+    $("fg-min").textContent = money(minBal);
+    $("fg-minday").textContent = minDay ? "第 " + minDay + " 天" : "全程未下探";
+    $("fg-gap").textContent = minBal < -0.005 ? yuan(-minBal) : "不需要，余额始终为正";
+    $("fg-firstneg").textContent = firstNeg ? "第 " + firstNeg + " 天开始不够付" : "无";
+    $("fg-end").textContent = yuan(bal);
+    $("fg-net").textContent = (net >= 0 ? "+" : "−") + money(Math.abs(net)) + " 元";
+
+    $("fg-note").textContent = "资金计划按「钱真正进出账户的日期」排，不是发票日期——"
+      + "客户说月底付却压到下月 5 号到账，是资金链断掉的典型原因，票期、账期、到账日要分开记。"
+      + "月初余额为正、月中却出现负数（本例第 " + (firstNeg || 0) + " 天）说明钱不是不够，是时点错配，"
+      + "靠挪付款日、票据贴现或短期授信过桥就能解决，别等到账上真没钱。"
+      + "这里没算票据贴现成本、授信提款利息，也没算月初现金之外的可动用额度，实际排期要把这些额度一起标进去。";
+  }
+
+  /* ---------------- 含税报价与毛利 ---------------- */
+  function calcPricing() {
+    var cost = Math.max(0, num($("pr-cost"), 0));
+    var margin = Math.max(0, Math.min(95, num($("pr-margin"), 0))) / 100;
+    var vat = Math.max(0, num($("pr-vat"), 0)) / 100;
+    var disc = Math.max(0, Math.min(90, num($("pr-disc"), 0))) / 100;
+    var cust = Math.max(0, num($("pr-cust"), 0));
+
+    var ex = margin >= 0.999 ? NaN : cost / (1 - margin);
+    var inc = ex * (1 + vat);
+    var gp = ex - cost;
+    var discInc = inc * (1 - disc);
+    var discEx = discInc / (1 + vat);
+    var discGp = discEx - cost;
+    var be = cost * (1 + vat);
+    var need = disc >= 0.999 ? NaN : ex / (1 - disc) * (1 + vat);
+
+    $("pr-in").textContent = isFinite(inc) ? money(inc) : "—";
+    $("pr-ex").textContent = isFinite(ex) ? yuan(ex) : "—";
+    $("pr-gp").textContent = isFinite(gp) ? money(gp) + " 元 / " + pct(margin) : "—";
+    $("pr-discin").textContent = isFinite(discInc) ? yuan(discInc) : "—";
+    $("pr-discgp").textContent = isFinite(discGp)
+      ? money(discEx) + " / " + money(discGp) + " 元 / " + (discEx > 0 ? pct(discGp / discEx) : "—")
+      : "—";
+    $("pr-be").textContent = yuan(be);
+    $("pr-need").textContent = isFinite(need) ? yuan(need) : "—";
+    if (cust > 0.005) {
+      var custEx = cust / (1 + vat);
+      var custGp = custEx - cost;
+      $("pr-custout").textContent = money(custGp) + " 元 / " + (custEx > 0 ? pct(custGp / custEx) : "—") +
+        (custGp < 0 ? "（亏）" : "");
+    } else {
+      $("pr-custout").textContent = "填了客户价再算";
+    }
+
+    var html = "";
+    var table = [0, 0.03, 0.05, 0.08, 0.10, 0.15, 0.20];
+    for (var i = 0; i < table.length; i++) {
+      var d = table[i];
+      var pi = inc * (1 - d);
+      var pe = pi / (1 + vat);
+      var pg = pe - cost;
+      html += "<tr" + (Math.abs(d - disc) < 0.001 ? ' style="background:#eef2ff"' : "") + "><td>" +
+        fmt(d * 100, 0) + "%</td><td>" + money(pi) + "</td><td>" + money(pe) + "</td><td>" +
+        (pe > 0 ? pct(pg / pe) : "—") + "</td></tr>";
+    }
+    $("pr-body").innerHTML = html;
+
+    $("pr-note").textContent = "毛利率一律按不含税算：售价 = 成本 ÷ (1 − 毛利率)，再乘 (1 + 税率) 得到含税报价。"
+      + "折扣是从含税价上砍的，砍完不含税售价掉得比你想的快——目标毛利 40%，给 5% 折扣就只剩 " +
+      (isFinite(discGp) && discEx > 0 ? pct(discGp / discEx, 1) : "—") +
+      "，所以要么报价时预留折扣空间（本例要报 " + (isFinite(need) ? money(need) : "—") + " 才能折后仍保住 40%），"
+      + "要么把折扣当成让利、明确走审批。另外毛利不等于净利：运费、销售提成、售后成本都要再摊，"
+      + "含税报价还要考虑客户能否接受、同行的含税口径是否一致（有的报不含税价，比价前统一口径）。";
+  }
+
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
@@ -3281,7 +3477,8 @@
     fundlimit: calcFundLimit, emergency: calcEmergency, rule503020: calcRule, debtmerge: calcDebtMerge,
     freeperiod: calcFreePeriod, overtime: calcOvertime, rentup: calcRentUp, ev: calcEv,
     vat: calcVat, vatdue: calcVatDue, deprec: calcDeprec, breakeven: calcBreakEven,
-    ratios: calcRatios, recon: calcRecon
+    ratios: calcRatios, recon: calcRecon,
+    expense: calcExpense, aging: calcAging, funding: calcFunding, pricing: calcPricing
   };
 
   function setCat(cat) {
@@ -3399,9 +3596,13 @@
     "fa-cost", "fa-res", "fa-life", "fa-method", "fa-used",
     "be-price", "be-vc", "be-fc", "be-period", "be-target", "be-qty",
     "rt-rev", "rt-cogs", "rt-np", "rt-ca", "rt-inv", "rt-ar", "rt-cl", "rt-ta", "rt-tl", "rt-eq",
-    "rc-book", "rc-bank", "rc-a", "rc-b", "rc-c", "rc-d"
+    "rc-book", "rc-bank", "rc-a", "rc-b", "rc-c", "rc-d",
+    "ex-days", "ex-nights", "ex-hotel", "ex-hstd", "ex-meal", "ex-local", "ex-travel", "ex-other",
+    "ag-b1", "ag-b2", "ag-b3", "ag-b4", "ag-rates", "ag-have",
+    "fg-open", "fg-in", "fg-ind", "fg-a", "fg-ad", "fg-b", "fg-bd", "fg-c", "fg-cd", "fg-d", "fg-dd",
+    "pr-cost", "pr-margin", "pr-vat", "pr-disc", "pr-cust"
   ];
-  var KEY = "finance-calc-v16";
+  var KEY = "finance-calc-v17";
   var CAT_KEY = "finance-calc-cat";
 
   /* ---------------- 现金流月历 ---------------- */
