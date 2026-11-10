@@ -8403,17 +8403,134 @@
     });
     var head = "<tr><th class=\"tal\">指标</th>";
     sel.forEach(function (s) { head += "<th>" + s.modName + " · " + (s.name || "") + "</th>"; });
+    if (sel.length >= 2) head += "<th>差异（相对第一个）</th>";
+    function plNum(x) {
+      var s = String(x == null ? "" : x).replace(/,/g, "").replace(/−/g, "-");
+      var m = s.match(/-?\d+(\.\d+)?/);
+      return m ? parseFloat(m[0]) : null;
+    }
     var body = "";
     labels.forEach(function (lab) {
       body += "<tr><td class=\"tal\">" + lab + "</td>";
+      var first = null;
       sel.forEach(function (s) {
         var hit = (s.rows || []).filter(function (r) { return r[0] === lab; })[0];
+        if (first === null && hit) first = hit[1];
         body += "<td>" + (hit ? hit[1] : "—") + "</td>";
       });
+      if (sel.length >= 2) {
+        var last = null;
+        for (var i2 = sel.length - 1; i2 >= 0; i2--) {
+          var h2 = (sel[i2].rows || []).filter(function (r) { return r[0] === lab; })[0];
+          if (h2) { last = h2[1]; break; }
+        }
+        var a1 = plNum(first), b1 = plNum(last);
+        if (a1 !== null && b1 !== null && first !== last) {
+          var d = b1 - a1, p = a1 !== 0 ? d / Math.abs(a1) : null;
+          body += "<td class=\"tal\">" + (d > 0 ? "+" : d < 0 ? "−" : "") + fmt(Math.abs(d)) + (p === null ? "" : "（" + (p > 0 ? "+" : p < 0 ? "−" : "") + fmt(Math.abs(p) * 100, 1) + "%）") + "</td>";
+        } else {
+          body += "<td>—</td>";
+        }
+      }
       body += "</tr>";
     });
     box.innerHTML = head + "</tr>" + body;
-    $("snap-note").textContent = "已选 " + sel.length + " 个方案并排对比（最多 3 个）。点「导出 CSV」可以把这张表存下来。";
+    $("snap-note").textContent = "已选 " + sel.length + " 个方案并排对比（最多 3 个）；最后一列是相对第一个方案的差额与百分比。点「导出 CSV」可以把这张表存下来。";
+  }
+
+  /* ---------------- 组合规划：买这套房之后 ---------------- */
+  function plScoreSave(r) { return r >= 0.3 ? 20 : r >= 0.2 ? 15 : r >= 0.1 ? 10 : 5; }
+  function plScoreEmg(m) { return m >= 6 ? 20 : m >= 4 ? 15 : m >= 2 ? 10 : 5; }
+  function plScoreLev(r) { return r < 0.3 ? 20 : r < 0.5 ? 15 : r < 0.7 ? 10 : 5; }
+  function plScoreDsr(r) { return r < 0.3 ? 20 : r < 0.4 ? 15 : r < 0.5 ? 10 : 5; }
+  function plScoreCov(r) { return r >= 1 ? 20 : r >= 0.7 ? 15 : r >= 0.4 ? 10 : 5; }
+  function plRank(s) { return s >= 85 ? "优秀" : s >= 70 ? "良好" : s >= 55 ? "及格" : "需要调整"; }
+
+  function calcPlanner() {
+    var inc = Math.max(0, num($("pl-inc"), 0));
+    var cash = Math.max(0, num($("pl-cash"), 0));
+    var inv = Math.max(0, num($("pl-inv"), 0));
+    var price = Math.max(0, num($("pl-price"), 0));
+    var dpRate = Math.min(100, Math.max(0, num($("pl-dp"), 30))) / 100;
+    var rate = Math.max(0, num($("pl-rate"), 3.1)) / 100;
+    var years = Math.min(30, Math.max(1, Math.round(num($("pl-years"), 30))));
+    var need = Math.max(0, num($("pl-need"), 0));
+    var want = Math.max(0, num($("pl-want"), 0));
+    var debt0 = Math.max(0, num($("pl-debt"), 0));
+    var ins = Math.max(0, num($("pl-ins"), 0));
+
+    var dpNeed = price * dpRate;
+    var loan = Math.max(0, price - dpNeed);
+    var n = years * 12;
+    var i = rate / 12;
+    var pay = loan > 0 ? annuityPayment(loan, i, n) : 0;
+    var cashLeft = cash - dpNeed;
+    var left = inc - need - want - pay;
+    var saveRate = inc > 0 ? left / inc : 0;
+    var emg = need > 0 ? cashLeft / need : 0;
+    var assets = price + inv;
+    var debtAfter = debt0 + loan;
+    var lev = assets > 0 ? debtAfter / assets : 0;
+    var dsr = inc > 0 ? pay / inc : 0;
+    var protectNeed = inc * 12 * 10 + debtAfter - (inv + Math.max(0, cashLeft));
+    var cover = protectNeed > 0 ? ins / protectNeed : 1;
+
+    var sNow = plScoreSave(inc > 0 ? (inc - need - want) / inc : 0) + plScoreEmg(need > 0 ? cash / need : 0)
+      + plScoreLev((price === 0 && inv === 0) ? 0 : (debt0 / (cash + inv || 1))) + plScoreDsr(0)
+      + plScoreCov((inc * 12 * 10 + debt0 - (cash + inv)) > 0 ? ins / (inc * 12 * 10 + debt0 - (cash + inv)) : 1);
+    var sAfter = plScoreSave(saveRate) + plScoreEmg(emg) + plScoreLev(lev) + plScoreDsr(dsr) + plScoreCov(cover);
+
+    var keepEmg = need * 6;
+    var usable = Math.max(0, cash - keepEmg);
+    var capPrice = dpRate > 0 ? usable / dpRate : 0;
+    var capDsr = inc > 0 ? annuityPV(inc * 0.4, i, n) : 0;
+    var capByDsr = dpRate < 1 ? capDsr / (1 - dpRate) : capDsr;
+
+    var big = $("pl-big"), score = $("pl-score"), dpo = $("pl-dpout"), payo = $("pl-pay");
+    var ratio = $("pl-ratio"), lefto = $("pl-left"), saveo = $("pl-save"), emgo = $("pl-emg"), capo = $("pl-cap");
+    if (big) big.textContent = String(Math.round(sAfter));
+    if (score) score.textContent = Math.round(sNow) + " 分 → " + Math.round(sAfter) + " 分（" + plRank(sAfter) + "）";
+    if (dpo) dpo.textContent = money(dpNeed) + " 元 / " + (cashLeft >= 0 ? "余 " + money(cashLeft) + " 元" : "缺 " + money(-cashLeft) + " 元");
+    if (payo) payo.textContent = money(loan) + " 元 · 月供 " + money(pay) + " 元";
+    if (ratio) ratio.textContent = pct(dsr, 1) + (dsr > 0.4 ? "（超过 40% 警戒线）" : "");
+    if (lefto) lefto.textContent = (left >= 0 ? money(left) : "−" + money(-left)) + " 元 / 月";
+    if (saveo) saveo.textContent = pct(saveRate, 1);
+    if (emgo) emgo.textContent = emg > 0 ? months(Math.floor(emg)) + "（剩 " + money(cashLeft) + " 元）" : "0 个月（首付把现金用光了）";
+    if (capo) capo.textContent = money(capPrice) + " 元" + (capByDsr < capPrice ? "（月供还能再撑到 " + money(capByDsr) + "）" : "（卡在现金，不是月供）");
+
+    var tb = $("plz-body");
+    if (tb) {
+      var rows = [
+        ["储蓄率", pct(inc > 0 ? (inc - need - want) / inc : 0, 1), pct(saveRate, 1),
+          plScoreSave(inc > 0 ? (inc - need - want) / inc : 0), plScoreSave(saveRate)],
+        ["应急金（月）", months(Math.floor(need > 0 ? cash / need : 0)), months(Math.floor(emg)),
+          plScoreEmg(need > 0 ? cash / need : 0), plScoreEmg(emg)],
+        ["资产负债率", pct(debt0 / (cash + inv || 1), 1), pct(lev, 1),
+          plScoreLev(debt0 / (cash + inv || 1)), plScoreLev(lev)],
+        ["月供收入比", "0.0%", pct(dsr, 1), plScoreDsr(0), plScoreDsr(dsr)],
+        ["保障覆盖", pct((inc * 12 * 10 + debt0 - (cash + inv)) > 0 ? ins / (inc * 12 * 10 + debt0 - (cash + inv)) : 1, 1), pct(cover, 1),
+          plScoreCov((inc * 12 * 10 + debt0 - (cash + inv)) > 0 ? ins / (inc * 12 * 10 + debt0 - (cash + inv)) : 1), plScoreCov(cover)]
+      ];
+      var h = "";
+      for (var k = 0; k < rows.length; k++) {
+        var r = rows[k], d = r[4] - r[3];
+        h += "<tr><td class=\"tal\">" + r[0] + "</td><td>" + r[1] + "</td><td>" + r[2] + "</td>"
+          + "<td class=\"" + (d < 0 ? "c-bad" : d > 0 ? "c-soft" : "") + "\">" + (d > 0 ? "+" : "") + d + " 分</td></tr>";
+      }
+      tb.innerHTML = h;
+    }
+
+    var note = $("plz-note");
+    if (note) {
+      var tips = [];
+      if (cashLeft < 0) tips.push("首付还差 " + money(-cashLeft) + " 元，先攒够再谈。");
+      else if (cashLeft < keepEmg) tips.push("首付会把应急金压到 " + months(Math.floor(emg)) + " 个月（建议留 6 个月 = " + money(keepEmg) + " 元），把首付降到 " + money(usable) + " 元、房价上限 " + money(capPrice) + " 元更稳。");
+      if (dsr > 0.4) tips.push("月供占收入 " + pct(dsr, 1) + "，超过 40%。");
+      if (saveRate < 0.1) tips.push("买房后储蓄率只有 " + pct(saveRate, 1) + "，几乎没有缓冲，一次装修或换工作就会被动。");
+      if (cover < 0.7) tips.push("加了房贷后保障缺口变大：应配 " + money(Math.max(0, protectNeed)) + " 元（10 倍年收入＋负债－可变现资产），现在只有 " + pct(cover, 1) + "。");
+      if (!tips.length) tips.push("这组数下买房后现金流与保障都还站得住，注意留足 6 个月应急金再签字。");
+      note.textContent = "现在 " + Math.round(sNow) + " 分 → 买房后 " + Math.round(sAfter) + " 分（" + plRank(sAfter) + "）。" + tips.join(" ");
+    }
   }
 
   var calcMap = {
@@ -8460,6 +8577,7 @@
     headcount: calcHeadcount, markroi: calcMarkRoi, rdproject: calcRdProject, intsvc: calcIntSvc,
     accrual: calcAccrual, cfconsol: calcCfConsol, exportcheck: calcExportCheck, vatcheck: calcVatCheck,
     report: calcReport, snaps: calcSnaps,
+    planner: calcPlanner,
     healthcheck: calcHealth,
     salesallow: calcSalesAllow, lease: calcLease, gpmix: calcGpmix, vatchoose: calcVatChoose,
     datemath: calcDatemath, pct3: calcPct3, xlhelp: calcXlHelp, csvrecon: calcCsvRecon,
@@ -8728,9 +8846,20 @@
     "vchk-out", "vchk-inv", "vchk-noinv", "vchk-in", "vchk-cert", "vchk-tr",
     "hk-inc", "hk-age", "hk-need", "hk-want", "hk-cash", "hk-inv", "hk-house", "hk-debt",
     "hk-loan", "hk-prem", "hk-ins",
-    "rp-inc", "rp-need", "rp-want", "rp-cash", "rp-inv", "rp-house", "rp-debt", "rp-loan", "rp-ins", "rp-prem", "rp-age", "rp-rate", "rp-years"
+    "rp-inc", "rp-need", "rp-want", "rp-cash", "rp-inv", "rp-house", "rp-debt", "rp-loan", "rp-ins", "rp-prem", "rp-age", "rp-rate", "rp-years",
+    "pl-inc",
+    "pl-cash",
+    "pl-inv",
+    "pl-price",
+    "pl-dp",
+    "pl-rate",
+    "pl-years",
+    "pl-need",
+    "pl-want",
+    "pl-debt",
+    "pl-ins"
 ];
-  var KEY = "finance-calc-v44";
+  var KEY = "finance-calc-v45";
   var CAT_KEY = "finance-calc-cat";
 
   /* ---------------- 现金流月历 ---------------- */
@@ -9371,7 +9500,7 @@
   /* ---------------- 方案快照：按钮与行内交互 ---------------- */
   if ($("btn-snap")) $("btn-snap").addEventListener("click", function () {
     var tab = document.querySelector(".tab.is-on");
-    var def = tab ? tab.textContent.trim() : "方案";
+    var def = (tab ? tab.textContent.trim() : "方案") + " #" + (loadSnaps().length + 1);
     var nm = "";
     try { nm = window.prompt("给这个方案起个名（可留空）", def) || ""; } catch (e) { nm = ""; }
     var s = makeSnap(nm.trim() || def);

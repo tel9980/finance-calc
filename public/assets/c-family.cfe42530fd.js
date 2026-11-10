@@ -1,5 +1,5 @@
 /* 自动生成，勿手改：family 分类模块（点开才下载） */
-const { $, CAT_KEY, CHUNK_FILES, CHUNK_OF, CMP_KEY, CORE_CALC, CURS, DIVISOR, FAV_KEY, FIELDS, KEY, MONTH_TABLE, PRE_KEY, SNAP_KEY, SNAP_PICK, TABS, THEME_KEY, UNITS, XL_ROWS, YEAR_TABLE, activate, addMonths, annuityPV, annuityPayment, applyFilter, applyParams, bizAdd, bonusSoloTax, buildLoanSchedule, buildShare, calcLoan, calcMap, cnUpper, combineTax, convertTemp, copyText, cumulativeTax, curCat, currentSnap, dlJson, ensureChunk, favList, fillUnits, flash, fmt, fmtAt, fmtDate, fx, gauss, hashTarget, isFav, leftAfter, loadCmpA, loadSnaps, loanRows, makeSnap, money, monthToDate, monthlyIRR, months, npvDiff, num, numOf, panelEls, panelParams, parseAmounts, parseDate, pct, percentile, presets, quickOf, rateOf, readJsonFile, refreshCounts, renderLoanTable, renderPresets, renderSnapCompare, renderSnapList, rentBuyAt, restore, runCalc, save, saveCmpA, saveFav, savePresets, saveSnaps, savedCat, setCat, setSub, setTheme, snapNameOf, snapshot, st0, stamp, startName, taxBy, yuan, zOf } = window.FC;
+const { $, CAT_KEY, CHUNK_FILES, CHUNK_OF, CMP_KEY, CORE_CALC, CURS, DIVISOR, FAV_KEY, FIELDS, KEY, MONTH_TABLE, PRE_KEY, SNAP_KEY, SNAP_PICK, TABS, THEME_KEY, UNITS, XL_ROWS, YEAR_TABLE, activate, addMonths, annuityPV, annuityPayment, applyFilter, applyParams, bizAdd, bonusSoloTax, buildLoanSchedule, buildShare, calcLoan, calcMap, cnUpper, combineTax, convertTemp, copyText, cumulativeTax, curCat, currentSnap, dlJson, ensureChunk, favList, fillUnits, flash, fmt, fmtAt, fmtDate, fx, gauss, hashTarget, isFav, leftAfter, loadCmpA, loadSnaps, loanRows, makeSnap, money, monthToDate, monthlyIRR, months, npvDiff, num, numOf, panelEls, panelParams, parseAmounts, parseDate, pct, percentile, plRank, plScoreCov, plScoreDsr, plScoreEmg, plScoreLev, plScoreSave, presets, quickOf, rateOf, readJsonFile, refreshCounts, renderLoanTable, renderPresets, renderSnapCompare, renderSnapList, rentBuyAt, restore, runCalc, save, saveCmpA, saveFav, savePresets, saveSnaps, savedCat, setCat, setSub, setTheme, snapNameOf, snapshot, st0, stamp, startName, taxBy, yuan, zOf } = window.FC;
 
   function calcEdu() {
     var age = Math.max(0, Math.min(17, num($("ed-age"), 3)));
@@ -658,4 +658,91 @@ const { $, CAT_KEY, CHUNK_FILES, CHUNK_OF, CMP_KEY, CORE_CALC, CURS, DIVISOR, FA
       + acts[worst] + " 打分只看五项硬指标，不含投资能力与收入稳定性；数据只在本机，点「打印」可存成一页 PDF。";
   }
 
-export default { edu: calcEdu, insure: calcInsure, balance: calcBalance, checkup: calcCheckup, cashflow: calcCashflow, riskalloc: calcRiskAlloc, fire: calcFire, annualfee: calcAnnualFee, childcost: calcChild, emergency: calcEmergency, rule503020: calcRule, report: calcReport };
+  function calcPlanner() {
+    var inc = Math.max(0, num($("pl-inc"), 0));
+    var cash = Math.max(0, num($("pl-cash"), 0));
+    var inv = Math.max(0, num($("pl-inv"), 0));
+    var price = Math.max(0, num($("pl-price"), 0));
+    var dpRate = Math.min(100, Math.max(0, num($("pl-dp"), 30))) / 100;
+    var rate = Math.max(0, num($("pl-rate"), 3.1)) / 100;
+    var years = Math.min(30, Math.max(1, Math.round(num($("pl-years"), 30))));
+    var need = Math.max(0, num($("pl-need"), 0));
+    var want = Math.max(0, num($("pl-want"), 0));
+    var debt0 = Math.max(0, num($("pl-debt"), 0));
+    var ins = Math.max(0, num($("pl-ins"), 0));
+
+    var dpNeed = price * dpRate;
+    var loan = Math.max(0, price - dpNeed);
+    var n = years * 12;
+    var i = rate / 12;
+    var pay = loan > 0 ? annuityPayment(loan, i, n) : 0;
+    var cashLeft = cash - dpNeed;
+    var left = inc - need - want - pay;
+    var saveRate = inc > 0 ? left / inc : 0;
+    var emg = need > 0 ? cashLeft / need : 0;
+    var assets = price + inv;
+    var debtAfter = debt0 + loan;
+    var lev = assets > 0 ? debtAfter / assets : 0;
+    var dsr = inc > 0 ? pay / inc : 0;
+    var protectNeed = inc * 12 * 10 + debtAfter - (inv + Math.max(0, cashLeft));
+    var cover = protectNeed > 0 ? ins / protectNeed : 1;
+
+    var sNow = plScoreSave(inc > 0 ? (inc - need - want) / inc : 0) + plScoreEmg(need > 0 ? cash / need : 0)
+      + plScoreLev((price === 0 && inv === 0) ? 0 : (debt0 / (cash + inv || 1))) + plScoreDsr(0)
+      + plScoreCov((inc * 12 * 10 + debt0 - (cash + inv)) > 0 ? ins / (inc * 12 * 10 + debt0 - (cash + inv)) : 1);
+    var sAfter = plScoreSave(saveRate) + plScoreEmg(emg) + plScoreLev(lev) + plScoreDsr(dsr) + plScoreCov(cover);
+
+    var keepEmg = need * 6;
+    var usable = Math.max(0, cash - keepEmg);
+    var capPrice = dpRate > 0 ? usable / dpRate : 0;
+    var capDsr = inc > 0 ? annuityPV(inc * 0.4, i, n) : 0;
+    var capByDsr = dpRate < 1 ? capDsr / (1 - dpRate) : capDsr;
+
+    var big = $("pl-big"), score = $("pl-score"), dpo = $("pl-dpout"), payo = $("pl-pay");
+    var ratio = $("pl-ratio"), lefto = $("pl-left"), saveo = $("pl-save"), emgo = $("pl-emg"), capo = $("pl-cap");
+    if (big) big.textContent = String(Math.round(sAfter));
+    if (score) score.textContent = Math.round(sNow) + " 分 → " + Math.round(sAfter) + " 分（" + plRank(sAfter) + "）";
+    if (dpo) dpo.textContent = money(dpNeed) + " 元 / " + (cashLeft >= 0 ? "余 " + money(cashLeft) + " 元" : "缺 " + money(-cashLeft) + " 元");
+    if (payo) payo.textContent = money(loan) + " 元 · 月供 " + money(pay) + " 元";
+    if (ratio) ratio.textContent = pct(dsr, 1) + (dsr > 0.4 ? "（超过 40% 警戒线）" : "");
+    if (lefto) lefto.textContent = (left >= 0 ? money(left) : "−" + money(-left)) + " 元 / 月";
+    if (saveo) saveo.textContent = pct(saveRate, 1);
+    if (emgo) emgo.textContent = emg > 0 ? months(Math.floor(emg)) + "（剩 " + money(cashLeft) + " 元）" : "0 个月（首付把现金用光了）";
+    if (capo) capo.textContent = money(capPrice) + " 元" + (capByDsr < capPrice ? "（月供还能再撑到 " + money(capByDsr) + "）" : "（卡在现金，不是月供）");
+
+    var tb = $("plz-body");
+    if (tb) {
+      var rows = [
+        ["储蓄率", pct(inc > 0 ? (inc - need - want) / inc : 0, 1), pct(saveRate, 1),
+          plScoreSave(inc > 0 ? (inc - need - want) / inc : 0), plScoreSave(saveRate)],
+        ["应急金（月）", months(Math.floor(need > 0 ? cash / need : 0)), months(Math.floor(emg)),
+          plScoreEmg(need > 0 ? cash / need : 0), plScoreEmg(emg)],
+        ["资产负债率", pct(debt0 / (cash + inv || 1), 1), pct(lev, 1),
+          plScoreLev(debt0 / (cash + inv || 1)), plScoreLev(lev)],
+        ["月供收入比", "0.0%", pct(dsr, 1), plScoreDsr(0), plScoreDsr(dsr)],
+        ["保障覆盖", pct((inc * 12 * 10 + debt0 - (cash + inv)) > 0 ? ins / (inc * 12 * 10 + debt0 - (cash + inv)) : 1, 1), pct(cover, 1),
+          plScoreCov((inc * 12 * 10 + debt0 - (cash + inv)) > 0 ? ins / (inc * 12 * 10 + debt0 - (cash + inv)) : 1), plScoreCov(cover)]
+      ];
+      var h = "";
+      for (var k = 0; k < rows.length; k++) {
+        var r = rows[k], d = r[4] - r[3];
+        h += "<tr><td class=\"tal\">" + r[0] + "</td><td>" + r[1] + "</td><td>" + r[2] + "</td>"
+          + "<td class=\"" + (d < 0 ? "c-bad" : d > 0 ? "c-soft" : "") + "\">" + (d > 0 ? "+" : "") + d + " 分</td></tr>";
+      }
+      tb.innerHTML = h;
+    }
+
+    var note = $("plz-note");
+    if (note) {
+      var tips = [];
+      if (cashLeft < 0) tips.push("首付还差 " + money(-cashLeft) + " 元，先攒够再谈。");
+      else if (cashLeft < keepEmg) tips.push("首付会把应急金压到 " + months(Math.floor(emg)) + " 个月（建议留 6 个月 = " + money(keepEmg) + " 元），把首付降到 " + money(usable) + " 元、房价上限 " + money(capPrice) + " 元更稳。");
+      if (dsr > 0.4) tips.push("月供占收入 " + pct(dsr, 1) + "，超过 40%。");
+      if (saveRate < 0.1) tips.push("买房后储蓄率只有 " + pct(saveRate, 1) + "，几乎没有缓冲，一次装修或换工作就会被动。");
+      if (cover < 0.7) tips.push("加了房贷后保障缺口变大：应配 " + money(Math.max(0, protectNeed)) + " 元（10 倍年收入＋负债－可变现资产），现在只有 " + pct(cover, 1) + "。");
+      if (!tips.length) tips.push("这组数下买房后现金流与保障都还站得住，注意留足 6 个月应急金再签字。");
+      note.textContent = "现在 " + Math.round(sNow) + " 分 → 买房后 " + Math.round(sAfter) + " 分（" + plRank(sAfter) + "）。" + tips.join(" ");
+    }
+  }
+
+export default { edu: calcEdu, insure: calcInsure, balance: calcBalance, checkup: calcCheckup, cashflow: calcCashflow, riskalloc: calcRiskAlloc, fire: calcFire, annualfee: calcAnnualFee, childcost: calcChild, emergency: calcEmergency, rule503020: calcRule, report: calcReport, planner: calcPlanner };
