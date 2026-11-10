@@ -3960,6 +3960,234 @@
       "发给老板看够了，报税和申报请用正式财务报表口径，小微企业所得税优惠按当地当期政策确认税率。";
   }
 
+  function calcInvoice() {
+    var contract = Math.max(0, num($("iv-contract"), 0));
+    var issued = Math.max(0, num($("iv-issued"), 0));
+    var received = Math.max(0, num($("iv-received"), 0));
+    var rate = Math.max(0, num($("iv-rate"), 0)) / 100;
+    var overdue = Math.max(0, num($("iv-overdue"), 0));
+    var days = Math.max(0, num($("iv-days"), 0));
+    var penBp = Math.max(0, num($("iv-penalty"), 0));
+
+    var k = 1 + rate;
+    var left = Math.max(0, contract - issued);
+    var leftEx = left / k;
+    var issuedEx = issued / k;
+    var recEx = received / k;
+    var ar = Math.max(0, issued - received);
+    var over = Math.min(overdue, ar);
+    var ipct = contract > 0 ? issued / contract : 0;
+    var rpct = contract > 0 ? received / contract : 0;
+    var overPct = ar > 0 ? over / ar : 0;
+    var penAmt = over * (penBp / 10000) * days;
+    var all = ar + penAmt;
+
+    $("iv-left").textContent = yuan(left);
+    $("iv-ipct").textContent = pct(ipct) + (ipct >= 1 ? "（已开完）" : "");
+    $("iv-rpct").textContent = pct(rpct) + (rpct > ipct ? "（收款超过开票，核一下预收）" : "");
+    $("iv-issued-tax").textContent = money(issuedEx) + " / " + money(issued - issuedEx) + " 元";
+    $("iv-left-tax").textContent = money(leftEx) + " / " + money(left - leftEx) + " 元";
+    $("iv-ar").textContent = yuan(ar);
+    $("iv-over").textContent = money(over) + " 元 / " + pct(overPct);
+    $("iv-pen").textContent = days > 0 && penBp > 0
+      ? money(penAmt) + " 元（" + fmt(over, 0) + " × " + fmt(penBp / 10000 * 100, 3) + "% × " + fmt(days, 0) + " 天）"
+      : "没有约定罚息或没填逾期天数";
+    $("iv-all").textContent = yuan(all);
+
+    var rows = [
+      ["合同总额", contract, contract / k, contract - contract / k],
+      ["已开票", issued, issuedEx, issued - issuedEx],
+      ["已收款", received, recEx, received - recEx],
+      ["待开票", left, leftEx, left - leftEx],
+      ["应收未收", ar, ar / k, ar - ar / k]
+    ];
+    var html = "", i;
+    for (i = 0; i < rows.length; i++) {
+      var flag = i === 4 && over > 0;
+      html += "<tr" + (flag ? ' style="background:#fff5f5"' : "") + "><td>" + rows[i][0] + "</td><td>" +
+        money(rows[i][1]) + "</td><td>" + money(rows[i][2]) + "</td><td>" + money(rows[i][3]) + "</td></tr>";
+    }
+    $("iv-body").innerHTML = html;
+
+    var advice;
+    if (contract <= 0) advice = "先把合同额填上，否则进度算不出来。";
+    else if (rpct < ipct - 0.1) advice = "开票 " + pct(ipct) + " 但只回了 " + pct(rpct) + "：钱压在客户那边，先别急着开下一批票。";
+    else if (ipct < 1) advice = "合同还剩 " + money(left) + " 未开票，按开票确认收入的话，这部分收入与销项税还在后面。";
+    else advice = "合同已开满，接下来只剩收款。";
+
+    $("iv-note").textContent = advice +
+      " 台账三件事要盯住：① 待开票金额决定后面的收入与销项税，别忘了进项能不能跟上；② 应收余额 " +
+      money(ar) + " 元才是真占用资金的部分，占合同 " + pct(contract > 0 ? ar / contract : 0) + "；③ 逾期 " +
+      money(over) + " 元按合同可主张罚息 " + money(penAmt) + " 元，但主张罚息会伤客户关系，先按" +
+      "「催收层级」走：财务催 → 业务催 → 停止发货 → 法务函。开票和收款不同步时，增值税纳税义务按开票或合同约定收款日先到者确认，" +
+      "所以先开票后收钱的，税已经交了、钱还没到，这段利息是自己的成本。";
+  }
+
+  function calcExpBudget() {
+    var names = ["人工成本", "租金水电", "市场推广", "差旅交通", "办公及其他"];
+    var b = [], a = [], i;
+    for (i = 1; i <= 5; i++) {
+      b.push(Math.max(0, num($("eb-b" + i), 0)));
+      a.push(Math.max(0, num($("eb-a" + i), 0)));
+    }
+    var tb = 0, ta = 0;
+    for (i = 0; i < 5; i++) { tb += b[i]; ta += a[i]; }
+    var diff = ta - tb;
+    var rate = tb > 0 ? diff / tb : 0;
+
+    var overCnt = 0, overSum = 0, saveCnt = 0, saveSum = 0;
+    var topAmt = -Infinity, topName = "—", topRate = -Infinity, topRateName = "—";
+    var html = "";
+    for (i = 0; i < 5; i++) {
+      var d = a[i] - b[i];
+      var r = b[i] > 0 ? d / b[i] : (a[i] > 0 ? 1 : 0);
+      if (d > 0) { overCnt++; overSum += d; if (d > topAmt) { topAmt = d; topName = names[i]; } }
+      if (d < 0) { saveCnt++; saveSum += -d; }
+      if (r > topRate && d > 0) { topRate = r; topRateName = names[i]; }
+      var bad = d > 0 && r >= 0.1;
+      html += "<tr" + (bad ? ' style="background:#fff5f5"' : "") + "><td>" + names[i] + "</td><td>" + money(b[i]) +
+        "</td><td>" + money(a[i]) + "</td><td>" + (d > 0 ? "+" : "") + money(d) + "</td><td>" + pct(r) + "</td></tr>";
+    }
+    html += "<tr><td>合计</td><td>" + money(tb) + "</td><td>" + money(ta) + "</td><td>" +
+      (diff > 0 ? "+" : "") + money(diff) + "</td><td>" + pct(rate) + "</td></tr>";
+
+    $("eb-diff").textContent = (diff > 0 ? "+" : "") + money(diff) + " 元（" + (diff > 0 ? "不利" : (diff < 0 ? "有利" : "持平")) + "）";
+    $("eb-total").textContent = money(tb) + " / " + money(ta) + " 元";
+    $("eb-rate").textContent = pct(rate);
+    $("eb-over").textContent = overCnt + " 个 / " + money(overSum) + " 元";
+    $("eb-save").textContent = saveCnt + " 个 / " + money(saveSum) + " 元";
+    $("eb-top").textContent = overCnt > 0 ? topName + " +" + money(topAmt) + " 元" : "无超支";
+    $("eb-toprate").textContent = topRateName !== "—" ? topRateName + " " + pct(topRate) : "无超支";
+    $("eb-cut").textContent = diff > 0 ? money(diff) + " 元（或收入侧同步提上去）" : "已经低于预算，不用砍";
+    $("eb-body").innerHTML = html;
+
+    var adv;
+    if (tb <= 0) adv = "先填预算数，否则没有基准可比。";
+    else if (rate >= 0.1) adv = "整体超预算 " + pct(rate) + "，先看是量涨了（业务扩张，算好事）还是价涨了/管不住。";
+    else if (rate > 0) adv = "整体小幅超支 " + pct(rate) + "，可控，盯住超支率最高的那一项就行。";
+    else adv = "整体在预算内，节余 " + money(-diff) + " 元，注意别为了省钱把该投的（推广、研发）砍掉了。";
+
+    $("eb-note").textContent = adv +
+      " 看预算差异先分「量差」和「价差」：收入涨了带来的费用增加是良性的，收入没动费用却涨才是问题。超支率 ≥10% 的科目要业务写原因（用红色行标出来了）。" +
+      " 另外注意口径：预算里含不含税、含不含分摊、是不是同一个期间（月度 vs 累计），口径不一致比出来的差异没有意义。" +
+      " 费用超支不等于浪费——推广费超支但带来更多新单，是投资；最怕的是人工和办公这类固定费用悄悄涨上去，砍起来很难。";
+  }
+
+  function calcEfficiency() {
+    var rev = Math.max(0, num($("ef-rev"), 0));
+    var head = Math.max(1, num($("ef-head"), 1));
+    var labor = Math.max(0, num($("ef-labor"), 0));
+    var opex = Math.max(0, num($("ef-opex"), 0));
+    var gross = Math.max(0, num($("ef-gross"), 0));
+    var net = num($("ef-net"), 0);
+
+    var rph = rev / head, gph = gross / head, nph = net / head, lph = labor / head;
+    var lrate = rev > 0 ? labor / rev : 0;
+    var orate = rev > 0 ? opex / rev : 0;
+    var lever = labor > 0 ? rev / labor : 0;
+    var glever = labor > 0 ? gross / labor : 0;
+    var nlever = labor > 0 ? net / labor : 0;
+    var be = (labor + opex) / head;
+    var cov = be > 0 ? rph / be : 0;
+
+    $("ef-rph").textContent = money(rph) + " 元";
+    $("ef-rphm").textContent = money(rph / 12) + " 元";
+    $("ef-gph").textContent = money(gph) + " / " + money(nph) + " 元";
+    $("ef-lph").textContent = money(lph) + " 元（月 " + money(lph / 12) + "）";
+    $("ef-lrate").textContent = pct(lrate);
+    $("ef-orate").textContent = pct(orate);
+    $("ef-lever").textContent = fmt(lever, 2) + " 元 / " + fmt(glever, 2) + " 元 / " + fmt(nlever, 2) + " 元";
+    $("ef-be").textContent = money(be) + " 元";
+    $("ef-cov").textContent = fmt(cov, 2) + " 倍" + (cov < 1.2 ? "（离保本线太近）" : "");
+
+    var rows = [
+      ["人均创收", money(rph) + " 元/年", "核心人效指标，跟同行比才有意义"],
+      ["人工成本率", pct(lrate), "人力密集型 15–25% 属常见区间，超 30% 要查结构"],
+      ["期间费用率", pct(orate), "费用吃掉多少收入，逐月看趋势比看单月有用"],
+      ["每元人工创收", fmt(lever, 2) + " 元", "低于 3 元说明人工没被充分用起来"],
+      ["保本人均创收", money(be) + " 元", "人均低于这条线，整家公司就在亏"],
+      ["人均净利", money(nph) + " 元", "真金白银的人均贡献"]
+    ];
+    var html = "", i;
+    for (i = 0; i < rows.length; i++) {
+      html += "<tr><td>" + rows[i][0] + "</td><td>" + rows[i][1] + "</td><td>" + rows[i][2] + "</td></tr>";
+    }
+    $("ef-body").innerHTML = html;
+
+    var adv;
+    if (rev <= 0) adv = "先把收入填上。";
+    else if (net < 0) adv = "现在是亏的：人均创收 " + money(rph) + " 元低于保本线 " + money(be) + " 元，要么加收入、要么减人头。";
+    else if (cov < 1.2) adv = "刚过保本线，利润对收入波动极其敏感，一张大单丢了就可能转亏。";
+    else adv = "人效在保本线以上 " + fmt(cov, 2) + " 倍，重点转向提毛利而不是单纯加人。";
+
+    $("ef-note").textContent = adv +
+      " 三个关系要记住：① 人均创收看效率，人均净利看质量，两个都涨才是真改善；② 人工成本率 = 人工 ÷ 收入，加人前先算新增人头要带来多少收入才回本——按当前人工成本率，多加 1 个人要多做 " +
+      money(lph / (lrate > 0 ? lrate : 1)) + " 元收入才不摊薄；③ 期间费用率要和控制线一起看，费用率下降如果是靠砍推广换来的，明年收入就会掉。" +
+      " 提醒：期间费用里通常已经包含人工成本（销售人员工资、管理人员工资），如果这里填的是「含人工」的三费，人工成本率与费用率会重叠，别相加；真正的总负担是「人工 + 非人工费用」。" +
+      " 人效高低受业务模式影响极大（贸易、代工、软件差十倍很正常），只能和自己的历史、和同行业比。";
+  }
+
+  function calcCashStmt() {
+    var sale = Math.max(0, num($("cs-sale"), 0));
+    var othin = Math.max(0, num($("cs-othin"), 0));
+    var buy = Math.max(0, num($("cs-buy"), 0));
+    var pay = Math.max(0, num($("cs-pay"), 0));
+    var tax = Math.max(0, num($("cs-tax"), 0));
+    var othout = Math.max(0, num($("cs-othout"), 0));
+    var capex = Math.max(0, num($("cs-capex"), 0));
+    var invpay = Math.max(0, num($("cs-invpay"), 0));
+    var invback = Math.max(0, num($("cs-invback"), 0));
+    var borrow = Math.max(0, num($("cs-borrow"), 0));
+    var repay = Math.max(0, num($("cs-repay"), 0));
+    var div = Math.max(0, num($("cs-div"), 0));
+    var begin = num($("cs-begin"), 0);
+
+    var opIn = sale + othin, opOut = buy + pay + tax + othout, op = opIn - opOut;
+    var invIn = invback, invOut = capex + invpay, inv = invIn - invOut;
+    var finIn = borrow, finOut = repay + div, fin = finIn - finOut;
+    var net = op + inv + fin;
+    var end = begin + net;
+    var fcf = op - capex;
+
+    $("cs-end").textContent = money(end) + " 元";
+    $("cs-op").textContent = (op >= 0 ? "+" : "") + money(op) + " 元" + (op >= 0 ? "（造血）" : "（失血，重点查）");
+    $("cs-inv").textContent = (inv >= 0 ? "+" : "") + money(inv) + " 元";
+    $("cs-fin").textContent = (fin >= 0 ? "+" : "") + money(fin) + " 元";
+    $("cs-net").textContent = (net >= 0 ? "+" : "") + money(net) + " 元";
+    $("cs-fcf").textContent = (fcf >= 0 ? "+" : "") + money(fcf) + " 元" + (fcf >= 0 ? "（自己养得起投资）" : "（投资靠融资或老本撑着）");
+    $("cs-io").textContent = money(opIn) + " / " + money(opOut) + " 元";
+
+    var type;
+    if (op > 0 && inv < 0 && fin < 0) type = "成熟期：经营造血、投产能、还债分红，最健康的结构";
+    else if (op > 0 && inv < 0 && fin > 0) type = "扩张期：经营为正还在借钱投产能，要看投的东西能不能产生回报";
+    else if (op < 0 && inv < 0) type = "危险：经营失血还在往外投，靠融资或老本兜，尽快止血";
+    else if (op < 0 && fin > 0) type = "靠融资续命：经营现金为负，靠借钱维持，先查应收和存货";
+    else if (op > 0 && inv > 0 && fin < 0) type = "收缩期：变卖资产、还债，通常是主动瘦身";
+    else type = "混合型：三项方向不典型，逐笔看大额收支";
+    $("cs-type").textContent = type;
+
+    var rows = [
+      ["经营活动", opIn, opOut, op],
+      ["投资活动", invIn, invOut, inv],
+      ["筹资活动", finIn, finOut, fin],
+      ["合计", opIn + invIn + finIn, opOut + invOut + finOut, net]
+    ];
+    var html = "", i;
+    for (i = 0; i < rows.length; i++) {
+      var neg = rows[i][3] < 0;
+      html += "<tr" + (neg ? ' style="background:#fff5f5"' : "") + "><td>" + rows[i][0] + "</td><td>" + money(rows[i][1]) +
+        "</td><td>" + money(rows[i][2]) + "</td><td>" + (rows[i][3] >= 0 ? "+" : "") + money(rows[i][3]) + "</td></tr>";
+    }
+    $("cs-body").innerHTML = html;
+
+    $("cs-note").textContent =
+      " 期末现金 " + money(end) + " 元（期初 " + money(begin) + " + 本期净增加 " + money(net) + "）。" +
+      "看现金流量表只看一件事：经营现金流是否为正、并且能不能覆盖资本开支。经营净额为正是「造血」，为负说明主营业务在烧钱，利润表再好看也是应收账款和存货堆出来的。" +
+      "几个容易填错的口径：① 只算真金白银的进出，赊销赊购不进这张表；② 利息支出、分红放在筹资活动（现行准则口径），不要算进经营；③ 购建固定资产只看付现部分，欠供应商的设备款不算；" +
+      "④ 银行承兑汇票、受限资金（保证金）不属于现金等价物，要剔除。" +
+      " 交叉验证：间接法下「净利润 + 折旧摊销 − 营运资本增加」应接近经营净额，差太多就说明有非现金项目没调（如资产减值、公允价值变动、投资收益）。";
+  }
+
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
@@ -3980,7 +4208,8 @@
     ratios: calcRatios, recon: calcRecon,
     expense: calcExpense, aging: calcAging, funding: calcFunding, pricing: calcPricing,
     triplede: calcTripleDe, multimargin: calcMultiMargin, apterms: calcApTerms, assetledger: calcAssetLedger,
-    payage: calcPayAge, costcard: calcCostCard, budgetvar: calcBudgetVar, finreport: calcFinReport
+    payage: calcPayAge, costcard: calcCostCard, budgetvar: calcBudgetVar, finreport: calcFinReport,
+    invoice: calcInvoice, expbudget: calcExpBudget, efficiency: calcEfficiency, cashstmt: calcCashStmt
   };
 
   function setCat(cat) {
@@ -4110,9 +4339,13 @@
     "pg-a1", "pg-a2", "pg-a3", "pg-a4", "pg-term", "pg-buy", "pg-rate",
     "cw-fin", "cw-wip", "cw-deg", "cw-mat", "cw-lab", "cw-oh",
     "bv-bq", "bv-bp", "bv-sq", "bv-sp", "bv-aq", "bv-ap", "bv-aqty", "bv-apx",
-    "pl-rev", "pl-cogs", "pl-tax", "pl-se", "pl-ae", "pl-rd", "pl-fe", "pl-oi", "pl-noi", "pl-noe", "pl-tr"
+    "pl-rev", "pl-cogs", "pl-tax", "pl-se", "pl-ae", "pl-rd", "pl-fe", "pl-oi", "pl-noi", "pl-noe", "pl-tr",
+    "iv-contract", "iv-issued", "iv-received", "iv-rate", "iv-overdue", "iv-days", "iv-penalty",
+    "eb-b1", "eb-a1", "eb-b2", "eb-a2", "eb-b3", "eb-a3", "eb-b4", "eb-a4", "eb-b5", "eb-a5",
+    "ef-rev", "ef-head", "ef-labor", "ef-opex", "ef-gross", "ef-net",
+    "cs-sale", "cs-othin", "cs-buy", "cs-pay", "cs-tax", "cs-othout", "cs-capex", "cs-invpay", "cs-invback", "cs-borrow", "cs-repay", "cs-div", "cs-begin"
   ];
-  var KEY = "finance-calc-v19";
+  var KEY = "finance-calc-v20";
   var CAT_KEY = "finance-calc-cat";
 
   /* ---------------- 现金流月历 ---------------- */
