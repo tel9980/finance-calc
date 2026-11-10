@@ -7603,6 +7603,143 @@
       + "与减值测试。资本化只是把利润往后挪，不是凭空多赚 " + money(gain) + " 元。";
   }
 
+  function calcSalesAllow() {
+    var sales = num($("alw-sales"), 0);
+    var allowR = num($("alw-allow"), 0) / 100, retR = num($("alw-ret"), 0) / 100;
+    var giftCost = num($("alw-giftcost"), 0), giftVal = num($("alw-giftval"), 0);
+    var vc = num($("alw-vc"), 0) / 100, vat = num($("alw-vat"), 0) / 100;
+    var sur = 0.12, tax = 0.25;
+    var allow = sales * allowR, ret = sales * retR;
+    var cut = allow + ret;
+    var net = sales - cut;
+    var vatNormal = (sales - cut) * vat;
+    var vatGift = giftVal * vat;
+    var vatAll = vatNormal + vatGift;
+    var surtax = vatAll * sur;
+    var gpGross = net * (1 - vc);
+    var gpNet = gpGross - giftCost;
+    var giftSur = vatGift * sur;
+    var giftTaxable = Math.max(0, giftVal - giftCost);
+    var giftTax = giftTaxable * tax;
+    var giftAll = giftCost + vatGift + giftSur + giftTax;
+    $("alw-big").textContent = money(giftAll);
+    $("alw-cut").textContent = money(cut) + " 元（折让 " + money(allow) + " / 退货 " + money(ret) + "）";
+    $("alw-net").textContent = money(net) + " 元";
+    $("alw-vatout").textContent = money(vatAll) + " 元（其中赠品视同销售 " + money(vatGift) + "）";
+    $("alw-surtax").textContent = money(surtax) + " 元（按 12%）";
+    $("alw-gp").textContent = money(gpGross) + " / " + money(gpNet) + " 元";
+    $("alw-gv").textContent = money(vatGift) + " / " + money(giftSur) + " 元";
+    $("alw-gt").textContent = "视同销售所得 " + money(giftTaxable) + " × " + pct(tax, 0) + " = " + money(giftTax) + " 元";
+    $("alw-note").textContent = "三件事分开处理：① 折让和退货是冲减收入（同时冲减销项税），已经开票的要开红字发票，"
+      + "不能挂「其他应收」或让业务员垫；② 赠品是「视同销售」——增值税按公允价值计销项、所得税按公允价值确认收入并结转成本，"
+      + "所以送出去的成本不只是成本 " + money(giftCost) + "，全口径是 " + money(giftAll) + " 元，"
+      + "相当于实际成本的 " + fmt(giftCost > 0 ? giftAll / giftCost : 0, 2) + " 倍；"
+      + "③ 促销赠品建议按「买一赠一」组合销售开票（同一张发票上分摊价格），可以避免视同销售重复计税。"
+      + "另外注意：折让、退回要冲减当期收入，不能追溯调整上年报表（除非是差错更正）。";
+  }
+
+  function calcLease() {
+    var rent = num($("lse-rent"), 0);
+    var n = Math.max(1, Math.round(num($("lse-years"), 5)));
+    var r = num($("lse-rate"), 0) / 100;
+    var when = $("lse-when").value === "1" ? 1 : 0;
+    var pv = 0, i;
+    for (i = 1; i <= n; i++) pv += rent / Math.pow(1 + r, i);
+    if (when === 1) pv *= (1 + r);
+    var rou = pv, dep = rou / n;
+    var bal = pv, rows = [], totalInt = 0;
+    for (i = 1; i <= n; i++) {
+      var pay = rent;
+      if (when === 1) {
+        bal = bal - rent;
+        var int1 = bal * r;
+        totalInt += int1;
+        rows.push([i, bal + rent, int1, rent, bal + int1]);
+        bal = bal + int1;
+      } else {
+        var int2 = bal * r;
+        totalInt += int2;
+        var end = bal + int2 - pay;
+        rows.push([i, bal, int2, pay, end]);
+        bal = end;
+      }
+    }
+    var y1int = rows[0][2];
+    var expY1 = y1int + dep;
+    var diff = expY1 - rent;
+    $("lse-big").textContent = money(pv);
+    $("lse-rou").textContent = money(rou) + " 元（按现值，另加初始直接费用）";
+    $("lse-y1").textContent = money(y1int) + " / " + money(dep) + " 元";
+    $("lse-exp").textContent = money(expY1) + " 元（利息＋折旧）";
+    $("lse-diff").textContent = (diff >= 0 ? "首年多 " : "首年少 ") + money(Math.abs(diff)) + " 元（前高后低，全期总额相同）";
+    $("lse-end").textContent = money(rows[0][4]) + " 元";
+    $("lse-ebitda").textContent = "+" + money(rent) + " 元（租金从费用变利息＋折旧）";
+    $("lse-body").innerHTML = rows.map(function (x) {
+      return "<tr><td>" + x[0] + "</td><td>" + money(x[1]) + "</td><td>" + money(x[2]) + "</td><td>" + money(x[3]) + "</td><td>" + money(x[4]) + "</td></tr>";
+    }).join("");
+    $("lse-note").textContent = "新租赁准则（CAS 21，2021 年起执行）把经营租赁也搬上表：租期超过 12 个月、且不是低价值资产，"
+      + "都要确认使用权资产和租赁负债，只有「短期租赁」和「低价值租赁」可以继续按直线法计入费用。"
+      + "结果是前几年费用高（利息＋折旧 > 租金）、后面低，全期总额一样；同时资产和负债同时变大，"
+      + "资产负债率上升、EBITDA 反而变好看——这也是很多企业报表「突然变好」的原因。"
+      + "全期利息合计 " + money(totalInt) + " 元。折现率优先用租赁内含利率，拿不到才用增量借款利率。";
+  }
+
+  function calcGpmix() {
+    var r1 = num($("gpm-r1"), 0), c1 = num($("gpm-c1"), 0);
+    var r2 = num($("gpm-r2"), 0), c2 = num($("gpm-c2"), 0);
+    var g = num($("gpm-qty"), 0) / 100;
+    var gp1 = r1 - c1, gp2 = r2 - c2;
+    var gm1 = r1 > 0 ? gp1 / r1 : 0, gm2 = r2 > 0 ? gp2 / r2 : 0;
+    var volEff = r1 * g * gm1;
+    var priceRev = r2 - r1 * (1 + g);
+    var priceEff = priceRev * gm1;
+    var cr1 = r1 > 0 ? c1 / r1 : 0, cr2 = r2 > 0 ? c2 / r2 : 0;
+    var costEff = -r2 * (cr2 - cr1);
+    var sum = volEff + priceEff + costEff;
+    $("gpm-big").textContent = money(gp2 - gp1);
+    $("gpm-gm").textContent = pct(gm1, 2) + " → " + pct(gm2, 2) + "（" + (gm2 >= gm1 ? "+" : "") + fmt((gm2 - gm1) * 100, 2) + " 个点）";
+    $("gpm-vol").textContent = (volEff >= 0 ? "+" : "") + money(volEff) + " 元（量增 " + pct(g, 1) + " × 上年毛利）";
+    $("gpm-price").textContent = (priceEff >= 0 ? "+" : "") + money(priceEff) + " 元（收入超出量增部分 " + money(priceRev) + " × 上年毛利率）";
+    $("gpm-cost").textContent = (costEff >= 0 ? "+" : "") + money(costEff) + " 元（成本率 " + pct(cr1, 2) + " → " + pct(cr2, 2) + "）";
+    $("gpm-sum").textContent = money(sum) + " 元（应等于毛利额变动 " + money(gp2 - gp1) + "）";
+    $("gpm-px").textContent = r1 > 0 ? (priceRev >= 0 ? "涨价 " : "降价 ") + pct(Math.abs(priceRev / (r1 * (1 + g))), 2) : "—";
+    $("gpm-note").textContent = "毛利率从 " + pct(gm1, 2) + " 掉到 " + pct(gm2, 2) + "，但毛利额其实是" + (gp2 - gp1 >= 0 ? "增长" : "下降") + " "
+      + money(Math.abs(gp2 - gp1)) + " 元的——**毛利率下滑和毛利额下滑是两件事**，别用毛利率骂业务、也别用毛利额夸业务。"
+      + "三项拆开看：卖得更多贡献 " + money(volEff) + "、卖得更贵贡献 " + money(priceEff) + "、成本率上升吃掉 " + money(costEff) + "。"
+      + "如果成本率效应最大，问题在采购/工艺/产品结构（低价产品占比上升会同时压低价格和拉高成本率）；"
+      + "如果价格效应为负而量在涨，多半是降价换量，要算一下边际贡献是不是真的增加。";
+  }
+
+  function calcVatChoose() {
+    var S = num($("vtc-sales"), 0);
+    var cr = num($("vtc-cost"), 0) / 100, ded = num($("vtc-ded"), 0) / 100;
+    var r13 = num($("vtc-rate13"), 0) / 100, r3 = num($("vtc-rate3"), 0) / 100;
+    var tax = num($("vtc-tax"), 0) / 100, sur = 0.12;
+    var C = S * cr;
+    var out13 = S * r13, inVat = C * ded * r13;
+    var pay1 = Math.max(0, out13 - inVat), sur1 = pay1 * sur;
+    var np1 = (S - C - sur1) * (1 - tax);
+    var pay2 = S * r3, sur2 = pay2 * sur;
+    var C2 = C * (1 + r13 * ded);
+    var np2 = (S - C2 - sur2) * (1 - tax);
+    var diff = np1 - np2;
+    var beCr = ded > 0 && r13 > 0 ? (sur * (r13 - r3)) / (ded * r13 * (1 + sur)) : 99;
+    $("vtc-big").textContent = money(Math.abs(diff));
+    $("vtc-g1").textContent = money(out13) + " / " + money(inVat) + " / " + money(pay1) + " 元";
+    $("vtc-g2").textContent = money(sur1) + " / " + money(np1) + " 元";
+    $("vtc-s1").textContent = money(pay2) + " 元（按 " + pct(r3, 1) + "，进项不能抵）";
+    $("vtc-s2").textContent = money(C2) + " / " + money(sur2) + " 元";
+    $("vtc-s3").textContent = money(np2) + " 元";
+    $("vtc-be").textContent = beCr > 1 ? "进项抵扣率为 0，小规模一直更优" : "成本率 " + pct(beCr, 2) + " / 毛利率 " + pct(1 - beCr, 2);
+    $("vtc-note").textContent = (diff >= 0 ? "按现在的成本结构和抵扣率，一般纳税人税后多赚 " + money(diff) + " 元。"
+      : "按现在的成本结构和抵扣率，小规模税后多赚 " + money(Math.abs(diff)) + " 元——因为进项抵扣拿不回来，13% 销项基本白交。")
+      + "判断的关键不是税率高低，而是「进项能不能抵」：采购能拿到 13% 专票的贸易、制造，一般纳税人合算；"
+      + "人工为主、采购零散拿不到专票的服务业，小规模 3%（现行优惠期可能 1%）完胜。"
+      + "还有三个非税因素要一起看：客户要不要 13% 专票（要就基本没得选）、"
+      + "一般纳税人要建账、进项管理成本和被稽查概率更高、小规模年销售额超过 500 万必须转一般纳税人。"
+      + "无差异点会随征收率优惠、行业加计抵减政策变化，算完要按最新文件复核。";
+  }
+
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
@@ -7642,6 +7779,7 @@
     contractperf: calcContractPerf, projrev: calcProjRev, creditpolicy: calcCreditPolicy, rateadj: calcRateAdj,
     invfund: calcInvFund, machrate: calcMachRate, govgrant: calcGovGrant, fxtranslate: calcFxTranslate,
     rebateacc: calcRebateAcc, pledgeloan: calcPledgeLoan, labvar: calcLabVar, rdcap: calcRdCap,
+    salesallow: calcSalesAllow, lease: calcLease, gpmix: calcGpmix, vatchoose: calcVatChoose,
     datemath: calcDatemath, pct3: calcPct3, xlhelp: calcXlHelp, csvrecon: calcCsvRecon,
     contractperf: calcContractPerf, projrev: calcProjRev, creditpolicy: calcCreditPolicy, rateadj: calcRateAdj
   };
@@ -7884,9 +8022,13 @@
     "rba-sales", "rba-rate", "rba-ach", "rba-vc", "rba-fee", "rba-promo", "rba-staff",
     "plg-ar", "plg-ratio", "plg-rate", "plg-days", "plg-fee", "plg-fact",
     "lab-qty", "lab-std", "lab-srate", "lab-ah", "lab-arate", "lab-cap",
-    "rdc-total", "rdc-cap", "rdc-years", "rdc-months", "rdc-tax"
+    "rdc-total", "rdc-cap", "rdc-years", "rdc-months", "rdc-tax",
+    "alw-sales", "alw-allow", "alw-ret", "alw-giftcost", "alw-giftval", "alw-vc", "alw-vat",
+    "lse-rent", "lse-years", "lse-rate", "lse-when",
+    "gpm-r1", "gpm-c1", "gpm-r2", "gpm-c2", "gpm-qty",
+    "vtc-sales", "vtc-cost", "vtc-ded", "vtc-rate13", "vtc-rate3", "vtc-tax"
 ];
-  var KEY = "finance-calc-v38";
+  var KEY = "finance-calc-v39";
   var CAT_KEY = "finance-calc-cat";
 
   /* ---------------- 现金流月历 ---------------- */
