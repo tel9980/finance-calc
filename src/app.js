@@ -9359,6 +9359,7 @@
     applyFilter();
   }
 
+  var FIRST_ACTIVATE = true;
   function activate(name) {
     pushRecent(name);
     var self = document.querySelector('.tab[data-tab="' + name + '"]');
@@ -9376,7 +9377,9 @@
     if (calcMap[name]) calcMap[name]();
     if (location.hash !== "#" + name) history.replaceState(null, "", "#" + name);
     var onTab = document.querySelector(".tab.is-on");
-    if (onTab && onTab.scrollIntoView) onTab.scrollIntoView({ block: "nearest", inline: "center" });
+    /* 只有用户主动切页时才把标签滚到中间；首屏自动激活不滚，避免把浏览器的
+       「顺序焦点起点」钉在标签上，导致键盘用户第一次按 Tab 跳过「跳到计算区」 */
+    if (!FIRST_ACTIVATE && onTab && onTab.scrollIntoView) onTab.scrollIntoView({ block: "nearest", inline: "center" });
     var fv = $("btn-fav");
     if (fv) { var f = isFav(name); fv.textContent = f ? "★ 已置顶" : "☆ 置顶"; fv.classList.toggle("on", f); }
   }
@@ -9892,7 +9895,12 @@
         if (el) STORED[FIELDS[k]] = el.value;
       }
       localStorage.setItem(KEY, JSON.stringify(STORED));
-    } catch (err) { /* 隐私模式忽略 */ }
+    } catch (err) {
+      if (!QUOTA_WARNED) {
+        QUOTA_WARNED = true;
+        toast("浏览器本地存储写不进去了（可能是隐私模式或存满）。这次改动只在当前页面有效，建议先到「方案快照」导出备份。", 6000);
+      }
+    }
   }
 
   /* 面板挂载后：先把存过的值填回去 */
@@ -10039,6 +10047,23 @@
     this.classList.toggle("on", on);
   });
 
+  var TOAST_EL = null, TOAST_T = null;
+  function toast(msg, ms) {
+    try {
+      if (!TOAST_EL) {
+        TOAST_EL = document.createElement("div");
+        TOAST_EL.className = "toast";
+        TOAST_EL.setAttribute("role", "status");
+        document.body.appendChild(TOAST_EL);
+      }
+      TOAST_EL.textContent = msg;
+      TOAST_EL.hidden = false;
+      if (TOAST_T) clearTimeout(TOAST_T);
+      TOAST_T = setTimeout(function () { if (TOAST_EL) TOAST_EL.hidden = true; }, ms || 3600);
+    } catch (e) {}
+  }
+
+  var QUOTA_WARNED = false;
   function flash(btn, txt) {
     if (!btn) return;
     var old = btn.textContent;
@@ -10756,5 +10781,7 @@
   var startName = calcMap[st0.name] ? st0.name : "deposit";
   activate(startName);
   if (st0.params) { applyParams(st0.params); if (calcMap[startName]) calcMap[startName](); }
+  FIRST_ACTIVATE = false;
+  if (typeof bindPrefetch === "function") bindPrefetch();
   $("ver").textContent = "财务计算器 · 纯前端 · 更新于 " + new Date().toISOString().slice(0, 10);
 })();

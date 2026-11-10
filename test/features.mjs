@@ -59,6 +59,27 @@ const deep = await page.evaluate(() => {
 ok(String(deep.val) === '3000000', '深链参数没填进去（' + deep.val + '）');
 ok(!!deep.big && deep.big !== '—', '深链参数没触发计算');
 
+
+/* 无障碍与体验：跳转链接、结果区读屏播报、焦点框 */
+await page.goto(BASE, { waitUntil: 'load' }); await page.waitForTimeout(500);
+ok(await page.evaluate(() => !!document.querySelector('a.skip[href="#panels"]')), '缺少跳到计算区的链接');
+ok(await page.evaluate(() => { const b = document.querySelector('.panel.is-on .big'); return !!b && b.getAttribute('aria-live') === 'polite'; }), '结果区没有 aria-live 播报');
+await page.evaluate(() => { if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); window.scrollTo(0, 0); });
+await page.keyboard.press('Tab'); await page.waitForTimeout(150);
+const focusInfo = await page.evaluate(() => ({ tag: document.activeElement && document.activeElement.className, outline: getComputedStyle(document.activeElement).outlineWidth }));
+ok(String(focusInfo.tag).includes('skip'), '第一次 Tab 没有落在跳转链接上（实际：' + focusInfo.tag + '）');
+ok(parseFloat(focusInfo.outline) > 0, '焦点没有可见的外框');
+
+/* 新功能：目标反推、72 格逐月、年报图表 */
+await page.click('.cat[data-cat="family"]'); await page.click('.tab[data-tab="yearcmp"]'); await page.waitForTimeout(900);
+const goalTxt = await page.evaluate(() => (document.getElementById('yc-goal') || {}).textContent || '');
+ok(/每年|每月/.test(goalTxt), '目标反推没有给出每年/每月金额');
+await page.click('.tab[data-tab="monthly"]'); await page.waitForTimeout(900);
+ok(await page.evaluate(() => document.querySelectorAll('#panel-monthly input[id^="mtg-"]').length) === 72, '逐月分类不是 72 格');
+await page.click('.tab[data-tab="yearreport"]'); await page.waitForTimeout(1200);
+const charts = await page.evaluate(() => ['yrp-chart1', 'yrp-chart2'].map(id => { const c = document.getElementById(id); if (!c) return -1; const g = c.getContext('2d'); const d = g.getImageData(0, 0, c.width, c.height).data; let k = 0; for (let i = 3; i < d.length; i += 4) if (d[i]) k++; return k; }));
+ok(charts.every(n => n > 500), '年报里的图没有画出来（' + charts.join(',') + '）');
+
 ok(errs.length === 0, '控制台报错：' + errs.join(' | '));
 console.log(bad.length ? '❌ 失败：\n- ' + bad.join('\n- ') : '✅ 交互项全部通过');
 await browser.close();

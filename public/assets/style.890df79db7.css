@@ -338,3 +338,12 @@ details.mtg table.grid td{padding:3px 4px}
 details.mtg table.grid input{width:100%;min-width:52px;padding:5px 6px;font-size:12.5px;text-align:right}
 html[data-theme="dark"] details.mtg summary{color:#93b4f7}
 @media(max-width:660px){details.mtg table.grid input{min-width:44px;font-size:12px}}
+/* 键盘可达：只有当用 Tab 进来时才显示焦点框，鼠标点击不闪 */
+a.skip{position:absolute;left:-9999px;top:8px;background:#1e3a8a;color:#fff;padding:9px 14px;border-radius:8px;z-index:60;font-size:13.5px}
+a.skip:focus{left:8px}
+:focus-visible{outline:2px solid #1e3a8a;outline-offset:2px}
+.hd :focus-visible,.cat:focus-visible,.tab:focus-visible{outline:2px solid #fff;outline-offset:2px}
+html[data-theme="dark"] :focus-visible{outline-color:#93b4f7}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#1e3a8a;color:#fff;padding:10px 16px;border-radius:999px;font-size:13.5px;z-index:70;box-shadow:0 8px 24px rgba(15,23,42,.28)}
+@media (prefers-reduced-motion: reduce){*{animation-duration:.001ms !important;transition-duration:.001ms !important}}
+@media print{a.skip,.toast{display:none !important}}
