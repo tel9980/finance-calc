@@ -309,7 +309,7 @@ const repl = [
   [/if \(calcMap\[name\]\) calcMap\[name\]\(\);\s*\n(\s*)save\(\);/, 'runCalc(name);\n$1save();'],
   [/if \(calcMap\[p\.module\]\) activate\(p\.module\);/, 'if (TABS[p.module]) activate(p.module);'],
   [/if \(calcMap\[p\.module\]\) calcMap\[p\.module\]\(\);/, 'runCalc(p.module);'],
-  [/var startName = calcMap\[st0\.name\] \? st0\.name : "deposit";/, 'var startName = TABS[st0.name] ? st0.name : "deposit";'],
+  [/var startName = TABS\[st0\.name\] \? st0\.name : \(TABS\[lastName\] \? lastName : "deposit"\);/, 'var startName = TABS[st0.name] ? st0.name : (TABS[lastName] ? lastName : "deposit");'],
   [/  function activate\(name\) \{\n/, '  function activate(name) {\n    ACTIVE = name;\n'],
   [/if \(st0\.params\) \{ applyParams\(st0\.params\); if \(calcMap\[startName\]\) calcMap\[startName\]\(\); \}/, 'if (st0.params) { applyParams(st0.params); runCalc(startName); }'],
 ];

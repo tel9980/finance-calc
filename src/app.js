@@ -48,7 +48,10 @@
   }
   function numFocus(e) {
     var el = e.target;
-    if (el && el.classList && el.classList.contains("num")) el.value = el.value.replace(/[,\s]/g, "");
+    if (el && el.classList && el.classList.contains("num")) {
+      el.value = el.value.replace(/[,\s]/g, "");
+      try { el.select(); } catch (err) {}
+    }
   }
   function numBlur(e) {
     var el = e.target;
@@ -9663,6 +9666,7 @@
 
   var curCat = "hot", curSub = "";
   var RECENT_KEY = "finance-calc-recent";
+  var LAST_KEY = "finance-calc-last";
   var recentList = [];
   try { recentList = JSON.parse(localStorage.getItem(RECENT_KEY) || "[]") || []; } catch (e) { recentList = []; }
   function pushRecent(id) {
@@ -9768,6 +9772,7 @@
     if (!FIRST_ACTIVATE && onTab && onTab.scrollIntoView) onTab.scrollIntoView({ block: "nearest", inline: "center" });
     var fv = $("btn-fav");
     if (fv) { var f = isFav(name); fv.textContent = f ? "★ 已置顶" : "☆ 置顶"; fv.classList.toggle("on", f); }
+    try { localStorage.setItem(LAST_KEY, name); } catch (e) {}
   }
 
   $("tabs").addEventListener("click", function (e) {
@@ -10290,12 +10295,19 @@
   tap("snap-track-mod", "change", function () {});
   if ($("snap-track-mod")) refreshTrackMods();
 
+  var SAVE_TIMER = null;
   function save() {
+    for (var k = 0; k < FIELDS.length; k++) {
+      var el = $(FIELDS[k]);
+      if (el) STORED[FIELDS[k]] = el.value;
+    }
+    /* 输入时只更新内存，250ms 后再落盘一次，避免每敲一个字就写一次 localStorage */
+    if (SAVE_TIMER) clearTimeout(SAVE_TIMER);
+    SAVE_TIMER = setTimeout(flushSave, 250);
+  }
+  function flushSave() {
+    SAVE_TIMER = null;
     try {
-      for (var k = 0; k < FIELDS.length; k++) {
-        var el = $(FIELDS[k]);
-        if (el) STORED[FIELDS[k]] = el.value;
-      }
       localStorage.setItem(KEY, JSON.stringify(STORED));
     } catch (err) {
       if (!QUOTA_WARNED) {
@@ -10304,6 +10316,7 @@
       }
     }
   }
+  window.addEventListener("pagehide", function () { if (SAVE_TIMER) { clearTimeout(SAVE_TIMER); flushSave(); } });
 
   /* 面板挂载后：先把存过的值填回去 */
   function applyStoredTo(root) {
@@ -11313,6 +11326,75 @@
 
   tap("mtg-fill", "click", function () { fillMonthGrid(); });
 
+  /* ---------------- 命令面板（Ctrl/Cmd+K） ---------------- */
+  var PALETTE_EL = null;
+  function openPalette() {
+    if (!PALETTE_EL) {
+      PALETTE_EL = document.createElement("div");
+      PALETTE_EL.id = "palette";
+      PALETTE_EL.className = "palette";
+      PALETTE_EL.innerHTML = '<div class="pal-box" role="dialog" aria-modal="true" aria-label="模块搜索面板">'
+        + '<input class="pal-q" id="pal-q" type="search" placeholder="输入模块名、英文 id 或拼音，↑↓ 选择，回车打开">'
+        + '<ul class="pal-list" id="pal-list"></ul>'
+        + '<p class="pal-hint">共 188 个模块 · Enter 打开 · Esc 关闭</p></div>';
+      document.body.appendChild(PALETTE_EL);
+      $("pal-q").addEventListener("input", renderPalette);
+      $("pal-q").addEventListener("keydown", palKey);
+      PALETTE_EL.addEventListener("click", function (e) {
+        if (e.target === PALETTE_EL) { closePalette(); return; }
+        var li = e.target.closest ? e.target.closest("li[data-tab]") : null;
+        if (li) { closePalette(); activate(li.dataset.tab); }
+      });
+    }
+    PALETTE_EL.hidden = false;
+    var inp = $("pal-q");
+    if (inp) { inp.value = ""; }
+    renderPalette();
+    setTimeout(function () { if (inp) inp.focus(); }, 0);
+  }
+  function closePalette() { if (PALETTE_EL) PALETTE_EL.hidden = true; }
+  function renderPalette() {
+    var q = ($("pal-q").value || "").trim().toLowerCase();
+    var list = $("pal-list");
+    if (!list) return;
+    var items = [];
+    var tabs = document.querySelectorAll(".tab");
+    for (var i = 0; i < tabs.length; i++) {
+      var t = tabs[i];
+      if (!q || matchQ(t, q)) items.push({ id: t.dataset.tab, label: t.textContent.trim() });
+    }
+    if (!items.length) { list.innerHTML = '<li class="pal-none">没有匹配的模块</li>'; return; }
+    items = items.slice(0, 50);
+    list.innerHTML = items.map(function (x, i) {
+      return '<li data-tab="' + x.id + '"' + (i === 0 ? ' class="is-on"' : '') + '><span>' + x.label + '</span><em>' + x.id + '</em></li>';
+    }).join("");
+  }
+  function palKey(e) {
+    var list = $("pal-list");
+    var items = list ? list.querySelectorAll("li[data-tab]") : [];
+    var cur = list ? list.querySelector("li.is-on") : null;
+    var idx = cur ? Array.prototype.indexOf.call(items, cur) : -1;
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      if (!items.length) return;
+      var n = (idx + (e.key === "ArrowDown" ? 1 : items.length - 1)) % items.length;
+      if (cur) cur.classList.remove("is-on");
+      items[n].classList.add("is-on");
+      if (items[n].scrollIntoView) items[n].scrollIntoView({ block: "nearest" });
+      return;
+    }
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (cur) { var id = cur.dataset.tab; closePalette(); activate(id); }
+      return;
+    }
+    if (e.key === "Escape") { e.preventDefault(); closePalette(); return; }
+  }
+  document.addEventListener("keydown", function (e) {
+    if ((e.ctrlKey || e.metaKey) && (e.key === "k" || e.key === "K")) { e.preventDefault(); openPalette(); }
+  });
+  if ($("btn-palette")) $("btn-palette").addEventListener("click", function () { openPalette(); });
+
   /* ---------------- 启动 ---------------- */
   enhanceNums(document);
   restore();
@@ -11323,7 +11405,9 @@
   if (!document.querySelector('.cat[data-cat="' + savedCat + '"]')) savedCat = "hot";
   setCat(savedCat);
   var st0 = hashTarget();
-  var startName = calcMap[st0.name] ? st0.name : "deposit";
+  var lastName = "";
+  try { lastName = localStorage.getItem(LAST_KEY) || ""; } catch (e) {}
+  var startName = TABS[st0.name] ? st0.name : (TABS[lastName] ? lastName : "deposit");
   activate(startName);
   if (st0.params) { applyParams(st0.params); if (calcMap[startName]) calcMap[startName](); }
   FIRST_ACTIVATE = false;

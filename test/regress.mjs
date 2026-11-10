@@ -8,7 +8,7 @@ import { chromium } from 'playwright';
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const BASE = process.argv.find(a => a.startsWith('http')) || 'http://127.0.0.1:8099/';
 const UPDATE = process.argv.includes('--update');
-const IGNORE = new Set(['dca']);           // 蒙特卡洛，每次不同
+const IGNORE = new Set(['dca', 'calendar', 'freeperiod']);  // dca 蒙特卡洛每次不同；calendar/freeperiod 按今天日期算，跨天会变
 const NO_BIG = new Set(['xlhelp']);        // 只有表格，没有 .big
 const EMPTY_OK = new Set(['snaps']);       // 没有快照时主结果本来就空
 
