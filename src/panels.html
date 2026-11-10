@@ -214,6 +214,8 @@
           <button class="ghost" type="button" id="snap-import">导入快照</button>
           <button class="ghost" type="button" id="snap-backup">整站备份</button>
           <button class="ghost" type="button" id="snap-csv">导出全部参数 CSV</button>
+          <button class="ghost" type="button" id="snap-csvin">从 CSV 导入参数</button>
+          <input type="file" id="snap-csvfile" accept=".csv,text/csv" hidden>
           <button class="ghost" type="button" id="snap-restore">恢复备份</button>
           <button class="ghost" type="button" id="snap-png">导出对比图 PNG</button>
           <button class="ghost" type="button" id="snap-del-sel">删除选中</button>
@@ -8250,7 +8252,10 @@
         <label class="f"><span>年收入（税后）</span><input id="yc-inc5" type="number" inputmode="decimal" min="0" step="1000" value="312000"></label>
         <label class="f"><span>年支出</span><input id="yc-out5" type="number" inputmode="decimal" min="0" step="1000" value="275000"></label>
         <label class="f"><span>年末资产（不含自住房）</span><input id="yc-asset5" type="number" inputmode="decimal" min="0" step="10000" value="520000"></label>
-        <em>资产填「不含自住房的金融资产＋投资房」，看的是能生钱的那部分。收入用税后到手，和自己的银行卡对得上。想比 2 年就把后面几年填 0。</em>
+        <h2 class="sub">目标反推（可选）</h2>
+        <label class="f"><span>想在几年后把金融资产做到（元）</span><input id="yc-target" type="number" inputmode="decimal" min="0" step="50000" value="1000000"></label>
+        <label class="f"><span>还剩几年</span><input id="yc-years" type="number" inputmode="numeric" min="1" max="40" step="1" value="5"></label>
+        <em>资产填「不含自住房的金融资产＋投资房」，看的是能生钱的那部分。收入用税后到手，和自己的银行卡对得上。想比 2 年就把后面几年填 0；目标反推不填也能用。</em>
       </div>
       <div class="card res">
         <h2>结果</h2>
@@ -8268,6 +8273,7 @@
           <li><span>哪一项最该管</span><b id="yc-focus">—</b></li>
         </ul>
         <canvas id="yc-chart" width="720" height="200" aria-label="收入支出资产趋势图"></canvas>
+        <p class="hint" id="yc-goal"></p>
         <p class="hint" id="yc-forecast"></p>
         <div class="tablebox">
           <table>

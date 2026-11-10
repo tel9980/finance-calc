@@ -1274,7 +1274,7 @@ undefined
   /* ---- 按分类懒加载：只有点到的模块才下载对应 chunk ---- */
   var CHUNK_OF = { "deposit": "save", "loan": "loan", "combo": "loan", "prepay": "loan", "compound": "save", "goal": "save", "installment": "life", "annual": "save", "inflation": "save", "tax": "tax", "deal": "life", "salary": "tax", "rentbuy": "house", "card": "life", "fx": "life", "fund": "loan", "lpr": "loan", "deed": "house", "split": "life", "pension": "tax", "sell": "house", "offset": "loan", "multi": "life", "repayvs": "loan", "edu": "family", "insure": "family", "car": "life", "bonus": "tax", "deduct": "tax", "ladder": "save", "rentyield": "house", "settle": "tax", "balance": "family", "selfins": "tax", "underpay": "tax", "loanways": "loan", "dca": "save", "checkup": "family", "calendar": "save", "cashflow": "family", "zeroloan": "loan", "riskalloc": "family", "penalty": "loan", "debtfree": "life", "fire": "family", "annualfee": "family", "budget": "house", "zhuan": "loan", "medins": "tax", "childcost": "family", "ppension": "tax", "fundlimit": "loan", "emergency": "family", "rule503020": "family", "debtmerge": "life", "freeperiod": "life", "overtime": "tax", "rentup": "house", "ev": "life", "vat": "acct-tax", "vatdue": "acct-tax", "deprec": "acct-cost", "breakeven": "acct-perf", "ratios": "acct-report", "recon": "acct-report", "expense": "acct-report", "aging": "acct-bd", "funding": "acct-cash", "pricing": "acct-perf", "triplede": "acct-report", "multimargin": "acct-perf", "apterms": "acct-bd", "assetledger": "acct-cost", "payage": "acct-bd", "costcard": "acct-cost", "budgetvar": "acct-cost", "finreport": "acct-report", "invoice": "acct-bd", "expbudget": "acct-report", "efficiency": "acct-report", "cashstmt": "acct-report", "invstock": "acct-bd", "exportrebate": "acct-tax", "tieout": "acct-bd", "feetrend": "acct-report", "mpbe": "acct-perf", "payroll": "acct-perf", "assetdiff": "acct-cost", "monthclose": "acct-report", "factoring": "acct-cash", "deadstock": "acct-bd", "aptalk": "acct-cash", "cash13": "acct-cash", "bill": "acct-cash", "loanreal": "loan", "collect": "acct-bd", "mgmtpack": "acct-report", "settleway": "acct-cash", "creditline": "acct-cash", "impair": "acct-bd", "fxgain": "acct-cash", "taxburden": "acct-tax", "sens": "acct-report", "consol": "acct-report", "eoq": "acct-bd", "bplan": "acct-report", "refundflow": "acct-tax", "costalloc": "acct-cost", "importcost": "acct-perf", "makeorbuy": "acct-cost", "ecl": "acct-bd", "quotefx": "acct-perf", "capacity": "acct-cost", "mold": "acct-cost", "rebate": "acct-perf", "stdcost": "acct-cost", "svc": "acct-bd", "taxadj": "acct-tax", "supplier": "acct-bd", "debtcap": "acct-tax", "accdep": "acct-tax", "custwin": "acct-bd", "upgrade": "acct-cost", "deptalloc": "acct-cost", "payout": "acct-perf", "numwords": "util", "duedate": "util", "workday": "util", "cagr": "util", "apportion": "util", "grossup": "util", "trprice": "acct-cash", "esop": "acct-tax", "rdexp": "acct-tax", "rollfc": "acct-report", "commission": "acct-perf", "capex": "acct-cost", "pooling": "acct-cash", "creditlimit": "acct-cash", "contractperf": "acct-report", "projrev": "acct-report", "creditpolicy": "acct-bd", "rateadj": "tax", "invfund": "acct-bd", "machrate": "acct-cost", "govgrant": "acct-tax", "fxtranslate": "acct-report", "rebateacc": "acct-perf", "pledgeloan": "acct-cash", "labvar": "acct-cost", "rdcap": "acct-tax", "processcost": "acct-cost", "makeoroutsource": "acct-cost", "rebatedta": "acct-tax", "leasebuy": "acct-cash", "welfare": "acct-tax", "inputout": "acct-tax", "stampduty": "acct-tax", "assetdisp": "acct-cost", "headcount": "acct-perf", "markroi": "acct-perf", "rdproject": "acct-cost", "intsvc": "acct-tax", "accrual": "acct-report", "cfconsol": "acct-report", "exportcheck": "acct-tax", "vatcheck": "acct-tax", "report": "family", "snaps": "util", "housecash": "house", "planner": "family", "healthcheck": "hot", "salesallow": "acct-tax", "lease": "acct-report", "gpmix": "acct-report", "vatchoose": "acct-tax", "datemath": "util", "pct3": "util", "xlhelp": "util", "csvrecon": "util", "bundle": "family", "monthly": "family", "yearcmp": "family", "yearreport": "family" };
   var TABS = { "deposit": 1, "loan": 1, "combo": 1, "prepay": 1, "compound": 1, "goal": 1, "installment": 1, "annual": 1, "inflation": 1, "tax": 1, "deal": 1, "salary": 1, "rentbuy": 1, "card": 1, "fx": 1, "fund": 1, "lpr": 1, "deed": 1, "split": 1, "pension": 1, "sell": 1, "offset": 1, "multi": 1, "repayvs": 1, "edu": 1, "insure": 1, "car": 1, "bonus": 1, "deduct": 1, "ladder": 1, "rentyield": 1, "settle": 1, "balance": 1, "selfins": 1, "underpay": 1, "loanways": 1, "dca": 1, "checkup": 1, "calendar": 1, "cashflow": 1, "zeroloan": 1, "riskalloc": 1, "penalty": 1, "debtfree": 1, "fire": 1, "annualfee": 1, "budget": 1, "zhuan": 1, "medins": 1, "childcost": 1, "ppension": 1, "fundlimit": 1, "emergency": 1, "rule503020": 1, "debtmerge": 1, "freeperiod": 1, "overtime": 1, "rentup": 1, "ev": 1, "vat": 1, "vatdue": 1, "deprec": 1, "breakeven": 1, "ratios": 1, "recon": 1, "expense": 1, "aging": 1, "funding": 1, "pricing": 1, "triplede": 1, "multimargin": 1, "apterms": 1, "assetledger": 1, "payage": 1, "costcard": 1, "budgetvar": 1, "finreport": 1, "invoice": 1, "expbudget": 1, "efficiency": 1, "cashstmt": 1, "invstock": 1, "exportrebate": 1, "tieout": 1, "feetrend": 1, "mpbe": 1, "payroll": 1, "assetdiff": 1, "monthclose": 1, "factoring": 1, "deadstock": 1, "aptalk": 1, "cash13": 1, "bill": 1, "loanreal": 1, "collect": 1, "mgmtpack": 1, "settleway": 1, "creditline": 1, "impair": 1, "fxgain": 1, "taxburden": 1, "sens": 1, "consol": 1, "eoq": 1, "bplan": 1, "refundflow": 1, "costalloc": 1, "importcost": 1, "makeorbuy": 1, "ecl": 1, "quotefx": 1, "capacity": 1, "mold": 1, "rebate": 1, "stdcost": 1, "svc": 1, "taxadj": 1, "supplier": 1, "debtcap": 1, "accdep": 1, "custwin": 1, "upgrade": 1, "deptalloc": 1, "payout": 1, "numwords": 1, "duedate": 1, "workday": 1, "cagr": 1, "apportion": 1, "grossup": 1, "trprice": 1, "esop": 1, "rdexp": 1, "rollfc": 1, "commission": 1, "capex": 1, "pooling": 1, "creditlimit": 1, "contractperf": 1, "projrev": 1, "creditpolicy": 1, "rateadj": 1, "invfund": 1, "machrate": 1, "govgrant": 1, "fxtranslate": 1, "rebateacc": 1, "pledgeloan": 1, "labvar": 1, "rdcap": 1, "processcost": 1, "makeoroutsource": 1, "rebatedta": 1, "leasebuy": 1, "welfare": 1, "inputout": 1, "stampduty": 1, "assetdisp": 1, "headcount": 1, "markroi": 1, "rdproject": 1, "intsvc": 1, "accrual": 1, "cfconsol": 1, "exportcheck": 1, "vatcheck": 1, "report": 1, "snaps": 1, "housecash": 1, "planner": 1, "healthcheck": 1, "salesallow": 1, "lease": 1, "gpmix": 1, "vatchoose": 1, "datemath": 1, "pct3": 1, "xlhelp": 1, "csvrecon": 1, "bundle": 1, "monthly": 1, "yearcmp": 1, "yearreport": 1 };
-  var CHUNK_FILES = { "save": "assets/c-save.63d22eb7c5.js", "loan": "assets/c-loan.e0d18a8157.js", "life": "assets/c-life.2b40f8856a.js", "tax": "assets/c-tax.57d2e78819.js", "house": "assets/c-house.342f0c4237.js", "family": "assets/c-family.3388192af0.js", "acct-tax": "assets/c-acct-tax.2bd418a967.js", "acct-cost": "assets/c-acct-cost.cd087feec2.js", "acct-perf": "assets/c-acct-perf.73dbaef0a8.js", "acct-report": "assets/c-acct-report.9c8488c478.js", "acct-bd": "assets/c-acct-bd.eb34c81ec6.js", "acct-cash": "assets/c-acct-cash.2ff5c95fba.js", "util": "assets/c-util.010996b0d2.js", "hot": "assets/c-hot.22e5f04e88.js" };
+  var CHUNK_FILES = { "save": "assets/c-save.63d22eb7c5.js", "loan": "assets/c-loan.e0d18a8157.js", "life": "assets/c-life.2b40f8856a.js", "tax": "assets/c-tax.57d2e78819.js", "house": "assets/c-house.342f0c4237.js", "family": "assets/c-family.6b851b7105.js", "acct-tax": "assets/c-acct-tax.2bd418a967.js", "acct-cost": "assets/c-acct-cost.cd087feec2.js", "acct-perf": "assets/c-acct-perf.73dbaef0a8.js", "acct-report": "assets/c-acct-report.9c8488c478.js", "acct-bd": "assets/c-acct-bd.eb34c81ec6.js", "acct-cash": "assets/c-acct-cash.2ff5c95fba.js", "util": "assets/c-util.5b1f0427f3.js", "hot": "assets/c-hot.22e5f04e88.js" };
   var CORE_CALC = { "loan": calcLoan };
   var calcMap = {};
   Object.keys(CORE_CALC).forEach(function (k) { calcMap[k] = CORE_CALC[k]; });
@@ -1646,9 +1646,10 @@ undefined
     "mt-mode", "mt-i1", "mt-i2", "mt-i3", "mt-i4", "mt-i5", "mt-i6", "mt-i7", "mt-i8", "mt-i9", "mt-i10", "mt-i11", "mt-i12", "bxsp-save", "yc-inc1", "yc-out1", "yc-asset1", "yc-inc2", "yc-out2", "yc-asset2",
     "yc-inc3", "yc-out3", "yc-asset3", "yc-inc4", "yc-out4", "yc-asset4", "yc-inc5", "yc-out5", "yc-asset5", "bxsp-inc2", "mt-c1", "mt-c2", "mt-c3", "mt-c4", "mt-c5", "mt-c6",
     "yrp-inc", "yrp-out", "yrp-a0", "yrp-a1", "yrp-cash", "yrp-debt", "yrp-house",
-    "yrp-pinc", "yrp-pout", "yrp-pa1"
+    "yrp-pinc", "yrp-pout", "yrp-pa1",
+    "yc-target", "yc-years"
 ];
-  var KEY = "finance-calc-v51";
+  var KEY = "finance-calc-v52";
   var CAT_KEY = "finance-calc-cat";
 
   /* ---------------- 现金流月历 ---------------- */
@@ -2387,6 +2388,42 @@ undefined
       flash($("snap-import"), add ? "导入 " + add + " 条" : "没有新方案");
     });
   });
+  tap("snap-csvin", "click", function () { if ($("snap-csvfile")) $("snap-csvfile").click(); });
+
+  tap("snap-csvfile", "change", function () {
+    var f = this.files && this.files[0];
+    if (!f) return;
+    var rd = new FileReader();
+    rd.onload = function () {
+      var txt = String(rd.result || "").replace(/^\ufeff/, "");
+      var rows = txt.split(/\r?\n/), n = 0, kv = {}, i, cells;
+      for (i = 1; i < rows.length; i++) {
+        if (!rows[i].trim()) continue;
+        cells = rows[i].match(/("([^"]|"")*"|[^,]*)(,|$)/g) || [];
+        var vals = [];
+        for (var c = 0; c < cells.length; c++) {
+          var v = cells[c].replace(/,$/, "");
+          if (v.charAt(0) === '"') v = v.slice(1, -1).replace(/""/g, '"');
+          vals.push(v);
+        }
+        if (vals.length < 4) continue;
+        var id = vals[1], value = vals[3];
+        if (!id || value === "" || FIELDS.indexOf(id) < 0) continue;
+        kv[id] = value; n++;
+      }
+      if (!n) { window.alert("这个 CSV 里没找到可导入的参数（需要「导出全部参数 CSV」导出的格式）。"); return; }
+      var ok = true;
+      try { ok = window.confirm("将导入 " + n + " 项参数并覆盖当前值，确定吗？"); } catch (e) {}
+      if (!ok) return;
+      for (var k in kv) { if (Object.prototype.hasOwnProperty.call(STORED, k) || FIELDS.indexOf(k) >= 0) STORED[k] = kv[k]; }
+      try { localStorage.setItem(KEY, JSON.stringify(STORED)); } catch (e) {}
+      window.alert("已导入 " + n + " 项参数，页面将刷新以应用。");
+      location.reload();
+    };
+    rd.readAsText(f, "utf-8");
+    this.value = "";
+  });
+
   tap("snap-backup", "click", function () {
     var data = {};
     FIELDS.forEach(function (f) { var el = $(f); if (el && el.value !== "") data[f] = el.value; });

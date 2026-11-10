@@ -8982,6 +8982,32 @@
         $("yc-forecast").textContent = "至少填两年才能外推下一年。";
       }
     }
+    if ($("yc-goal")) {
+      var target = Math.max(0, num($("yc-target"), 0)), yrs = Math.max(1, Math.round(num($("yc-years"), 1)));
+      var curAsset = L.asset, needTotal = target - curAsset;
+      if (target <= 0) {
+        $("yc-goal").textContent = "填一个目标金额（比如 100 万）就能倒推每年、每月要存多少。";
+      } else if (needTotal <= 0) {
+        $("yc-goal").textContent = "现在已经有 " + money(curAsset) + " 元，已经超过目标 " + money(target) + " 元了。";
+      } else {
+        var perYear = needTotal / yrs, perMonth = perYear / 12;
+        var needRate = L.inc > 0 ? perYear / L.inc * 100 : 0;
+        var haveYear = Math.max(0, L.left), gapYear = perYear - haveYear;
+        var text = "要在 " + yrs + " 年后把金融资产做到 " + money(target) + " 元，从现在的 " + money(curAsset) + " 元出发，"
+          + "这 " + yrs + " 年一共要存 " + money(needTotal) + " 元：平均每年 " + money(perYear) + "、每月 " + money(perMonth) + " 元。";
+        if (L.inc > 0) {
+          text += " 按现在的收入 " + money(L.inc) + " 元算，这等于每年存下收入的 " + fmt(needRate) + "%";
+          text += needRate <= 30 ? "，属于可做到的范围。" : needRate <= 50 ? "，压力不小，得砍支出或涨收入。" : "，很难只靠省出来，需要提高收入。";
+        }
+        text += " 你现在每年能存 " + money(haveYear) + " 元，"
+          + (gapYear <= 0 ? "已经超过这个速度，按现在的节奏就能达成。" : "按这个速度 " + yrs + " 年只存到 " + money(curAsset + haveYear * yrs) + " 元，差 " + money(gapYear * yrs) + " 元，每年还要多存 " + money(gapYear) + " 元（每月多 " + money(gapYear / 12) + "）。");
+        var iM = 0.03 / 12, nM = yrs * 12;
+        var pmtWith = iM > 0 ? needTotal * iM / (Math.pow(1 + iM, nM) - 1) : needTotal / nM;
+        text += " 上面的数没算投资收益；如果这 " + yrs + " 年能拿到 3% 年化，每月实际只需存 " + money(pmtWith)
+          + " 元，比不算收益少 " + money(Math.max(0, perMonth - pmtWith)) + " 元。";
+        $("yc-goal").textContent = text;
+      }
+    }
   }
 
   function drawnYearChart(ys, fc) {
@@ -9467,9 +9493,10 @@
     "mt-mode", "mt-i1", "mt-i2", "mt-i3", "mt-i4", "mt-i5", "mt-i6", "mt-i7", "mt-i8", "mt-i9", "mt-i10", "mt-i11", "mt-i12", "bxsp-save", "yc-inc1", "yc-out1", "yc-asset1", "yc-inc2", "yc-out2", "yc-asset2",
     "yc-inc3", "yc-out3", "yc-asset3", "yc-inc4", "yc-out4", "yc-asset4", "yc-inc5", "yc-out5", "yc-asset5", "bxsp-inc2", "mt-c1", "mt-c2", "mt-c3", "mt-c4", "mt-c5", "mt-c6",
     "yrp-inc", "yrp-out", "yrp-a0", "yrp-a1", "yrp-cash", "yrp-debt", "yrp-house",
-    "yrp-pinc", "yrp-pout", "yrp-pa1"
+    "yrp-pinc", "yrp-pout", "yrp-pa1",
+    "yc-target", "yc-years"
 ];
-  var KEY = "finance-calc-v51";
+  var KEY = "finance-calc-v52";
   var CAT_KEY = "finance-calc-cat";
 
   /* ---------------- 现金流月历 ---------------- */
@@ -10458,6 +10485,42 @@
       flash($("snap-import"), add ? "导入 " + add + " 条" : "没有新方案");
     });
   });
+  tap("snap-csvin", "click", function () { if ($("snap-csvfile")) $("snap-csvfile").click(); });
+
+  tap("snap-csvfile", "change", function () {
+    var f = this.files && this.files[0];
+    if (!f) return;
+    var rd = new FileReader();
+    rd.onload = function () {
+      var txt = String(rd.result || "").replace(/^\ufeff/, "");
+      var rows = txt.split(/\r?\n/), n = 0, kv = {}, i, cells;
+      for (i = 1; i < rows.length; i++) {
+        if (!rows[i].trim()) continue;
+        cells = rows[i].match(/("([^"]|"")*"|[^,]*)(,|$)/g) || [];
+        var vals = [];
+        for (var c = 0; c < cells.length; c++) {
+          var v = cells[c].replace(/,$/, "");
+          if (v.charAt(0) === '"') v = v.slice(1, -1).replace(/""/g, '"');
+          vals.push(v);
+        }
+        if (vals.length < 4) continue;
+        var id = vals[1], value = vals[3];
+        if (!id || value === "" || FIELDS.indexOf(id) < 0) continue;
+        kv[id] = value; n++;
+      }
+      if (!n) { window.alert("这个 CSV 里没找到可导入的参数（需要「导出全部参数 CSV」导出的格式）。"); return; }
+      var ok = true;
+      try { ok = window.confirm("将导入 " + n + " 项参数并覆盖当前值，确定吗？"); } catch (e) {}
+      if (!ok) return;
+      for (var k in kv) { if (Object.prototype.hasOwnProperty.call(STORED, k) || FIELDS.indexOf(k) >= 0) STORED[k] = kv[k]; }
+      try { localStorage.setItem(KEY, JSON.stringify(STORED)); } catch (e) {}
+      window.alert("已导入 " + n + " 项参数，页面将刷新以应用。");
+      location.reload();
+    };
+    rd.readAsText(f, "utf-8");
+    this.value = "";
+  });
+
   tap("snap-backup", "click", function () {
     var data = {};
     FIELDS.forEach(function (f) { var el = $(f); if (el && el.value !== "") data[f] = el.value; });
