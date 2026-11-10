@@ -87,6 +87,24 @@ await page.click('.tab[data-tab="yearreport"]'); await page.waitForTimeout(1200)
 const charts = await page.evaluate(() => ['yrp-chart1', 'yrp-chart2'].map(id => { const c = document.getElementById(id); if (!c) return -1; const g = c.getContext('2d'); const d = g.getImageData(0, 0, c.width, c.height).data; let k = 0; for (let i = 3; i < d.length; i += 4) if (d[i]) k++; return k; }));
 ok(charts.every(n => n > 500), '年报里的图没有画出来（' + charts.join(',') + '）');
 
+
+/* 模块间带参跳转：体检 → 应急金，金额要跟着走 */
+await page.click('.cat[data-cat="family"]'); await page.click('.tab[data-tab="report"]');
+let jumpHref = '';
+for (let i = 0; i < 24; i++) { jumpHref = await page.evaluate(() => { const a = document.querySelector('#rp-links a'); return a ? a.getAttribute('href') : ''; }); if (jumpHref) break; await page.waitForTimeout(250); }
+ok(/^#emergency\?em-exp=\d/.test(jumpHref), '体检页没有带参跳转链接（' + jumpHref + '）');
+await page.click('#rp-links a'); await page.waitForTimeout(1200);
+const jumped = await page.evaluate(() => ({ on: (document.querySelector('.panel.is-on') || {}).id, exp: (document.getElementById('em-exp') || {}).value, big: (document.querySelector('#panel-emergency .big strong') || {}).textContent }));
+ok(jumped.on === 'panel-emergency' && Number(jumped.exp) > 0, '带参跳转没落到应急金并带回金额');
+ok(!!jumped.big && jumped.big !== '—', '带参跳转后目标模块没重算');
+
+/* 12 个月小结 → 支出结构：全年分类要折成月均 */
+await page.click('.cat[data-cat="family"]'); await page.click('.tab[data-tab="monthly"]'); await page.waitForTimeout(800);
+let mtHref = '';
+for (let i = 0; i < 24; i++) { mtHref = await page.evaluate(() => { const a = document.querySelector('#mt-links a'); return a ? a.getAttribute('href') : ''; }); if (mtHref) break; await page.waitForTimeout(250); }
+ok(/#bundle\?bxsp-inc=/.test(mtHref), '12 个月小结没有跳到支出结构的链接');
+ok(await page.evaluate(() => { const p = document.getElementById('mt-links'); return !!p && p.offsetParent !== null; }), '小结页的跳转链接被折叠藏起来了');
+
 ok(errs.length === 0, '控制台报错：' + errs.join(' | '));
 console.log(bad.length ? '❌ 失败：\n- ' + bad.join('\n- ') : '✅ 交互项全部通过');
 await browser.close();

@@ -335,6 +335,18 @@
     [Infinity, 0.45, 15160]
   ];
 
+  /* 站内跳转：把当前算出来的数带进目标模块的参数里，点一下就到那边并填好 */
+  function linkTo(mod, params, label) {
+    var q = [];
+    for (var k in params) {
+      if (!Object.prototype.hasOwnProperty.call(params, k)) continue;
+      var v = params[k];
+      if (v === undefined || v === null || v === "" || isNaN(v)) continue;
+      q.push(k + "=" + encodeURIComponent(Math.round(Number(v) * 100) / 100));
+    }
+    return '<a href="#' + mod + (q.length ? "?" + q.join("&") : "") + '">' + (label || mod) + "</a>";
+  }
+
   function taxBy(table, taxable) {
     if (taxable <= 0) return 0;
     for (var k = 0; k < table.length; k++) {
@@ -8248,6 +8260,15 @@
         + "</td><td>" + dims[j][1] + "</td><td>" + dims[j][2] + " / 20</td><td>" + dims[j][3] + "</td></tr>");
     }
     $("hk-body").innerHTML = rows.join("");
+    if ($("hk-links")) $("hk-links").innerHTML = "把这里的数搬过去看完整版："
+      + linkTo("report", {
+        "rp-inc": num($("hk-inc"), 0), "rp-need": num($("hk-need"), 0), "rp-want": num($("hk-want"), 0),
+        "rp-cash": num($("hk-cash"), 0), "rp-inv": num($("hk-inv"), 0), "rp-house": num($("hk-house"), 0),
+        "rp-debt": num($("hk-debt"), 0), "rp-loan": num($("hk-loan"), 0), "rp-ins": num($("hk-ins"), 0),
+        "rp-prem": num($("hk-prem"), 0), "rp-age": num($("hk-age"), 0)
+      }, "一页体检报告")
+      + linkTo("emergency", { "em-exp": num($("hk-need"), 0) }, "应急金缺口");
+
     $("hk-note").textContent = "综合得分 " + fmt(total, 0) + " 分，评级「" + rate + "」。"
       + "五项各 20 分，取的是最常见的达标线：储蓄率 30%、应急金 6 个月、资产负债率 50%、月供收入比 40%、保障覆盖 100%。"
       + "你最短的那块板是「" + weak[0] + "」，先补它性价比最高——"
@@ -8403,6 +8424,13 @@
       ph += "<li><b>" + names[it.i] + "</b>（还差 " + it.gap + " 分）" + acts[it.i] + "</li>";
     }
     if ($("rp-pri")) $("rp-pri").innerHTML = ph || '<li>五项都到线了，保持现在的节奏就行。</li>';
+
+    if ($("rp-links")) $("rp-links").innerHTML = "接着算："
+      + linkTo("emergency", { "em-exp": need }, "应急金要备多少")
+      + linkTo("fire", { "fr-exp": need, "fr-has": cash + inv, "fr-age": age }, "多久能不上班")
+      + linkTo("budget", { "bg-income": inc }, "月供上限 → 能买多贵")
+      + linkTo("insure", { "in-income": inc * 12, "in-expense": need * 12, "in-assets": cash + inv, "in-debt": debt }, "保额够不够")
+      + linkTo("yearreport", { "yrp-inc": inc * 12, "yrp-out": need * 12 }, "全年 → 年度报告");
 
     $("rp-note").textContent = "总分 " + score + "（" + level + "），短板是" + names[worst] + "。"
       + acts[worst] + " 打分只看五项硬指标，不含投资能力与收入稳定性；数据只在本机，点「打印」可存成一页 PDF。";
@@ -8757,9 +8785,12 @@
       : (savOk ? "没有偏离过大的项" : "储蓄/投资（差 " + fmt(Math.max(0, savGap)) + " 个百分点）");
     if ($("bxsp-sv")) $("bxsp-sv").textContent = money(sav + Math.max(0, left)) + " 元（" + fmt(inc > 0 ? (sav + Math.max(0, left)) / inc * 100 : 0) + "%）";
     if ($("bxsp-score")) $("bxsp-score").textContent = score + " 分";
-    if ($("bxsp-links")) $("bxsp-links").innerHTML = "住 → <a href=\"#rentbuy\">租房vs买房</a>、<a href=\"#housecash\">购房一次性支出</a>；"
-      + "教育 → <a href=\"#childcost\">养娃成本</a>；保险 → <a href=\"#insure\">保额测算</a>、<a href=\"#checkup\">保单体检</a>；"
-      + "交通 → <a href=\"#car\">买车vs打车</a>；应急金 → <a href=\"#emergency\">应急金</a>；整体 → <a href=\"#report\">一页体检报告</a>。";
+    if ($("bxsp-links")) $("bxsp-links").innerHTML = "带着这些数接着算："
+      + linkTo("emergency", { "em-exp": total }, "月支出 → 应急金")
+      + linkTo("rentbuy", { "rb-rent": Math.max(0, num($("bxsp-house"), 0)) }, "住这笔 → 租还是买")
+      + linkTo("insure", { "in-income": inc * 12, "in-expense": total * 12 }, "收入/支出 → 保额")
+      + linkTo("car", { "cr-km": 15000 }, "交通 → 买车还是打车")
+      + linkTo("report", { "rp-inc": inc, "rp-need": total }, "整体 → 一页体检");
     var tip;
     if (left < 0) tip = "每月已经入不敷出 " + money(-left) + " 元，先砍「" + (over.length ? over[0] : "其他") + "」这类偏高的项，再谈投资。";
     else if (rate < goal) tip = "储蓄率 " + fmt(rate) + "% 还差目标 " + goal + "% ，每月要少花 " + money(inc * goal / 100 - left) + " 元才能达标。";
@@ -8866,6 +8897,13 @@
         : "逐月分类合计 " + money(grid.total) + " 元，" + (Math.abs(grid.total - outTotal) < 1 ? "和全年支出对得上。" : "和全年支出（" + money(outTotal) + " 元）差 " + money(Math.abs(grid.total - outTotal)) + " 元。")
           + " 已填 " + grid.filled + "/12 个月" + (grid.filled < 12 ? "，没填的月份不参与画图。" : "。");
     }
+    if ($("mt-links")) $("mt-links").innerHTML = "把这一年的分类搬过去体检："
+      + linkTo("bundle", {
+        "bxsp-inc": num($("mt-inc"), 0), "bxsp-inc2": 0,
+        /* 全年分类金额换成月均，支出结构是按月算的 */
+        "bxsp-house": num($("mt-c1"), 0) / 12, "bxsp-food": num($("mt-c2"), 0) / 12, "bxsp-edu": num($("mt-c3"), 0) / 12,
+        "bxsp-ins": num($("mt-c4"), 0) / 12, "bxsp-car": num($("mt-c5"), 0) / 12, "bxsp-other": num($("mt-c6"), 0) / 12
+      }, "支出结构体检");
     var dpr = Math.min(2, window.devicePixelRatio || 1), w = 720, hgt = 210;
     cv.width = w * dpr; cv.height = hgt * dpr;
     cv.style.width = "100%"; cv.style.height = "210px";
