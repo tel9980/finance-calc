@@ -249,3 +249,36 @@ html[data-theme="dark"] .ghost{background:#16212f;color:#9fc0ff}
 }
 
 .subs[hidden]{display:none}
+
+/* ===== 对比 A/B 结果盒子 ===== */
+.cmpbox{margin:16px 0 4px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px}
+.cmpbox[hidden]{display:none}
+.cmphead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
+.cmphead b{font-size:15px;color:var(--accent)}
+.ghost.sm{padding:3px 10px;font-size:12.5px;border-radius:8px}
+.cmpbox .tablebox{max-height:360px}
+.cmpbox .hint{margin-top:10px}
+
+/* ===== 手机端：主指标跟随滚动 ===== */
+@media (max-width:820px){
+  .panel.is-on .card.res .big{
+    position:sticky;top:0;z-index:4;background:var(--card);
+    padding:8px 0 6px;border-bottom:1px solid var(--line);margin-bottom:8px;
+  }
+}
+
+/* ===== 打印：只输出当前模块 ===== */
+@media print{
+  .hd,.tools,.cats,.subs,.allmods,.foot,.q,.cmpbox{display:none !important}
+  html,body{background:#fff !important;color:#000 !important}
+  .wrap{max-width:none;margin:0;padding:0}
+  .panel{display:none !important}
+  .panel.is-on{display:block !important}
+  .cols{grid-template-columns:1fr 1fr !important;gap:12px}
+  .card{border:1px solid #bbb;break-inside:avoid;box-shadow:none}
+  .tablebox{max-height:none;overflow:visible}
+  .big strong{color:#000 !important}
+  .hint{color:#333 !important}
+  input,select{border:1px solid #bbb !important;background:#fff !important;color:#000 !important}
+  .foot{display:block !important;color:#555}
+}

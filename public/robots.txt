@@ -1,2 +1,4 @@
 User-agent: *
 Allow: /
+
+Sitemap: https://js.1211.cc.cd/sitemap.xml
