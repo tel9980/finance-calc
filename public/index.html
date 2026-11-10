@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>财务计算器 · 个人理财 + 公司财务 73 个模块</title>
-<meta name="description" content="免费的财务计算器（73 个模块，按分类＋常用分组）：存款利息、贷款月供与还款计划、组合贷、提前还款省息、复利与定投、攒钱目标、分期真实年化、年化收益、通胀购买力、个税与到手工资、租房还是买房、信用卡循环利息、汇率与单位换算、公积金可贷额度、信用卡免息期、加班费与请假、涨租还是搬家、油车还是电车、利率调整后月供、二手房交易税费、AA 分摊、退休金测算、卖房换房、公积金月冲年冲、多币种折算、提前还款 vs 理财、教育金、保险保额、买车 vs 打车、年终奖拆分、专项附加扣除、存单阶梯、租售比、年度汇算退税、家庭资产负债、灵活就业社保、社保少缴核查、三种还法对撞、定投 vs 一次性、保单体检、到期日历、现金流月历、0 利率真实成本、风险测评与资产配置、提前还款违约金临界点、多笔债务先还哪笔、FIRE 财务自由、年缴费用分摊、买房预算反推、商转公、医保报销、养娃成本、个人养老金账户、公积金缴存额度、应急金、50/30/20 收入分配、债务置换；公司财务岗：发票价税分离、增值税与附加税测算、固定资产折旧（含加速折旧）、保本点与目标利润、报表体检与杜邦分解、银行余额调节表、差旅报销单合计、应收账款账龄与坏账计提、资金排期、含税报价与毛利、三表勾稽校验、多产品组合毛利、应付账款现金折扣取舍、固定资产台账与折旧明细。纯前端计算，不联网、不上传数据。">
+<title>财务计算器 · 个人理财 + 公司财务 77 个模块</title>
+<meta name="description" content="免费的财务计算器（77 个模块，按分类＋常用分组）：存款利息、贷款月供与还款计划、组合贷、提前还款省息、复利与定投、攒钱目标、分期真实年化、年化收益、通胀购买力、个税与到手工资、租房还是买房、信用卡循环利息、汇率与单位换算、公积金可贷额度、信用卡免息期、加班费与请假、涨租还是搬家、油车还是电车、利率调整后月供、二手房交易税费、AA 分摊、退休金测算、卖房换房、公积金月冲年冲、多币种折算、提前还款 vs 理财、教育金、保险保额、买车 vs 打车、年终奖拆分、专项附加扣除、存单阶梯、租售比、年度汇算退税、家庭资产负债、灵活就业社保、社保少缴核查、三种还法对撞、定投 vs 一次性、保单体检、到期日历、现金流月历、0 利率真实成本、风险测评与资产配置、提前还款违约金临界点、多笔债务先还哪笔、FIRE 财务自由、年缴费用分摊、买房预算反推、商转公、医保报销、养娃成本、个人养老金账户、公积金缴存额度、应急金、50/30/20 收入分配、债务置换；公司财务岗：发票价税分离、增值税与附加税测算、固定资产折旧（含加速折旧）、保本点与目标利润、报表体检与杜邦分解、银行余额调节表、差旅报销单合计、应收账款账龄与坏账计提、资金排期、含税报价与毛利、三表勾稽校验、多产品组合毛利、应付账款现金折扣取舍、固定资产台账与折旧明细。纯前端计算，不联网、不上传数据。">
 <meta name="theme-color" content="#1e3a8a">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231e3a8a'/%3E%3Ctext x='16' y='23' font-size='17' text-anchor='middle' fill='%23fff' font-family='sans-serif'%3E%C2%A5%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="./style.css">
@@ -104,6 +104,10 @@
       <button class="tab" data-tab="multimargin" data-cat="acct" role="tab">多产品毛利</button>
       <button class="tab" data-tab="apterms" data-cat="acct" role="tab">应付折扣</button>
       <button class="tab" data-tab="assetledger" data-cat="acct" role="tab">固资台账</button>
+      <button class="tab" data-tab="payage" data-cat="acct" role="tab">应付账龄</button>
+      <button class="tab" data-tab="costcard" data-cat="acct" role="tab">成本核算</button>
+      <button class="tab" data-tab="budgetvar" data-cat="acct" role="tab">预算差异</button>
+      <button class="tab" data-tab="finreport" data-cat="acct" role="tab">月度利润表</button>
     </nav>
   </div>
 </header>
@@ -3799,6 +3803,250 @@
           </table>
         </div>
         <p class="hint" id="al-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-payage">
+    <div class="cols">
+      <div class="card">
+        <h2>输入（应付明细按账龄分档）</h2>
+        <label class="f">
+          <span>0–30 天应付（元）</span>
+          <input id="pg-a1" type="number" inputmode="decimal" min="0" step="1000" value="120000">
+        </label>
+        <label class="f">
+          <span>31–60 天应付（元）</span>
+          <input id="pg-a2" type="number" inputmode="decimal" min="0" step="1000" value="80000">
+        </label>
+        <label class="f">
+          <span>61–90 天应付（元）</span>
+          <input id="pg-a3" type="number" inputmode="decimal" min="0" step="1000" value="50000">
+        </label>
+        <label class="f">
+          <span>90 天以上应付（元）</span>
+          <input id="pg-a4" type="number" inputmode="decimal" min="0" step="1000" value="30000">
+        </label>
+        <label class="f">
+          <span>合同约定信用期（天）</span>
+          <input id="pg-term" type="number" inputmode="numeric" min="1" step="1" value="60">
+        </label>
+        <label class="f">
+          <span>月均采购额（元）</span>
+          <input id="pg-buy" type="number" inputmode="decimal" min="0" step="10000" value="200000">
+        </label>
+        <label class="f">
+          <span>资金年化成本（%）</span>
+          <input id="pg-rate" type="number" inputmode="decimal" min="0" step="0.1" value="6">
+        </label>
+        <em>账龄按「发票日到今天的间隔」分档；信用期填合同里写的付款期限，没有合同就填行业惯例</em>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">应付账款余额合计</span><strong id="pg-total">—</strong><span class="unit"></span></div>
+        <ul class="kv">
+          <li><span>加权平均账龄</span><b id="pg-wavg">—</b></li>
+          <li><span>超过信用期的金额 / 占比</span><b id="pg-over">—</b></li>
+          <li><span>其中 90 天以上（高风险）</span><b id="pg-over90">—</b></li>
+          <li><span>应付周转天数（余额 ÷ 日均采购）</span><b id="pg-days">—</b></li>
+          <li><span>无偿占用供应商资金的价值</span><b id="pg-value">—</b></li>
+          <li><span>账期再加 30 天能多省</span><b id="pg-extend">—</b></li>
+          <li><span>一次付清需要多少现金</span><b id="pg-cash">—</b></li>
+        </ul>
+        <div class="tablebox">
+          <table>
+            <thead><tr><th>账龄档</th><th>金额</th><th>占比</th><th>状态</th></tr></thead>
+            <tbody id="pg-body"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="pg-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-costcard">
+    <div class="cols">
+      <div class="card">
+        <h2>输入（品种法：一个产品、月末有在制）</h2>
+        <label class="f">
+          <span>本月完工入库数量（件）</span>
+          <input id="cw-fin" type="number" inputmode="numeric" min="0" step="10" value="900">
+        </label>
+        <label class="f">
+          <span>月末在产品数量（件）</span>
+          <input id="cw-wip" type="number" inputmode="numeric" min="0" step="10" value="100">
+        </label>
+        <label class="f">
+          <span>在产品完工程度（%，加工费按此折算）</span>
+          <input id="cw-deg" type="number" inputmode="decimal" min="0" max="100" step="5" value="50">
+        </label>
+        <label class="f">
+          <span>直接材料（元，期初在制 + 本月投入）</span>
+          <input id="cw-mat" type="number" inputmode="decimal" min="0" step="1000" value="60000">
+        </label>
+        <label class="f">
+          <span>直接人工（元）</span>
+          <input id="cw-lab" type="number" inputmode="decimal" min="0" step="1000" value="20000">
+        </label>
+        <label class="f">
+          <span>制造费用（元）</span>
+          <input id="cw-oh" type="number" inputmode="decimal" min="0" step="1000" value="30000">
+        </label>
+        <em>材料默认「投产时一次投入」，所以在产品按 100% 折算材料；人工和制造费用按完工程度折算。若材料是陆续投入，把完工程度也套到材料上</em>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">完工产品单位成本</span><strong id="cw-unit">—</strong><span class="unit">元/件</span></div>
+        <ul class="kv">
+          <li><span>材料约当产量 / 加工约当产量</span><b id="cw-eq">—</b></li>
+          <li><span>单位材料 / 单位人工 / 单位制造费用</span><b id="cw-parts">—</b></li>
+          <li><span>完工产品成本合计</span><b id="cw-fincost">—</b></li>
+          <li><span>月末在产品成本</span><b id="cw-wipcost">—</b></li>
+          <li><span>两项合计（应等于投入总额）</span><b id="cw-sum">—</b></li>
+          <li><span>材料占单位成本</span><b id="cw-mix">—</b></li>
+        </ul>
+        <div class="tablebox">
+          <table>
+            <thead><tr><th>成本项</th><th>本月金额</th><th>约当产量</th><th>单位成本</th></tr></thead>
+            <tbody id="cw-body"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="cw-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-budgetvar">
+    <div class="cols">
+      <div class="card">
+        <h2>输入（预算 vs 实际）</h2>
+        <label class="f">
+          <span>预算销量（件）</span>
+          <input id="bv-bq" type="number" inputmode="numeric" min="0" step="10" value="1000">
+        </label>
+        <label class="f">
+          <span>预算单价（元）</span>
+          <input id="bv-bp" type="number" inputmode="decimal" min="0" step="1" value="100">
+        </label>
+        <label class="f">
+          <span>标准单耗（kg/件）</span>
+          <input id="bv-sq" type="number" inputmode="decimal" min="0" step="0.1" value="5">
+        </label>
+        <label class="f">
+          <span>材料标准价（元/kg）</span>
+          <input id="bv-sp" type="number" inputmode="decimal" min="0" step="0.1" value="10">
+        </label>
+        <label class="f">
+          <span>实际销量（件）</span>
+          <input id="bv-aq" type="number" inputmode="numeric" min="0" step="10" value="1100">
+        </label>
+        <label class="f">
+          <span>实际单价（元）</span>
+          <input id="bv-ap" type="number" inputmode="decimal" min="0" step="1" value="95">
+        </label>
+        <label class="f">
+          <span>实际材料用量（kg）</span>
+          <input id="bv-aqty" type="number" inputmode="decimal" min="0" step="10" value="5500">
+        </label>
+        <label class="f">
+          <span>实际材料单价（元/kg）</span>
+          <input id="bv-apx" type="number" inputmode="decimal" min="0" step="0.1" value="11">
+        </label>
+        <em>只算毛利层面的差异（收入 − 材料成本），人工和制造费用差异用同样办法套</em>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">毛利差异（实际 − 预算）</span><strong id="bv-gap">—</strong><span class="unit"></span></div>
+        <ul class="kv">
+          <li><span>预算毛利 / 弹性预算毛利 / 实际毛利</span><b id="bv-levels">—</b></li>
+          <li><span>销量差异（卖多卖少）</span><b id="bv-vol">—</b></li>
+          <li><span>售价差异（价格高低）</span><b id="bv-price">—</b></li>
+          <li><span>材料价差（买贵买便宜）</span><b id="bv-mpv">—</b></li>
+          <li><span>材料量差（用多用少）</span><b id="bv-mqv">—</b></li>
+          <li><span>最大拖累项</span><b id="bv-main">—</b></li>
+        </ul>
+        <div class="tablebox">
+          <table>
+            <thead><tr><th>差异项</th><th>金额</th><th>有利/不利</th><th>该找谁</th></tr></thead>
+            <tbody id="bv-body"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="bv-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-finreport">
+    <div class="cols">
+      <div class="card">
+        <h2>输入（本月损益数据，元）</h2>
+        <label class="f">
+          <span>营业收入</span>
+          <input id="pl-rev" type="number" inputmode="decimal" min="0" step="10000" value="1000000">
+        </label>
+        <label class="f">
+          <span>营业成本</span>
+          <input id="pl-cogs" type="number" inputmode="decimal" min="0" step="10000" value="700000">
+        </label>
+        <label class="f">
+          <span>税金及附加</span>
+          <input id="pl-tax" type="number" inputmode="decimal" min="0" step="1000" value="8000">
+        </label>
+        <label class="f">
+          <span>销售费用</span>
+          <input id="pl-se" type="number" inputmode="decimal" min="0" step="1000" value="60000">
+        </label>
+        <label class="f">
+          <span>管理费用</span>
+          <input id="pl-ae" type="number" inputmode="decimal" min="0" step="1000" value="80000">
+        </label>
+        <label class="f">
+          <span>研发费用</span>
+          <input id="pl-rd" type="number" inputmode="decimal" min="0" step="1000" value="40000">
+        </label>
+        <label class="f">
+          <span>财务费用</span>
+          <input id="pl-fe" type="number" inputmode="decimal" min="0" step="1000" value="20000">
+        </label>
+        <label class="f">
+          <span>其他收益 / 投资收益（负数表示损失）</span>
+          <input id="pl-oi" type="number" inputmode="decimal" step="1000" value="5000">
+        </label>
+        <label class="f">
+          <span>营业外收入 / 营业外支出</span>
+          <div class="row">
+            <input id="pl-noi" type="number" inputmode="decimal" min="0" step="1000" value="3000">
+            <input id="pl-noe" type="number" inputmode="decimal" min="0" step="1000" value="1000">
+          </div>
+        </label>
+        <label class="f">
+          <span>企业所得税率（%，小微 5 或 25）</span>
+          <input id="pl-tr" type="number" inputmode="decimal" min="0" max="50" step="1" value="25">
+        </label>
+        <em>这是管理用的粗表，不含递延所得税、资产减值、公允价值变动等复杂科目，用来快速看每月赚不赚钱</em>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">本月净利润</span><strong id="pl-np">—</strong><span class="unit"></span></div>
+        <ul class="kv">
+          <li><span>毛利 / 毛利率</span><b id="pl-gp">—</b></li>
+          <li><span>营业利润</span><b id="pl-op">—</b></li>
+          <li><span>利润总额</span><b id="pl-tp">—</b></li>
+          <li><span>所得税 / 净利率</span><b id="pl-taxnp">—</b></li>
+          <li><span>三费合计（销售+管理+财务）占收入</span><b id="pl-fee">—</b></li>
+          <li><span>保本营业收入（毛利额覆盖固定费用）</span><b id="pl-be">—</b></li>
+        </ul>
+        <div class="tablebox">
+          <table>
+            <thead><tr><th>项目</th><th>金额</th><th>占收入</th></tr></thead>
+            <tbody id="pl-body"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="pl-note"></p>
       </div>
     </div>
   </section>

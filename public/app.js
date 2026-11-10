@@ -3706,6 +3706,260 @@
       "残值率 5% 是常见估计，实务里也有直接按 0 提的，一旦定了就要一贯，别一年一变。";
   }
 
+  /* ---------------- 应付账龄 ---------------- */
+  function calcPayAge() {
+    var a1 = Math.max(0, num($("pg-a1"), 0));
+    var a2 = Math.max(0, num($("pg-a2"), 0));
+    var a3 = Math.max(0, num($("pg-a3"), 0));
+    var a4 = Math.max(0, num($("pg-a4"), 0));
+    var term = Math.max(1, num($("pg-term"), 60));
+    var buy = Math.max(0, num($("pg-buy"), 0));
+    var rate = Math.max(0, num($("pg-rate"), 0)) / 100;
+
+    var tot = a1 + a2 + a3 + a4;
+    var amts = [a1, a2, a3, a4];
+    var mids = [15, 45, 75, 105];
+    var names = ["0–30 天", "31–60 天", "61–90 天", "90 天以上"];
+
+    var wavg = 0, i;
+    for (i = 0; i < 4; i++) wavg += amts[i] * mids[i];
+    wavg = tot > 0 ? wavg / tot : 0;
+
+    // 按信用期切：整档超过信用期的全额计入，含信用期的那一档按天数比例折算（假定档内均匀分布）
+    var lows = [0, 30, 60, 90], ups = [30, 60, 90, 120];
+    var over = 0;
+    for (i = 0; i < 4; i++) {
+      if (term <= lows[i]) over += amts[i];
+      else if (term < ups[i]) over += amts[i] * ((ups[i] - term) / (ups[i] - lows[i]));
+    }
+    var overPct = tot > 0 ? over / tot : 0;
+    var days = buy > 0 ? tot / (buy / 30) : NaN;
+
+    $("pg-total").textContent = yuan(tot);
+    $("pg-wavg").textContent = tot > 0
+      ? fmt(wavg, 1) + " 天（信用期 " + fmt(term, 0) + " 天" + (wavg > term ? "，整体偏长" : "，在期内") + "）"
+      : "—";
+    $("pg-over").textContent = money(over) + " 元 / " + pct(overPct);
+    $("pg-over90").textContent = yuan(a4);
+    $("pg-days").textContent = isFinite(days) ? fmt(days, 1) + " 天" : "—";
+    $("pg-value").textContent = money(tot * rate) + " 元/年（相当于无息融资）";
+    $("pg-extend").textContent = buy > 0 ? money(buy * rate) + " 元/年（多占用一个月采购额）" : "—";
+    $("pg-cash").textContent = yuan(tot);
+
+    var html = "";
+    for (i = 0; i < 4; i++) {
+      var share = tot > 0 ? amts[i] / tot : 0;
+      var status;
+      if (term >= ups[i]) status = "未到期";
+      else if (term > lows[i]) status = "部分超期";
+      else if (i === 3) status = "严重超期";
+      else status = "已超期";
+      var bad = status !== "未到期";
+      html += "<tr" + (bad ? ' style="background:#fff5f5"' : "") + "><td>" + names[i] + "</td><td>" +
+        money(amts[i]) + "</td><td>" + pct(share) + "</td><td>" + status + "</td></tr>";
+    }
+    $("pg-body").innerHTML = html;
+
+    var risk;
+    if (tot <= 0) risk = "没填应付，先按供应商把余额拉出来再分档。";
+    else if (overPct >= 0.3) risk = "超期占比 " + pct(overPct) + " 偏高：供应商随时可能停货、加价或走法律程序，先按欠款多的供应商排个沟通顺序。";
+    else if (overPct > 0) risk = "超期占比 " + pct(overPct) + "，可控但别拖成习惯，账龄只会越拖越难谈。";
+    else risk = "全部在信用期内，账期管理是干净的。";
+
+    $("pg-note").textContent = risk +
+      " 账龄按「发票日到今天」分档，信用期填合同里写的付款期限。应付看着是负债，其实是供应商给的无息贷款：余额 " +
+      money(tot) + " 元、资金成本 " + fmt(rate * 100, 1) + "%，一年相当于省下 " + money(tot * rate) + " 元利息。" +
+      "应付周转天数 = 余额 ÷ 日均采购额，跟同行比才有意义（同行业差 10 天就是竞争力差别）。" +
+      "90 天以上的挂账要特别小心：税务上长期挂账可能被核定收入，供应商那边也可能已经起诉或转给催收了，会计上该不该继续挂着要和业务确认。" +
+      "反过来，账期不是越长越好——拖到供应商加价、断供、或者给你排到后面发货，隐性成本比省下的利息高得多。";
+  }
+
+  /* ---------------- 成本核算（品种法） ---------------- */
+  function calcCostCard() {
+    var fin = Math.max(0, num($("cw-fin"), 0));
+    var wip = Math.max(0, num($("cw-wip"), 0));
+    var deg = Math.max(0, Math.min(100, num($("cw-deg"), 0))) / 100;
+    var mat = Math.max(0, num($("cw-mat"), 0));
+    var lab = Math.max(0, num($("cw-lab"), 0));
+    var oh = Math.max(0, num($("cw-oh"), 0));
+
+    var eqMat = fin + wip;              // 材料一次投入，按 100%
+    var eqCnv = fin + wip * deg;        // 加工费按完工程度
+    var uMat = eqMat > 0 ? mat / eqMat : 0;
+    var uLab = eqCnv > 0 ? lab / eqCnv : 0;
+    var uOh = eqCnv > 0 ? oh / eqCnv : 0;
+    var unit = uMat + uLab + uOh;
+
+    var finCost = fin * unit;
+    var wipCost = wip * uMat + wip * deg * (uLab + uOh);
+    var totalIn = mat + lab + oh;
+
+    $("cw-unit").textContent = money(unit);
+    $("cw-eq").textContent = fmt(eqMat, 2) + " 件 / " + fmt(eqCnv, 2) + " 件";
+    $("cw-parts").textContent = money(uMat) + " / " + money(uLab) + " / " + money(uOh);
+    $("cw-fincost").textContent = yuan(finCost);
+    $("cw-wipcost").textContent = yuan(wipCost);
+    $("cw-sum").textContent = money(finCost + wipCost) + " 元（投入合计 " + money(totalIn) + "）";
+    $("cw-mix").textContent = unit > 0 ? pct(uMat / unit) + "（材料 " + money(uMat) + " / 人工 " + money(uLab) + " / 制费 " + money(uOh) + "）" : "—";
+
+    var rows = [
+      ["直接材料", mat, eqMat, uMat],
+      ["直接人工", lab, eqCnv, uLab],
+      ["制造费用", oh, eqCnv, uOh]
+    ];
+    var html = "";
+    for (var i = 0; i < rows.length; i++) {
+      html += "<tr><td>" + rows[i][0] + "</td><td>" + money(rows[i][1]) + "</td><td>" +
+        fmt(rows[i][2], 2) + "</td><td>" + money(rows[i][3]) + "</td></tr>";
+    }
+    html += '<tr style="background:#eef2ff"><td>合计</td><td>' + money(totalIn) + "</td><td>—</td><td>" +
+      money(unit) + "</td></tr>";
+    $("cw-body").innerHTML = html;
+
+    $("cw-note").textContent =
+      "约当产量法是月末在制品估价的通行做法：材料投产时一次投入，所以在产品按 100% 折算材料；人工和制造费用跟着加工进度走，按完工程度折算（" +
+      fmt(deg * 100, 0) + "%）。单位成本 " + money(unit) + " 元/件里，材料占 " + (unit > 0 ? pct(uMat / unit) : "—") +
+      "，材料占比越高，降本要先动采购和单耗，而不是裁人。" +
+      "完工 " + money(finCost) + " 元转库存商品，在产品 " + money(wipCost) + " 元留在生产成本科目，两项加起来必须等于投入合计 " +
+      money(totalIn) + " 元，差一分钱就是归集错了。" +
+      "实务上还要注意：废品损失、返工、停工损失要么单列要么按比例摊，别混在正常成本里，否则单位成本会失真；" +
+      "多品种就用品种法分批套，或者先按定额/标准成本结转、月末再算差异。";
+  }
+
+  /* ---------------- 预算差异分析 ---------------- */
+  function calcBudgetVar() {
+    var bq = Math.max(0, num($("bv-bq"), 0));
+    var bp = Math.max(0, num($("bv-bp"), 0));
+    var sq = Math.max(0, num($("bv-sq"), 0));
+    var sp = Math.max(0, num($("bv-sp"), 0));
+    var aq = Math.max(0, num($("bv-aq"), 0));
+    var ap = Math.max(0, num($("bv-ap"), 0));
+    var aqty = Math.max(0, num($("bv-aqty"), 0));
+    var apx = Math.max(0, num($("bv-apx"), 0));
+
+    var budGP = bq * bp - bq * sq * sp;
+    var flexGP = aq * bp - aq * sq * sp;
+    var actGP = aq * ap - aqty * apx;
+
+    var volVar = flexGP - budGP;
+    var priceVar = (ap - bp) * aq;
+    var mpv = (apx - sp) * aqty;
+    var mqv = (aqty - aq * sq) * sp;
+
+    var gap = actGP - budGP;
+
+    $("bv-gap").textContent = money(gap) + " 元" + (gap < 0 ? "（不利）" : gap > 0 ? "（有利）" : "");
+    $("bv-levels").textContent = money(budGP) + " / " + money(flexGP) + " / " + money(actGP);
+
+    function tag(v) {
+      if (Math.abs(v) < 0.005) return "无差异";
+      return v > 0 ? "有利 +" + money(v) : "不利 " + money(v);
+    }
+    $("bv-vol").textContent = tag(volVar);
+    $("bv-price").textContent = tag(priceVar);
+    $("bv-mpv").textContent = tag(-mpv);
+    $("bv-mqv").textContent = tag(-mqv);
+
+    var items = [
+      ["销量差异（卖多卖少）", volVar, "销售 / 市场"],
+      ["售价差异（价格高低）", priceVar, "销售 / 定价"],
+      ["材料价差（买贵买便宜）", -mpv, "采购"],
+      ["材料量差（用多用少）", -mqv, "生产 / 工艺"]
+    ];
+    var worst = items[0], html = "";
+    for (var i = 0; i < items.length; i++) {
+      var v = items[i][1];
+      if (v < worst[1]) worst = items[i];
+      var cls = Math.abs(v) < 0.005 ? "持平" : v > 0 ? "有利" : "不利";
+      html += "<tr" + (v < 0 ? ' style="background:#fff5f5"' : "") + "><td>" + items[i][0] + "</td><td>" +
+        money(v) + "</td><td>" + cls + "</td><td>" + items[i][2] + "</td></tr>";
+    }
+    $("bv-body").innerHTML = html;
+
+    $("bv-main").textContent = worst[1] < -0.005
+      ? worst[0] + "　" + money(worst[1]) + " 元（找" + worst[2] + "）"
+      : "没有不利差异";
+
+    $("bv-note").textContent =
+      "差异要拆成「量」和「价」，否则只知道差了多少、不知道怪谁。三层比较：预算毛利 " + money(budGP) +
+      "（预算量×预算价）→ 弹性预算 " + money(flexGP) + "（实际量×预算价，只反映卖多了）→ 实际毛利 " + money(actGP) +
+      "（实际量×实际价）。" +
+      "价差按实际用量算，量差按标准价算，这样两项加起来正好等于总差异，不会重复计算。" +
+      "售价降 5 元是销售的事，材料贵 1 元是采购的事，单耗超标是生产的事——分开算才能找到人。" +
+      "注意：材料量差算出来是 0 不代表没问题，可能只是实际用量刚好等于标准，单耗得按月盯着看趋势。";
+  }
+
+  /* ---------------- 月度利润表 ---------------- */
+  function calcFinReport() {
+    var rev = num($("pl-rev"), 0);
+    var cogs = Math.max(0, num($("pl-cogs"), 0));
+    var taxS = Math.max(0, num($("pl-tax"), 0));
+    var se = Math.max(0, num($("pl-se"), 0));
+    var ae = Math.max(0, num($("pl-ae"), 0));
+    var rd = Math.max(0, num($("pl-rd"), 0));
+    var fe = Math.max(0, num($("pl-fe"), 0));
+    var oi = num($("pl-oi"), 0);
+    var noi = num($("pl-noi"), 0);
+    var noe = Math.max(0, num($("pl-noe"), 0));
+    var tr = Math.max(0, Math.min(50, num($("pl-tr"), 25))) / 100;
+
+    var gp = rev - cogs;
+    var gm = rev > 0 ? gp / rev : 0;
+    var op = gp - taxS - se - ae - rd - fe + oi;
+    var nonOp = noi - noe;
+    var tp = op + nonOp;
+    var tax = tp > 0 ? tp * tr : 0;
+    var np = tp - tax;
+
+    $("pl-np").textContent = money(np) + " 元" + (np < 0 ? "（亏损）" : "");
+    $("pl-gp").textContent = money(gp) + " 元 / " + pct(gm);
+    $("pl-op").textContent = yuan(op);
+    $("pl-tp").textContent = yuan(tp);
+    $("pl-taxnp").textContent = money(tax) + " 元 / " + (rev > 0 ? pct(np / rev) : "—");
+    $("pl-fee").textContent = money(se + ae + fe) + " 元 / " + (rev > 0 ? pct((se + ae + fe) / rev) : "—");
+
+    var fixedCost = taxS + se + ae + rd + fe;
+    $("pl-be").textContent = gm > 0 ? yuan(fixedCost / gm) + "（现收入 " + money(rev) + "）" : "毛利率≤0，涨价或降本前无保本点";
+
+    var rows = [
+      ["营业收入", rev],
+      ["营业成本", -cogs],
+      ["毛利", gp],
+      ["税金及附加", -taxS],
+      ["销售费用", -se],
+      ["管理费用", -ae],
+      ["研发费用", -rd],
+      ["财务费用", -fe],
+      ["其他收益 / 投资收益", oi],
+      ["营业利润", op],
+      ["营业外收支净额", nonOp],
+      ["利润总额", tp],
+      ["所得税", -tax],
+      ["净利润", np]
+    ];
+    var html = "";
+    for (var i = 0; i < rows.length; i++) {
+      var name = rows[i][0], v = rows[i][1];
+      var bold = (name === "毛利" || name === "营业利润" || name === "利润总额" || name === "净利润");
+      var bg = bold ? ' style="background:#eef2ff"' : "";
+      html += "<tr" + bg + "><td style=\"text-align:left\">" + (bold ? "<strong>" + name + "</strong>" : name) +
+        "</td><td>" + money(v) + "</td><td>" + (rev > 0 ? pct(v / rev) : "—") + "</td></tr>";
+    }
+    $("pl-body").innerHTML = html;
+
+    var verdict;
+    if (np >= 0 && tp > 0) verdict = "本月赚钱，净利率 " + (rev > 0 ? pct(np / rev) : "—") + "。";
+    else if (np < 0 && op > 0) verdict = "营业是赚的，被营业外收支拖成亏损，看看是哪笔一次性支出。";
+    else verdict = "本月亏损 " + money(-np) + " 元，先看毛利是否为正，再看费用能不能压。";
+
+    $("pl-note").textContent = verdict +
+      " 三费（销售+管理+财务）合计 " + money(se + ae + fe) + " 元，占收入 " + (rev > 0 ? pct((se + ae + fe) / rev) : "—") +
+      "，这通常是费用管控的主战场。保本收入 " + (gm > 0 ? money(fixedCost / gm) : "—") +
+      " 元是按「毛利额刚好覆盖税金及附加和四项费用」倒算的，收入低于它就是亏。" +
+      "这份表是管理口径粗表：所得税按利润总额直接乘税率，没考虑纳税调整、亏损弥补、递延所得税；" +
+      "发给老板看够了，报税和申报请用正式财务报表口径，小微企业所得税优惠按当地当期政策确认税率。";
+  }
+
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
@@ -3725,7 +3979,8 @@
     vat: calcVat, vatdue: calcVatDue, deprec: calcDeprec, breakeven: calcBreakEven,
     ratios: calcRatios, recon: calcRecon,
     expense: calcExpense, aging: calcAging, funding: calcFunding, pricing: calcPricing,
-    triplede: calcTripleDe, multimargin: calcMultiMargin, apterms: calcApTerms, assetledger: calcAssetLedger
+    triplede: calcTripleDe, multimargin: calcMultiMargin, apterms: calcApTerms, assetledger: calcAssetLedger,
+    payage: calcPayAge, costcard: calcCostCard, budgetvar: calcBudgetVar, finreport: calcFinReport
   };
 
   function setCat(cat) {
@@ -3851,9 +4106,13 @@
     "td-np", "td-da", "td-ar", "td-inv", "td-ap", "td-cfo", "td-cfi", "td-cff", "td-cash0", "td-cash1", "td-ta", "td-tl", "td-te",
     "mm-q1", "mm-p1", "mm-c1", "mm-q2", "mm-p2", "mm-c2", "mm-q3", "mm-p3", "mm-c3", "mm-q4", "mm-p4", "mm-c4",
     "ap-amt", "ap-disc", "ap-d1", "ap-d2", "ap-rate",
-    "al-v1", "al-l1", "al-s1", "al-m1", "al-v2", "al-l2", "al-s2", "al-m2", "al-v3", "al-l3", "al-s3", "al-m3"
+    "al-v1", "al-l1", "al-s1", "al-m1", "al-v2", "al-l2", "al-s2", "al-m2", "al-v3", "al-l3", "al-s3", "al-m3",
+    "pg-a1", "pg-a2", "pg-a3", "pg-a4", "pg-term", "pg-buy", "pg-rate",
+    "cw-fin", "cw-wip", "cw-deg", "cw-mat", "cw-lab", "cw-oh",
+    "bv-bq", "bv-bp", "bv-sq", "bv-sp", "bv-aq", "bv-ap", "bv-aqty", "bv-apx",
+    "pl-rev", "pl-cogs", "pl-tax", "pl-se", "pl-ae", "pl-rd", "pl-fe", "pl-oi", "pl-noi", "pl-noe", "pl-tr"
   ];
-  var KEY = "finance-calc-v18";
+  var KEY = "finance-calc-v19";
   var CAT_KEY = "finance-calc-cat";
 
   /* ---------------- 现金流月历 ---------------- */
