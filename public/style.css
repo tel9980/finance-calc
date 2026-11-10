@@ -294,3 +294,8 @@ a.snap-load{color:var(--accent2);text-decoration:underline;text-underline-offset
   #panel-snaps .btnrow,#panel-snaps .ghost{display:none}
   #panel-report .card.res,#panel-snaps .card.res{border:0}
 }
+
+/* 体检报告的改善优先级 */
+.pri{margin:10px 0 0;padding-left:22px;font-size:14px;line-height:1.62}
+.pri li{margin:7px 0}
+.pri li b{color:var(--accent);font-weight:650}

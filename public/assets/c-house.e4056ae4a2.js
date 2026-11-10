@@ -293,4 +293,85 @@ const { $, CAT_KEY, CHUNK_FILES, CHUNK_OF, CMP_KEY, CORE_CALC, CURS, DIVISOR, FA
     $("ru-note").textContent = note;
   }
 
-export default { rentbuy: calcRentBuy, deed: calcDeed, sell: calcSell, rentyield: calcRentYield, budget: calcBudget, rentup: calcRentUp };
+  function calcHouseCash() {
+    var price = Math.max(0, num($("hcx-price"), 0));
+    var dpRate = Math.min(100, Math.max(0, num($("hcx-dp"), 30))) / 100;
+    var deedR = Math.max(0, num($("hcx-deed"), 1.5)) / 100;
+    var agentR = Math.max(0, num($("hcx-agent"), 2)) / 100;
+    var fundR = Math.max(0, num($("hcx-fund"), 1)) / 100;
+    var odd = Math.max(0, num($("hcx-odd"), 0));
+    var deco = Math.max(0, num($("hcx-deco"), 0));
+    var furn = Math.max(0, num($("hcx-furn"), 0));
+    var move = Math.max(0, num($("hcx-move"), 0));
+    var need = Math.max(0, num($("hcx-need"), 0));
+    var cash = Math.max(0, num($("hcx-cash"), 0));
+
+    var dp = price * dpRate;
+    var deed = price * deedR, agent = price * agentR, fund = price * fundR;
+    var sign = dp + deed + agent + fund + odd;
+    var live = deco + furn + move;
+    var emg = need * 6;
+    var total = sign + live + emg;
+    var gap = cash - total;
+    var dpGap = cash - sign;
+    var ratio = price > 0 ? (sign + live) / price : 0;
+    var k = dpRate + deedR + agentR + fundR;
+    var cap = k > 0 ? Math.max(0, (cash - odd - live - emg) / k) : 0;
+
+    var big = $("hcx-big");
+    if (big) big.textContent = fmt(sign);
+    var dpo = $("hcx-dpout");
+    if (dpo) dpo.textContent = money(dp) + " 元（" + pct(dpRate, 0) + "）";
+    var taxo = $("hcx-tax");
+    if (taxo) taxo.textContent = money(deed + agent + fund + odd) + " 元（占房价 " + (price > 0 ? pct((deed + agent + fund + odd) / price, 1) : "—") + "）";
+    var liveo = $("hcx-live");
+    if (liveo) liveo.textContent = money(live) + " 元";
+    var emgo = $("hcx-emg");
+    if (emgo) emgo.textContent = money(emg) + " 元";
+    var ratioo = $("hcx-ratio");
+    if (ratioo) ratioo.textContent = pct(ratio, 1) + "（首付＋税费＋装修）";
+    var enough = $("hcx-enough");
+    if (enough) {
+      if (gap >= 0) enough.textContent = "够，还剩 " + money(gap) + " 元";
+      else if (dpGap >= 0) enough.textContent = "签字够，装修缺口 " + money(-gap) + " 元";
+      else enough.textContent = "不够，签字就缺 " + money(-dpGap) + " 元";
+    }
+    var capo = $("hcx-cap");
+    if (capo) capo.textContent = money(cap) + " 元（保留 6 个月应急金后）";
+
+    var tb = $("hcx-body");
+    if (tb) {
+      var rows = [
+        ["首付", pct(dpRate, 0) + " × 成交价", dp],
+        ["契税", pct(deedR, 2) + " × 成交价", deed],
+        ["中介费", pct(agentR, 2) + " × 成交价", agent],
+        ["维修基金", pct(fundR, 2) + " × 成交价", fund],
+        ["评估/公证/工本", "定额", odd],
+        ["装修", "定额", deco],
+        ["家具家电", "定额", furn],
+        ["搬家杂费", "定额", move],
+        ["应急金", "6 × 月必需", emg],
+        ["合计", "签字＋入住＋缓冲", total]
+      ];
+      var h = "";
+      for (var i = 0; i < rows.length; i++) {
+        var last = i === rows.length - 1;
+        h += "<tr" + (last ? " class=\"c-soft\"" : "") + "><td class=\"tal\">" + rows[i][0] + "</td><td class=\"tal\">"
+          + rows[i][1] + "</td><td>" + money(rows[i][2]) + "</td></tr>";
+      }
+      tb.innerHTML = h;
+    }
+
+    var note = $("hcx-note");
+    if (note) {
+      var tips = [];
+      tips.push("签字当天要付 " + money(sign) + " 元（首付＋税费），加上装修家具搬家 "
+        + money(live) + " 元和 6 个月应急金 " + money(emg) + " 元，一共 " + money(total) + " 元。");
+      if (gap < 0) tips.push("按现在的现金还差 " + money(-gap) + " 元：要么降总价到 " + money(cap) + " 元以内，要么延后装修（装修通常在交房后 3–6 个月才花）。");
+      tips.push("容易被漏掉的三笔：契税（按成交价，首套 90㎡ 以下常为 1%、以上 1.5%）、中介费（通常买方 1–2%）、维修基金（多为每平米几十元或房价 1% 上下）。");
+      tips.push("二手房还可能涉及增值税与个税（满五唯一可免），本表未单列，可把金额并入「评估/公证/工本」。");
+      note.textContent = tips.join(" ");
+    }
+  }
+
+export default { rentbuy: calcRentBuy, deed: calcDeed, sell: calcSell, rentyield: calcRentYield, budget: calcBudget, rentup: calcRentUp, housecash: calcHouseCash };

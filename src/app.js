@@ -8350,6 +8350,19 @@
       html += "<tr" + cls + "><td class=\"tal\">" + rows[r][0] + "</td><td>" + rows[r][1] + "</td><td>" + rows[r][2] + " / 20</td><td>" + rows[r][3] + "</td></tr>";
     }
     $("rp-body").innerHTML = html;
+
+    var ease = [1.0, 1.0, 0.6, 0.55, 0.85];
+    var pri = [];
+    for (var q = 0; q < rows.length; q++) pri.push({ i: q, gap: 20 - rows[q][2] });
+    pri.sort(function (x, y) { return y.gap * ease[y.i] - x.gap * ease[x.i]; });
+    var ph = "";
+    for (var q2 = 0; q2 < pri.length && q2 < 3; q2++) {
+      var it = pri[q2];
+      if (it.gap <= 0) continue;
+      ph += "<li><b>" + names[it.i] + "</b>（还差 " + it.gap + " 分）" + acts[it.i] + "</li>";
+    }
+    if ($("rp-pri")) $("rp-pri").innerHTML = ph || '<li>五项都到线了，保持现在的节奏就行。</li>';
+
     $("rp-note").textContent = "总分 " + score + "（" + level + "），短板是" + names[worst] + "。"
       + acts[worst] + " 打分只看五项硬指标，不含投资能力与收入稳定性；数据只在本机，点「打印」可存成一页 PDF。";
   }
@@ -8438,6 +8451,88 @@
     $("snap-note").textContent = "已选 " + sel.length + " 个方案并排对比（最多 3 个）；最后一列是相对第一个方案的差额与百分比。点「导出 CSV」可以把这张表存下来。";
   }
 
+  /* ---------------- 购房一次性支出 ---------------- */
+  function calcHouseCash() {
+    var price = Math.max(0, num($("hcx-price"), 0));
+    var dpRate = Math.min(100, Math.max(0, num($("hcx-dp"), 30))) / 100;
+    var deedR = Math.max(0, num($("hcx-deed"), 1.5)) / 100;
+    var agentR = Math.max(0, num($("hcx-agent"), 2)) / 100;
+    var fundR = Math.max(0, num($("hcx-fund"), 1)) / 100;
+    var odd = Math.max(0, num($("hcx-odd"), 0));
+    var deco = Math.max(0, num($("hcx-deco"), 0));
+    var furn = Math.max(0, num($("hcx-furn"), 0));
+    var move = Math.max(0, num($("hcx-move"), 0));
+    var need = Math.max(0, num($("hcx-need"), 0));
+    var cash = Math.max(0, num($("hcx-cash"), 0));
+
+    var dp = price * dpRate;
+    var deed = price * deedR, agent = price * agentR, fund = price * fundR;
+    var sign = dp + deed + agent + fund + odd;
+    var live = deco + furn + move;
+    var emg = need * 6;
+    var total = sign + live + emg;
+    var gap = cash - total;
+    var dpGap = cash - sign;
+    var ratio = price > 0 ? (sign + live) / price : 0;
+    var k = dpRate + deedR + agentR + fundR;
+    var cap = k > 0 ? Math.max(0, (cash - odd - live - emg) / k) : 0;
+
+    var big = $("hcx-big");
+    if (big) big.textContent = fmt(sign);
+    var dpo = $("hcx-dpout");
+    if (dpo) dpo.textContent = money(dp) + " 元（" + pct(dpRate, 0) + "）";
+    var taxo = $("hcx-tax");
+    if (taxo) taxo.textContent = money(deed + agent + fund + odd) + " 元（占房价 " + (price > 0 ? pct((deed + agent + fund + odd) / price, 1) : "—") + "）";
+    var liveo = $("hcx-live");
+    if (liveo) liveo.textContent = money(live) + " 元";
+    var emgo = $("hcx-emg");
+    if (emgo) emgo.textContent = money(emg) + " 元";
+    var ratioo = $("hcx-ratio");
+    if (ratioo) ratioo.textContent = pct(ratio, 1) + "（首付＋税费＋装修）";
+    var enough = $("hcx-enough");
+    if (enough) {
+      if (gap >= 0) enough.textContent = "够，还剩 " + money(gap) + " 元";
+      else if (dpGap >= 0) enough.textContent = "签字够，装修缺口 " + money(-gap) + " 元";
+      else enough.textContent = "不够，签字就缺 " + money(-dpGap) + " 元";
+    }
+    var capo = $("hcx-cap");
+    if (capo) capo.textContent = money(cap) + " 元（保留 6 个月应急金后）";
+
+    var tb = $("hcx-body");
+    if (tb) {
+      var rows = [
+        ["首付", pct(dpRate, 0) + " × 成交价", dp],
+        ["契税", pct(deedR, 2) + " × 成交价", deed],
+        ["中介费", pct(agentR, 2) + " × 成交价", agent],
+        ["维修基金", pct(fundR, 2) + " × 成交价", fund],
+        ["评估/公证/工本", "定额", odd],
+        ["装修", "定额", deco],
+        ["家具家电", "定额", furn],
+        ["搬家杂费", "定额", move],
+        ["应急金", "6 × 月必需", emg],
+        ["合计", "签字＋入住＋缓冲", total]
+      ];
+      var h = "";
+      for (var i = 0; i < rows.length; i++) {
+        var last = i === rows.length - 1;
+        h += "<tr" + (last ? " class=\"c-soft\"" : "") + "><td class=\"tal\">" + rows[i][0] + "</td><td class=\"tal\">"
+          + rows[i][1] + "</td><td>" + money(rows[i][2]) + "</td></tr>";
+      }
+      tb.innerHTML = h;
+    }
+
+    var note = $("hcx-note");
+    if (note) {
+      var tips = [];
+      tips.push("签字当天要付 " + money(sign) + " 元（首付＋税费），加上装修家具搬家 "
+        + money(live) + " 元和 6 个月应急金 " + money(emg) + " 元，一共 " + money(total) + " 元。");
+      if (gap < 0) tips.push("按现在的现金还差 " + money(-gap) + " 元：要么降总价到 " + money(cap) + " 元以内，要么延后装修（装修通常在交房后 3–6 个月才花）。");
+      tips.push("容易被漏掉的三笔：契税（按成交价，首套 90㎡ 以下常为 1%、以上 1.5%）、中介费（通常买方 1–2%）、维修基金（多为每平米几十元或房价 1% 上下）。");
+      tips.push("二手房还可能涉及增值税与个税（满五唯一可免），本表未单列，可把金额并入「评估/公证/工本」。");
+      note.textContent = tips.join(" ");
+    }
+  }
+
   /* ---------------- 组合规划：买这套房之后 ---------------- */
   function plScoreSave(r) { return r >= 0.3 ? 20 : r >= 0.2 ? 15 : r >= 0.1 ? 10 : 5; }
   function plScoreEmg(m) { return m >= 6 ? 20 : m >= 4 ? 15 : m >= 2 ? 10 : 5; }
@@ -8459,12 +8554,16 @@
     var debt0 = Math.max(0, num($("pl-debt"), 0));
     var ins = Math.max(0, num($("pl-ins"), 0));
 
+    var closeR = Math.max(0, num($("pl-close"), 3)) / 100;
+    var deco0 = Math.max(0, num($("pl-deco"), 0));
+    var closeAmt = price * closeR + deco0;
     var dpNeed = price * dpRate;
+    var signNeed = dpNeed + closeAmt;
     var loan = Math.max(0, price - dpNeed);
     var n = years * 12;
     var i = rate / 12;
     var pay = loan > 0 ? annuityPayment(loan, i, n) : 0;
-    var cashLeft = cash - dpNeed;
+    var cashLeft = cash - signNeed;
     var left = inc - need - want - pay;
     var saveRate = inc > 0 ? left / inc : 0;
     var emg = need > 0 ? cashLeft / need : 0;
@@ -8481,8 +8580,8 @@
     var sAfter = plScoreSave(saveRate) + plScoreEmg(emg) + plScoreLev(lev) + plScoreDsr(dsr) + plScoreCov(cover);
 
     var keepEmg = need * 6;
-    var usable = Math.max(0, cash - keepEmg);
-    var capPrice = dpRate > 0 ? usable / dpRate : 0;
+    var kk = dpRate + closeR;
+    var capPrice = kk > 0 ? Math.max(0, (cash - keepEmg - deco0) / kk) : 0;
     var capDsr = inc > 0 ? annuityPV(inc * 0.4, i, n) : 0;
     var capByDsr = dpRate < 1 ? capDsr / (1 - dpRate) : capDsr;
 
@@ -8491,6 +8590,8 @@
     if (big) big.textContent = String(Math.round(sAfter));
     if (score) score.textContent = Math.round(sNow) + " 分 → " + Math.round(sAfter) + " 分（" + plRank(sAfter) + "）";
     if (dpo) dpo.textContent = money(dpNeed) + " 元 / " + (cashLeft >= 0 ? "余 " + money(cashLeft) + " 元" : "缺 " + money(-cashLeft) + " 元");
+    var cashallo = $("pl-cashall");
+    if (cashallo) cashallo.textContent = money(signNeed) + " 元（首付＋税费中介 " + money(closeAmt) + "）";
     if (payo) payo.textContent = money(loan) + " 元 · 月供 " + money(pay) + " 元";
     if (ratio) ratio.textContent = pct(dsr, 1) + (dsr > 0.4 ? "（超过 40% 警戒线）" : "");
     if (lefto) lefto.textContent = (left >= 0 ? money(left) : "−" + money(-left)) + " 元 / 月";
@@ -8529,6 +8630,7 @@
       if (saveRate < 0.1) tips.push("买房后储蓄率只有 " + pct(saveRate, 1) + "，几乎没有缓冲，一次装修或换工作就会被动。");
       if (cover < 0.7) tips.push("加了房贷后保障缺口变大：应配 " + money(Math.max(0, protectNeed)) + " 元（10 倍年收入＋负债－可变现资产），现在只有 " + pct(cover, 1) + "。");
       if (!tips.length) tips.push("这组数下买房后现金流与保障都还站得住，注意留足 6 个月应急金再签字。");
+      tips.push("这里的「现金剩余」已扣掉税费中介等一次性支出 " + money(closeAmt) + " 元（占房价 " + pct(closeR, 1) + " ＋定额 " + money(deco0) + "），装修按交房后再花，没算进来。");
       note.textContent = "现在 " + Math.round(sNow) + " 分 → 买房后 " + Math.round(sAfter) + " 分（" + plRank(sAfter) + "）。" + tips.join(" ");
     }
   }
@@ -8577,7 +8679,7 @@
     headcount: calcHeadcount, markroi: calcMarkRoi, rdproject: calcRdProject, intsvc: calcIntSvc,
     accrual: calcAccrual, cfconsol: calcCfConsol, exportcheck: calcExportCheck, vatcheck: calcVatCheck,
     report: calcReport, snaps: calcSnaps,
-    planner: calcPlanner,
+    housecash: calcHouseCash, planner: calcPlanner,
     healthcheck: calcHealth,
     salesallow: calcSalesAllow, lease: calcLease, gpmix: calcGpmix, vatchoose: calcVatChoose,
     datemath: calcDatemath, pct3: calcPct3, xlhelp: calcXlHelp, csvrecon: calcCsvRecon,
@@ -8857,9 +8959,12 @@
     "pl-need",
     "pl-want",
     "pl-debt",
-    "pl-ins"
+    "pl-ins",
+    "pl-close", "pl-deco", "pl-cashall",
+    "hcx-price", "hcx-dp", "hcx-deed", "hcx-agent", "hcx-fund", "hcx-odd",
+    "hcx-deco", "hcx-furn", "hcx-move", "hcx-need", "hcx-cash"
 ];
-  var KEY = "finance-calc-v45";
+  var KEY = "finance-calc-v46";
   var CAT_KEY = "finance-calc-cat";
 
   /* ---------------- 现金流月历 ---------------- */
@@ -9633,6 +9738,72 @@
       } catch (e) {}
       location.reload();
     });
+  });
+
+  if ($("snap-png")) $("snap-png").addEventListener("click", function () {
+    var btn = this, box = $("snap-cmp-body");
+    if (!box) return;
+    var table = box.closest("table");
+    var head = table ? table.querySelector("thead tr") : null;
+    var hs = head ? [].map.call(head.children, function (th) { return th.textContent.trim(); }) : [];
+    var rows = [];
+    var trs = box.querySelectorAll("tr");
+    for (var r = 0; r < trs.length; r++) {
+      rows.push([].map.call(trs[r].children, function (td) { return td.textContent.trim(); }));
+    }
+    if (rows.length < 2 || rows[0].length < 2) { flash(btn, "先勾选 2–3 个方案"); return; }
+    var cols = Math.max(hs.length, rows[0].length, 2);
+    var pad = 22, rowH = 32, top = 96, w = 980;
+    var hgt = top + 34 + rows.length * rowH + 40;
+    var cv = document.createElement("canvas");
+    var dpr = Math.min(2, window.devicePixelRatio || 1);
+    cv.width = w * dpr; cv.height = hgt * dpr;
+    var g = cv.getContext("2d");
+    g.scale(dpr, dpr);
+    g.fillStyle = "#ffffff"; g.fillRect(0, 0, w, hgt);
+    g.fillStyle = "#1e3a8a"; g.font = "bold 21px -apple-system,'PingFang SC','Microsoft YaHei',sans-serif";
+    g.fillText("财务计算器 · 方案对比", pad, 44);
+    g.fillStyle = "#64748b"; g.font = "13px -apple-system,'PingFang SC','Microsoft YaHei',sans-serif";
+    g.fillText("生成时间 " + new Date().toLocaleString("zh-CN") + "　·　" + location.host, pad, 68);
+    var cw = (w - pad * 2) / cols;
+    function clip(txt, max) {
+      var t = String(txt);
+      if (g.measureText(t).width <= max) return t;
+      var s = t;
+      while (s.length > 1 && g.measureText(s + "…").width > max) s = s.slice(0, -1);
+      return s + "…";
+    }
+    g.textBaseline = "middle";
+    g.fillStyle = "#eef2ff"; g.fillRect(pad, top, w - pad * 2, 34);
+    g.fillStyle = "#1e3a8a"; g.font = "bold 14px -apple-system,'PingFang SC','Microsoft YaHei',sans-serif";
+    for (var i = 0; i < cols; i++) {
+      var label = hs[i] == null ? "" : hs[i];
+      if (i === 0) g.textAlign = "left", g.fillText(clip(label, cw - 14), pad + 10, top + 17);
+      else g.textAlign = "right", g.fillText(clip(label, cw - 14), pad + cw * (i + 1) - 10, top + 17);
+    }
+    g.font = "14px -apple-system,'PingFang SC','Microsoft YaHei',sans-serif";
+    for (var r2 = 0; r2 < rows.length; r2++) {
+      var y = top + 34 + r2 * rowH;
+      if (r2 % 2 === 1) { g.fillStyle = "#f8fafc"; g.fillRect(pad, y, w - pad * 2, rowH); }
+      g.fillStyle = "#0f172a";
+      for (var c = 0; c < cols; c++) {
+        var txt = rows[r2][c] == null ? "" : rows[r2][c];
+        if (c === 0) { g.textAlign = "left"; g.fillText(clip(txt, cw - 14), pad + 10, y + rowH / 2); }
+        else { g.textAlign = "right"; g.fillText(clip(txt, cw - 14), pad + cw * (c + 1) - 10, y + rowH / 2); }
+      }
+    }
+    g.strokeStyle = "#e2e8f0"; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(pad, top + 34 + rows.length * rowH); g.lineTo(w - pad, top + 34 + rows.length * rowH); g.stroke();
+    g.textAlign = "left"; g.fillStyle = "#94a3b8"; g.font = "12px -apple-system,'PingFang SC','Microsoft YaHei',sans-serif";
+    g.fillText("纯前端计算，数据不上传 · 结果按页面假设推算，实际以合同与当地政策为准", pad, top + 34 + rows.length * rowH + 22);
+    cv.toBlob(function (blob) {
+      var a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "财务计算器-方案对比-" + fmtAt(Date.now()).replace(/[^\d]/g, "").slice(0, 12) + ".png";
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+      flash(btn, "已导出 PNG");
+    }, "image/png");
   });
 
   /* ---------------- 启动 ---------------- */

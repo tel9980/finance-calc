@@ -654,6 +654,19 @@ const { $, CAT_KEY, CHUNK_FILES, CHUNK_OF, CMP_KEY, CORE_CALC, CURS, DIVISOR, FA
       html += "<tr" + cls + "><td class=\"tal\">" + rows[r][0] + "</td><td>" + rows[r][1] + "</td><td>" + rows[r][2] + " / 20</td><td>" + rows[r][3] + "</td></tr>";
     }
     $("rp-body").innerHTML = html;
+
+    var ease = [1.0, 1.0, 0.6, 0.55, 0.85];
+    var pri = [];
+    for (var q = 0; q < rows.length; q++) pri.push({ i: q, gap: 20 - rows[q][2] });
+    pri.sort(function (x, y) { return y.gap * ease[y.i] - x.gap * ease[x.i]; });
+    var ph = "";
+    for (var q2 = 0; q2 < pri.length && q2 < 3; q2++) {
+      var it = pri[q2];
+      if (it.gap <= 0) continue;
+      ph += "<li><b>" + names[it.i] + "</b>（还差 " + it.gap + " 分）" + acts[it.i] + "</li>";
+    }
+    if ($("rp-pri")) $("rp-pri").innerHTML = ph || '<li>五项都到线了，保持现在的节奏就行。</li>';
+
     $("rp-note").textContent = "总分 " + score + "（" + level + "），短板是" + names[worst] + "。"
       + acts[worst] + " 打分只看五项硬指标，不含投资能力与收入稳定性；数据只在本机，点「打印」可存成一页 PDF。";
   }
@@ -671,12 +684,16 @@ const { $, CAT_KEY, CHUNK_FILES, CHUNK_OF, CMP_KEY, CORE_CALC, CURS, DIVISOR, FA
     var debt0 = Math.max(0, num($("pl-debt"), 0));
     var ins = Math.max(0, num($("pl-ins"), 0));
 
+    var closeR = Math.max(0, num($("pl-close"), 3)) / 100;
+    var deco0 = Math.max(0, num($("pl-deco"), 0));
+    var closeAmt = price * closeR + deco0;
     var dpNeed = price * dpRate;
+    var signNeed = dpNeed + closeAmt;
     var loan = Math.max(0, price - dpNeed);
     var n = years * 12;
     var i = rate / 12;
     var pay = loan > 0 ? annuityPayment(loan, i, n) : 0;
-    var cashLeft = cash - dpNeed;
+    var cashLeft = cash - signNeed;
     var left = inc - need - want - pay;
     var saveRate = inc > 0 ? left / inc : 0;
     var emg = need > 0 ? cashLeft / need : 0;
@@ -693,8 +710,8 @@ const { $, CAT_KEY, CHUNK_FILES, CHUNK_OF, CMP_KEY, CORE_CALC, CURS, DIVISOR, FA
     var sAfter = plScoreSave(saveRate) + plScoreEmg(emg) + plScoreLev(lev) + plScoreDsr(dsr) + plScoreCov(cover);
 
     var keepEmg = need * 6;
-    var usable = Math.max(0, cash - keepEmg);
-    var capPrice = dpRate > 0 ? usable / dpRate : 0;
+    var kk = dpRate + closeR;
+    var capPrice = kk > 0 ? Math.max(0, (cash - keepEmg - deco0) / kk) : 0;
     var capDsr = inc > 0 ? annuityPV(inc * 0.4, i, n) : 0;
     var capByDsr = dpRate < 1 ? capDsr / (1 - dpRate) : capDsr;
 
@@ -703,6 +720,8 @@ const { $, CAT_KEY, CHUNK_FILES, CHUNK_OF, CMP_KEY, CORE_CALC, CURS, DIVISOR, FA
     if (big) big.textContent = String(Math.round(sAfter));
     if (score) score.textContent = Math.round(sNow) + " 分 → " + Math.round(sAfter) + " 分（" + plRank(sAfter) + "）";
     if (dpo) dpo.textContent = money(dpNeed) + " 元 / " + (cashLeft >= 0 ? "余 " + money(cashLeft) + " 元" : "缺 " + money(-cashLeft) + " 元");
+    var cashallo = $("pl-cashall");
+    if (cashallo) cashallo.textContent = money(signNeed) + " 元（首付＋税费中介 " + money(closeAmt) + "）";
     if (payo) payo.textContent = money(loan) + " 元 · 月供 " + money(pay) + " 元";
     if (ratio) ratio.textContent = pct(dsr, 1) + (dsr > 0.4 ? "（超过 40% 警戒线）" : "");
     if (lefto) lefto.textContent = (left >= 0 ? money(left) : "−" + money(-left)) + " 元 / 月";
@@ -741,6 +760,7 @@ const { $, CAT_KEY, CHUNK_FILES, CHUNK_OF, CMP_KEY, CORE_CALC, CURS, DIVISOR, FA
       if (saveRate < 0.1) tips.push("买房后储蓄率只有 " + pct(saveRate, 1) + "，几乎没有缓冲，一次装修或换工作就会被动。");
       if (cover < 0.7) tips.push("加了房贷后保障缺口变大：应配 " + money(Math.max(0, protectNeed)) + " 元（10 倍年收入＋负债－可变现资产），现在只有 " + pct(cover, 1) + "。");
       if (!tips.length) tips.push("这组数下买房后现金流与保障都还站得住，注意留足 6 个月应急金再签字。");
+      tips.push("这里的「现金剩余」已扣掉税费中介等一次性支出 " + money(closeAmt) + " 元（占房价 " + pct(closeR, 1) + " ＋定额 " + money(deco0) + "），装修按交房后再花，没算进来。");
       note.textContent = "现在 " + Math.round(sNow) + " 分 → 买房后 " + Math.round(sAfter) + " 分（" + plRank(sAfter) + "）。" + tips.join(" ");
     }
   }
