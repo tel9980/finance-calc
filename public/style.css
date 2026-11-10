@@ -159,3 +159,5 @@ tbody tr.c-bad { background: #fff5f5; }
 tbody tr.c-soft { background: #fdecec; }
 tbody tr.c-warn { background: #fff8f0; }
 tbody tr.c-info { background: #eef2ff; }
+
+td.tal { text-align: left; }

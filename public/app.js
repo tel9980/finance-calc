@@ -3942,7 +3942,7 @@
       var name = rows[i][0], v = rows[i][1];
       var bold = (name === "毛利" || name === "营业利润" || name === "利润总额" || name === "净利润");
       var bg = bold ? ' class="c-info"' : "";
-      html += "<tr" + bg + "><td style=\"text-align:left\">" + (bold ? "<strong>" + name + "</strong>" : name) +
+      html += "<tr" + bg + "><td class=\"tal\">" + (bold ? "<strong>" + name + "</strong>" : name) +
         "</td><td>" + money(v) + "</td><td>" + (rev > 0 ? pct(v / rev) : "—") + "</td></tr>";
     }
     $("pl-body").innerHTML = html;
@@ -4416,6 +4416,200 @@
       "季末集中报销和年终奖计提会让单月费用率虚高，最好同时看滚动 12 个月（TTM）费用率。";
   }
 
+  /* ---------------- 多产品保本与安全边际 ---------------- */
+  function calcMpbe() {
+    var fc = Math.max(0, num($("mb-fc"), 0));
+    var target = Math.max(0, num($("mb-target"), 0));
+    var ps = [
+      [num($("mb-p1"), 0), num($("mb-v1"), 0), Math.max(0, num($("mb-q1"), 0))],
+      [num($("mb-p2"), 0), num($("mb-v2"), 0), Math.max(0, num($("mb-q2"), 0))],
+      [num($("mb-p3"), 0), num($("mb-v3"), 0), Math.max(0, num($("mb-q3"), 0))]
+    ];
+    var rev = 0, cm = 0, i;
+    for (i = 0; i < ps.length; i++) { rev += ps[i][0] * ps[i][2]; cm += (ps[i][0] - ps[i][1]) * ps[i][2]; }
+    var cmr = rev > 0 ? cm / rev : 0;
+    var profit = cm - fc;
+    var bep = cmr > 0 ? fc / cmr : 0;
+    var mos = rev > 0 ? (rev - bep) / rev : 0;
+    var need = cmr > 0 ? (fc + target) / cmr : 0;
+
+    $("mb-bep").textContent = money(bep) + " 元";
+    $("mb-cmr").textContent = pct(cmr);
+    $("mb-rev").textContent = money(rev) + " / " + money(cm) + " 元";
+    $("mb-profit").textContent = (profit >= 0 ? "+" : "") + money(profit) + " 元" + (profit >= 0 ? "" : "（还没保本）");
+    $("mb-mos").textContent = pct(mos) + (mos < 0 ? "（亏损区，销售额跌在保本点以下）" : mos < 0.15 ? "（很薄，抗跌能力弱）" : "（还行）");
+    $("mb-gap").textContent = bep > rev ? money(bep - rev) + " 元" : "已超过保本点 " + money(rev - bep) + " 元";
+    $("mb-need").textContent = money(need) + " 元（比现在多卖 " + money(Math.max(0, need - rev)) + "）";
+    $("mb-lever").textContent = money(10000) + " 元";
+
+    var html = "", names = ["产品 1", "产品 2", "产品 3"];
+    for (i = 0; i < ps.length; i++) {
+      var p = ps[i][0], v = ps[i][1], q = ps[i][2];
+      var r = p * q, c = (p - v) * q, share = rev > 0 ? r / rev : 0;
+      var alloc = fc * share, pf = c - alloc, beq = p > 0 ? (bep * share) / p : 0;
+      var cls = pf < 0 ? ' class="c-bad"' : "";
+      html += "<tr" + cls + "><td>" + names[i] + "</td><td>" + money(r) + "</td><td>" + pct(p > 0 ? (p - v) / p : 0) +
+        "</td><td>" + money(alloc) + "</td><td>" + (pf >= 0 ? "+" : "") + money(pf) + "</td><td>" + fmt(beq, 0) + "</td></tr>";
+    }
+    $("mb-body").innerHTML = html;
+
+    $("mb-note").textContent =
+      " 多产品保本先算「加权平均边际贡献率」= 各产品边际贡献之和 ÷ 销售额之和，再用固定成本除以它得到保本销售额。当前 " + money(rev) +
+      " 元销售、边际贡献率 " + pct(cmr) + "，保本要 " + money(bep) + " 元，所以现在是" + (profit >= 0 ? "盈利" : "亏损") + " " + money(Math.abs(profit)) + " 元。" +
+      " 这张表最有用的地方是右下两列：把固定成本按销售结构分摊后，标红的行都是「毛利撑不起自己那份固定成本」的产品，它们的销量越大，公司亏得越多——涨价、砍产或换结构，比整体降本更直接。" +
+      " 注意：① 「保本销量」是按当前销售结构均摊出来的，结构一变要重算；② 固定成本分摊法是管理口径，不是会计准则要求，只用于判断，不影响对外报表；③ 边际贡献率高的产品优先给产能。";
+  }
+
+  /* ---------------- 工资表代扣核对 ---------------- */
+  function calcPayroll() {
+    var gross = Math.max(0, num($("pc-gross"), 0));
+    var si = Math.max(0, num($("pc-si"), 0));
+    var hf = Math.max(0, num($("pc-hf"), 0));
+    var tax = Math.max(0, num($("pc-tax"), 0));
+    var other = Math.max(0, num($("pc-other"), 0));
+    var act = Math.max(0, num($("pc-act"), 0));
+    var tax2 = Math.max(0, num($("pc-tax2"), 0));
+    var cosi = Math.max(0, num($("pc-cosi"), 0));
+    var cohf = Math.max(0, num($("pc-cohf"), 0));
+    var rev = Math.max(0, num($("pc-rev"), 0));
+    var head = Math.max(1, num($("pc-head"), 1));
+
+    var ded = si + hf + tax + other;
+    var net = gross - ded;
+    var diff = act - net;
+    var taxdiff = tax - tax2;
+    var co = cosi + cohf;
+    var cost = gross + co;
+    var rate = rev > 0 ? cost / rev : 0;
+    var avg = cost / head;
+
+    $("pc-net").textContent = money(net) + " 元";
+    $("pc-diff").textContent = Math.abs(diff) < 0.5 ? "0.00 元（平）" : money(diff) + " 元（表上多发了）";
+    $("pc-taxdiff").textContent = Math.abs(taxdiff) < 0.5 ? "0.00 元（一致）" : money(taxdiff) + " 元" + (taxdiff > 0 ? "（表内多扣，要退给员工并更正申报）" : "（表内少扣，员工汇算要补税）");
+    $("pc-ded").textContent = pct(gross > 0 ? ded / gross : 0) + "（" + money(ded) + " 元）";
+    $("pc-co").textContent = money(co) + " 元";
+    $("pc-cost").textContent = money(cost) + " 元";
+    $("pc-rate").textContent = pct(rate) + (rate > 0.3 ? "（偏高，人力密集行业一般 15–25%）" : "");
+    $("pc-avg").textContent = money(avg) + " 元/人";
+
+    var ok = Math.abs(diff) < 0.5 && Math.abs(taxdiff) < 0.5;
+    $("pc-verdict").textContent = ok ? "三项勾稽全平，可以发放" :
+      (Math.abs(diff) >= 0.5 ? "实发金额对不上，先查漏项（补发、扣款、个税零头）" : "个税与申报数不一致，先对齐再发");
+
+    var rows = [["应发工资", gross, 1], ["个人社保", -si, gross > 0 ? si / gross : 0], ["个人公积金", -hf, gross > 0 ? hf / gross : 0],
+      ["个人所得税", -tax, gross > 0 ? tax / gross : 0], ["其他扣款", -other, gross > 0 ? other / gross : 0], ["实发工资", net, gross > 0 ? net / gross : 0]];
+    var html = "", i;
+    for (i = 0; i < rows.length; i++) {
+      var cls = (rows[i][0] === "实发工资" && Math.abs(diff) >= 0.5) ? ' class="c-warn"' : "";
+      html += "<tr" + cls + "><td>" + rows[i][0] + "</td><td>" + money(rows[i][1]) + "</td><td>" + pct(rows[i][2]) + "</td></tr>";
+    }
+    $("pc-body").innerHTML = html;
+
+    $("pc-note").textContent =
+      " 工资表每月只需三处勾稽：① 应发 − 社保 − 公积金 − 个税 − 其他扣款 = 实发（与银行代发文件总额一致）；② 表内个税合计 = 自然人电子税务局申报数；③ 应发 + 单位承担社保公积金 = 用工总成本（进成本费用的就是这个数，不是实发数）。" +
+      " 本月：代扣合计 " + money(ded) + " 元占应发 " + pct(gross > 0 ? ded / gross : 0) + "，用工总成本 " + money(cost) + " 元，人工成本率 " + pct(rate) + "。" +
+      " 常见不平原因：离职补偿、补发上月工资没进表、商保和工会经费挂错科目、公积金基数年度调整只调了一半人、专项附加扣除当月才采集导致个税跳变。社保和个税都是代扣代缴，多扣了必须退，不能留在账上当收入。";
+  }
+
+  /* ---------------- 固定资产盘点差异 ---------------- */
+  function calcAssetDiff() {
+    var cost = Math.max(0, num($("ad-cost"), 0));
+    var dep = Math.max(0, num($("ad-dep"), 0));
+    var rv = Math.max(0, num($("ad-rv"), 0));
+    var cd = Math.max(0, Math.min(100, num($("ad-cd"), 0))) / 100;
+    var comp = Math.max(0, num($("ad-comp"), 0));
+    var ins = Math.max(0, num($("ad-ins"), 0));
+    var vat = Math.max(0, num($("ad-vat"), 0)) / 100;
+    var tr = Math.max(0, num($("ad-tr"), 0)) / 100;
+
+    var nav = Math.max(0, cost - dep);
+    var vatout = nav * vat;
+    var rec = comp + ins;
+    var loss = nav + vatout - rec;
+    var gain = rv * cd;
+    var net = gain - loss;
+    var taxsave = loss * tr;
+    var taxadd = gain * tr;
+    var navrate = cost > 0 ? nav / cost : 0;
+
+    $("ad-net").textContent = (net >= 0 ? "+" : "") + money(net) + " 元";
+    $("ad-nav").textContent = money(nav) + " 元";
+    $("ad-vatout").textContent = money(vatout) + " 元";
+    $("ad-rec").textContent = money(rec) + " 元";
+    $("ad-loss").textContent = money(loss) + " 元";
+    $("ad-gain").textContent = money(gain) + " 元";
+    $("ad-taxsave").textContent = "约 " + money(taxsave) + " 元（需专项申报才可扣）";
+    $("ad-taxadd").textContent = "约 " + money(taxadd) + " 元";
+    $("ad-navrate").textContent = pct(navrate);
+
+    var rows = [
+      ["盘亏资产原值", cost, "固定资产清理（转出）"],
+      ["已提折旧转销", -dep, "累计折旧（冲减）"],
+      ["盘亏账面净值", nav, "待处理财产损溢"],
+      ["进项税转出", vatout, "应交税费 — 进项税额转出"],
+      ["责任人赔偿", -comp, "其他应收款"],
+      ["保险赔付", -ins, "其他应收款"],
+      ["盘亏净损失", loss, "管理费用 / 营业外支出"],
+      ["盘盈入账（重置价 × 成新率）", gain, "以前年度损益调整（重要差错）"],
+      ["对当期损益净影响", net, "—"]
+    ];
+    var html = "", i;
+    for (i = 0; i < rows.length; i++) {
+      var cls = rows[i][2] === "—" ? ' class="c-info"' : (rows[i][1] < 0 && rows[i][0].indexOf("赔偿") < 0 && rows[i][0].indexOf("赔付") < 0 && rows[i][0].indexOf("折旧") < 0 ? ' class="c-warn"' : "");
+      html += "<tr" + cls + "><td>" + rows[i][0] + "</td><td>" + money(rows[i][1]) + "</td><td>" + rows[i][2] + "</td></tr>";
+    }
+    $("ad-body").innerHTML = html;
+
+    $("ad-note").textContent =
+      " 盘亏按「账面净值 + 不得抵扣的进项税 − 可收回的赔偿保险 = 净损失」入账；盘盈按「重置完全价值 × 成新率」入账，实务上作为前期差错更正（重要）调整留存收益，金额小的直接冲管理费用。" +
+      " 本次盘亏账面净值 " + money(nav) + " 元、进项转出 " + money(vatout) + " 元，扣掉赔偿保险 " + money(rec) + " 元后净损失 " + money(loss) + " 元；盘盈 " + money(gain) + " 元，两边相抵对当期损益影响 " + (net >= 0 ? "+" : "") + money(net) + " 元。" +
+      " 三个容易错的地方：① 只有管理不善造成的被盗、霉烂变质才转出进项税，正常报废和自然灾害不用转；② 税前扣除要留存盘点表、审批单、责任认定、赔偿协议，做资产损失专项申报，否则汇算要调增；③ 盘盈要交企业所得税，增值税上属于「自查发现」不视同销售。";
+  }
+
+  /* ---------------- 月度关账进度 ---------------- */
+  function calcMonthClose() {
+    var total = Math.max(1, num($("mw-total"), 1));
+    var done = Math.max(0, Math.min(total, num($("mw-done"), 0)));
+    var key = Math.max(0, num($("mw-key"), 0));
+    var days = Math.max(0, num($("mw-days"), 0));
+    var per = Math.max(0.01, num($("mw-per"), 0.35));
+    var people = Math.max(1, num($("mw-people"), 1));
+
+    var left = total - done;
+    var hours = left * per;
+    var need = hours / people;
+    var slip = days - need;
+    var pctDone = done / total;
+
+    $("mw-pct").textContent = pct(pctDone);
+    $("mw-left").textContent = left + " 项 / 关键 " + key + " 项";
+    $("mw-hours").textContent = fmt(hours, 2) + " 人日";
+    $("mw-need").textContent = fmt(need, 2) + " 天（" + people + " 人并行）";
+    $("mw-slip").textContent = fmt(slip, 2) + " 天";
+
+    var risk, verdict;
+    if (key > 0 && slip < 0) { risk = "高：关键项没做完，且时间不够"; verdict = "把关键项先挑出来专人盯，其余延后或简化"; }
+    else if (key > 0) { risk = "中：时间够，但关键项还在手上"; verdict = "关键项今天必须动，别留到最后一天"; }
+    else if (slip < 0) { risk = "中：没有关键项，但时间不够"; verdict = "加人或者把非关键项放到下月补"; }
+    else { risk = "低：按计划能完成"; verdict = "按清单顺序推进即可"; }
+    $("mw-risk").textContent = risk;
+    $("mw-verdict").textContent = verdict;
+
+    var html = "", d, needP, ok;
+    for (d = 1; d <= 5; d++) {
+      needP = Math.ceil(hours / d);
+      ok = d >= Math.min(days, 99) && needP <= people * 2 ? "能" : (needP <= people ? "能" : "人手不够");
+      html += "<tr" + (ok === "能" ? "" : ' class="c-warn"') + "><td>" + d + " 天</td><td>" + needP + " 人</td><td>" + ok + "</td></tr>";
+    }
+    $("mw-body").innerHTML = html;
+
+    $("mw-note").textContent =
+      " 关账不是「做完 24 件事」，而是「在截止日前把关报表的那几件做完」。当前完成 " + done + "/" + total + "，" + pct(pctDone) + "，剩 " + left + " 项共 " + fmt(hours, 2) +
+      " 人日，按 " + people + " 人并行要 " + fmt(need, 2) + " 天，距截止 " + fmt(days, 0) + " 天" + (slip >= 0 ? "，还有 " + fmt(slip, 2) + " 天空余。" : "，已经来不及 " + fmt(-slip, 2) + " 天。") +
+      " 关账必做的五项：存货暂估与出入库截止、折旧摊销计提、往来对账与坏账计提、税金计提（增值税/附加/所得税）、收入成本截止测试（跨期单据）。" +
+      " 想快就三招：把能自动化的（折旧、摊销、税金）固化成模板；能提前的（对账、暂估）月中就开始；实在不行先出「初版报表」标注待调整项，别为了完美误了申报期。";
+  }
+
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
@@ -4438,7 +4632,8 @@
     triplede: calcTripleDe, multimargin: calcMultiMargin, apterms: calcApTerms, assetledger: calcAssetLedger,
     payage: calcPayAge, costcard: calcCostCard, budgetvar: calcBudgetVar, finreport: calcFinReport,
     invoice: calcInvoice, expbudget: calcExpBudget, efficiency: calcEfficiency, cashstmt: calcCashStmt,
-    invstock: calcInvStock, exportrebate: calcExport, tieout: calcTieOut, feetrend: calcFeeTrend
+    invstock: calcInvStock, exportrebate: calcExport, tieout: calcTieOut, feetrend: calcFeeTrend,
+    mpbe: calcMpbe, payroll: calcPayroll, assetdiff: calcAssetDiff, monthclose: calcMonthClose
   };
 
   function setCat(cat) {
@@ -4576,9 +4771,13 @@
     "sk-beg", "sk-end", "sk-cogs", "sk-a1", "sk-a2", "sk-a3", "sk-a4", "sk-r3", "sk-r4", "sk-days",
     "er-exp", "er-vat", "er-reb", "er-dom", "er-in", "er-carry",
     "tie-a", "tie-b", "tie-c", "tie-d", "tie-e", "tie-f",
-    "tr-r1", "tr-f1", "tr-r2", "tr-f2", "tr-r3", "tr-f3", "tr-r4", "tr-f4", "tr-r5", "tr-f5", "tr-r6", "tr-f6"
+    "tr-r1", "tr-f1", "tr-r2", "tr-f2", "tr-r3", "tr-f3", "tr-r4", "tr-f4", "tr-r5", "tr-f5", "tr-r6", "tr-f6",
+    "mb-fc", "mb-p1", "mb-v1", "mb-q1", "mb-p2", "mb-v2", "mb-q2", "mb-p3", "mb-v3", "mb-q3", "mb-target",
+    "pc-gross", "pc-si", "pc-hf", "pc-tax", "pc-other", "pc-act", "pc-tax2", "pc-cosi", "pc-cohf", "pc-rev", "pc-head",
+    "ad-cost", "ad-dep", "ad-rv", "ad-cd", "ad-comp", "ad-ins", "ad-vat", "ad-tr",
+    "mw-total", "mw-done", "mw-key", "mw-days", "mw-per", "mw-people"
   ];
-  var KEY = "finance-calc-v21";
+  var KEY = "finance-calc-v22";
   var CAT_KEY = "finance-calc-cat";
 
   /* ---------------- 现金流月历 ---------------- */
