@@ -8050,6 +8050,106 @@
       + "增值税 6% 在现代服务业，接收方不能抵扣（如用于简易计税、免税项目）时，" + money(vat) + " 元就是净成本。";
   }
 
+  function calcAccrual() {
+    var rent = num($("acr-rent"), 0), mon = Math.min(12, Math.max(0, num($("acr-mon"), 0)));
+    var ins = num($("acr-ins"), 0), nf = num($("acr-nofpiao"), 0);
+    var tax = num($("acr-tax"), 0) / 100, get = $("acr-get").value === "1";
+    var rNow = rent * mon / 12, rNext = rent - rNow;
+    var iNow = ins * mon / 12, iNext = ins - iNow;
+    var bal = rNext + iNext + nf;
+    var taxOut = get ? 0 : nf * tax;
+    $("acr-big").textContent = money(bal);
+    $("acr-rentout").textContent = money(rNow) + " / " + money(rNext) + " 元";
+    $("acr-insout").textContent = money(iNow) + " / " + money(iNext) + " 元";
+    $("acr-nf").textContent = money(nf) + " 元";
+    $("acr-taxout").textContent = get
+      ? "汇算清缴前补齐发票，全额扣除，无需调增"
+      : "逾期未取得发票，调增 " + money(nf) + "，补税 " + money(taxOut) + " 元";
+    $("acr-monout").textContent = money((rent + ins) / 12) + " 元";
+    $("acr-ratio").textContent = nf > 0 ? pct((rNext + iNext) / (rNext + iNext + nf), 1) : "—";
+    $("acr-note").textContent = "跨期费用的核心是「归属期」，不是「付款期」：预付的房租、保险、年费要先挂「预付账款/长期待摊费用」，"
+      + "再按月摊进损益；反过来，已经发生但没付款、没取票的费用要预提，否则本年利润虚高。"
+      + "税务上有个关键时间窗：汇算清缴申报截止日（次年 5 月 31 日）前取得发票，当年就能扣；"
+      + "逾期未取得的必须调增，以后年度取得时再追补扣除（追补期限一般 5 年）。"
+      + "本模块算出的待摊＋预提余额 " + money(bal) + " 元是资产负债表日的挂账数，"
+      + "要和明细台账逐项对上，年底最容易出的差错就是「摊多了没冲平」或「预提跨年忘了冲回」。";
+  }
+
+  function calcCfConsol() {
+    var poa = num($("cfc-poa"), 0), soa = num($("cfc-soa"), 0);
+    var poi = num($("cfc-poi"), 0), soi = num($("cfc-soi"), 0);
+    var pof = num($("cfc-pof"), 0), sof = num($("cfc-sof"), 0);
+    var iin = num($("cfc-in"), 0), iinv = num($("cfc-inv"), 0);
+    var raw = poa + soa + poi + soi + pof + sof;
+    var oa = poa + soa - iin;
+    var oi = poi + soi + iinv;
+    var of = pof + sof - iinv;
+    var net = oa + oi + of;
+    $("cfc-big").textContent = money(net);
+    $("cfc-raw").textContent = money(raw) + " 元";
+    $("cfc-oa").textContent = money(oa) + " 元";
+    $("cfc-oi").textContent = money(oi) + " 元";
+    $("cfc-of").textContent = money(of) + " 元";
+    $("cfc-eff").textContent = money(net - raw) + " 元（内部收现 " + money(iin) + " ＋ 投资抵销 " + money(iinv) + " 的两头）";
+    $("cfc-tie").textContent = "合并净增加 " + money(net) + " 应与「期末货币资金 − 期初货币资金（剔除汇率影响）」相等";
+    $("cfc-note").textContent = "合并现金流量表不是把几张表加总，要抵三类内部交易：① 内部销售——卖方记「销售商品收到的现金」、"
+      + "买方记「购买商品支付的现金」，抵掉后集团对外的现金流才不被虚增；"
+      + "② 母公司对子公司的投资——在母公司是投资流出、在子公司是吸收投资流入，必须两头同时抵销，"
+      + "否则净增加额虽然不变但结构全乱；③ 内部借款与利息、内部股利分配同理。"
+      + "容易漏的是跨期的：本期内部销售、下期才付款的，抵销要看现金流实际发生期间，"
+      + "以及子公司少数股东部分不抵销。最后一定做勾稽：合并现金净增加额 = 合并资产负债表货币资金的变动"
+      + "（有外币的要剔汇率变动影响），这里对不上，八成是抵销做错了或受限资金没剔。";
+  }
+
+  function calcExportCheck() {
+    var usd = num($("exc-usd"), 0), fx = num($("exc-fx"), 0);
+    var inv = num($("exc-inv"), 0), rec = num($("exc-rec"), 0);
+    var rate = num($("exc-rate"), 0) / 100, credit = num($("exc-credit"), 0);
+    var cny = usd * fx;
+    var diff = inv - cny;
+    var recRate = usd > 0 ? rec / usd : 0;
+    var rebate = cny * rate;
+    var refund = Math.min(rebate, credit);
+    var free = rebate - refund;
+    var gap = cny * (0.13 - rate);
+    $("exc-big").textContent = money(refund);
+    $("exc-cny").textContent = money(cny) + " 元";
+    $("exc-diff").textContent = money(diff) + " 元（" + pct(cny > 0 ? diff / cny : 0, 2) + "）" + (Math.abs(cny > 0 ? diff / cny : 0) > 0.05 ? "，超 5% 需书面说明" : "");
+    $("exc-recrate").textContent = pct(recRate, 2) + (recRate < 1 ? "（未收汇 " + money((usd - rec) * fx) + " 元）" : "（已全额收汇）");
+    $("exc-rebate").textContent = money(rebate) + " 元（" + money(cny) + " × " + pct(rate, 0) + "）";
+    $("exc-free").textContent = money(free) + " 元（留抵不足，抵减内销应纳税额）";
+    $("exc-gap").textContent = money(gap) + " 元（征 13% − 退 " + pct(rate, 0) + "，转入成本）";
+    $("exc-note").textContent = "免抵退的三单要能对上：报关单（出口额）、出口发票（人民币金额）、收汇水单。"
+      + "发票和报关单的差异最好控制在 5% 以内（汇率、运保费口径不同会有小额差），超了要能拿出说明；"
+      + "收汇是退税的隐性条件，超过规定期限未收汇、且不符合视同收汇情形的，已退税款可能被追回。"
+      + "退税额取「免抵退税额」与「期末留抵」的较小者：留抵大就全退，留抵小则差额变成免抵额去抵内销应纳税额。"
+      + "征退税率之差（13% − 退税率）不能退，要转进成本，做报价时就得把它算进毛利里。"
+      + "单证不齐、逾期不申报的出口货物，按规定要视同内销征税，这是外贸企业最常见的补税点。";
+  }
+
+  function calcVatCheck() {
+    var outp = num($("vchk-out"), 0), invp = num($("vchk-inv"), 0), noinv = num($("vchk-noinv"), 0);
+    var inp = num($("vchk-in"), 0), cert = num($("vchk-cert"), 0), tr = num($("vchk-tr"), 0);
+    var dOut = invp + noinv, dIn = cert - tr;
+    var od = outp - dOut, idf = inp - dIn;
+    var due = dOut - dIn;
+    var tot = Math.abs(od) + Math.abs(idf);
+    var risk = tot === 0 ? "账表一致" : (tot > Math.abs(dOut) * 0.05 ? "差异偏大，需逐笔调节" : "小额差异，编制调节表说明");
+    $("vchk-big").textContent = money(due);
+    $("vchk-outp").textContent = money(dOut) + " 元（开票 " + money(invp) + " ＋ 未开票 " + money(noinv) + "）";
+    $("vchk-outdiff").textContent = money(od) + " 元" + (od < 0 ? "（账面少于申报，可能少计收入）" : "（账面多于申报，可能多计或未开票未申报）");
+    $("vchk-inp").textContent = money(dIn) + " 元（认证 " + money(cert) + " − 转出 " + money(tr) + "）";
+    $("vchk-indiff").textContent = money(idf) + " 元" + (idf > 0 ? "（账面多，可能有未认证或未取得专票）" : "（账面少，可能重复抵扣或跨期）");
+    $("vchk-total").textContent = money(tot) + " 元";
+    $("vchk-risk").textContent = risk;
+    $("vchk-note").textContent = "申报表和账面的差异不可能为零，关键是每一笔都能说出原因，并留下调节表。"
+      + "销项侧常见差异：开了票未确认收入（预收）、确认收入未开票（要填「未开具发票」栏，否则下期冲回很麻烦）、"
+      + "视同销售没申报（赠品、自用、职工福利）、价外费用漏计（违约金、延期付款利息）。"
+      + "进项侧常见差异：专票未认证、认证了但属于不得抵扣项目没转出、旅客运输与农产品计算抵扣漏填、"
+      + "红字发票冲减滞后。差异超过销项 5% 就属于金税系统容易预警的区间，"
+      + "建议每月固定做这张勾稽表，和开票系统、认证平台、账面三个口径一起对。";
+  }
+
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
@@ -8092,6 +8192,7 @@
     processcost: calcProcessCost, makeoroutsource: calcMakeOrOutsource, rebatedta: calcRebateDTA, leasebuy: calcLeaseBuy,
     welfare: calcWelfare, inputout: calcInputOut, stampduty: calcStampDuty, assetdisp: calcAssetDisp,
     headcount: calcHeadcount, markroi: calcMarkRoi, rdproject: calcRdProject, intsvc: calcIntSvc,
+    accrual: calcAccrual, cfconsol: calcCfConsol, exportcheck: calcExportCheck, vatcheck: calcVatCheck,
     salesallow: calcSalesAllow, lease: calcLease, gpmix: calcGpmix, vatchoose: calcVatChoose,
     datemath: calcDatemath, pct3: calcPct3, xlhelp: calcXlHelp, csvrecon: calcCsvRecon,
     contractperf: calcContractPerf, projrev: calcProjRev, creditpolicy: calcCreditPolicy, rateadj: calcRateAdj
@@ -8351,9 +8452,13 @@
     "hc-vol", "hc-grow", "hc-eff", "hc-now", "hc-cost", "hc-turn", "hc-hire",
     "mroi-spend", "mroi-new", "mroi-aov", "mroi-gm", "mroi-rep", "mroi-life",
     "rdp-budget", "rdp-mat", "rdp-ext", "rdp-hours", "rdp-rate", "rdp-oh", "rdp-mon",
-    "isv-cost", "isv-mark", "isv-low", "isv-high", "isv-ta", "isv-tb"
+    "isv-cost", "isv-mark", "isv-low", "isv-high", "isv-ta", "isv-tb",
+    "acr-rent", "acr-mon", "acr-ins", "acr-nofpiao", "acr-tax", "acr-get",
+    "cfc-poa", "cfc-soa", "cfc-poi", "cfc-soi", "cfc-pof", "cfc-sof", "cfc-in", "cfc-inv",
+    "exc-usd", "exc-fx", "exc-inv", "exc-rec", "exc-rate", "exc-credit",
+    "vchk-out", "vchk-inv", "vchk-noinv", "vchk-in", "vchk-cert", "vchk-tr"
 ];
-  var KEY = "finance-calc-v41";
+  var KEY = "finance-calc-v42";
   var CAT_KEY = "finance-calc-cat";
 
   /* ---------------- 现金流月历 ---------------- */
