@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>财务计算器 · 存款 贷款 提前还款 退休金 到手工资 二手房税费</title>
-<meta name="description" content="免费的财务计算器（23 个模块）：存款利息、贷款月供与还款计划、组合贷、提前还款省息、复利与定投、攒钱目标、分期真实年化、年化收益、通胀购买力、个税与到手工资、租房还是买房、信用卡循环利息、汇率与单位换算、公积金可贷额度、利率调整后月供、二手房交易税费、AA 分摊、退休金测算、卖房换房、公积金月冲年冲、多币种折算。纯前端计算，不联网、不上传数据。">
+<title>财务计算器 · 存款 贷款 提前还款 退休金 教育金 保险保额</title>
+<meta name="description" content="免费的财务计算器（27 个模块）：存款利息、贷款月供与还款计划、组合贷、提前还款省息、复利与定投、攒钱目标、分期真实年化、年化收益、通胀购买力、个税与到手工资、租房还是买房、信用卡循环利息、汇率与单位换算、公积金可贷额度、利率调整后月供、二手房交易税费、AA 分摊、退休金测算、卖房换房、公积金月冲年冲、多币种折算、提前还款 vs 理财、教育金、保险保额、买车 vs 打车。纯前端计算，不联网、不上传数据。">
 <meta name="theme-color" content="#1e3a8a">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231e3a8a'/%3E%3Ctext x='16' y='23' font-size='17' text-anchor='middle' fill='%23fff' font-family='sans-serif'%3E%C2%A5%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="./style.css">
@@ -17,7 +17,7 @@
       <span class="mark">¥</span>
       <div>
         <h1>财务计算器</h1>
-        <p>存款 · 贷款 · 组合贷 · 提前还款 · 复利 · 攒钱 · 分期 · 个税 · 到手工资 · 退休金 · 租买 · 信用卡 · 公积金 · 房贷重定价 · 换房 · AA · 多币种</p>
+        <p>存款 · 贷款 · 提前还款 · 复利 · 攒钱 · 分期 · 个税 · 到手工资 · 退休金 · 教育金 · 保险 · 租买 · 信用卡 · 公积金 · 换房 · AA · 多币种 · 养车</p>
       </div>
     </div>
     <nav class="tabs" id="tabs" role="tablist">
@@ -44,6 +44,10 @@
       <button class="tab" data-tab="sell" role="tab">卖房换房</button>
       <button class="tab" data-tab="offset" role="tab">公积金对冲</button>
       <button class="tab" data-tab="multi" role="tab">多币种折算</button>
+      <button class="tab" data-tab="repayvs" role="tab">提前还款 vs 理财</button>
+      <button class="tab" data-tab="edu" role="tab">教育金</button>
+      <button class="tab" data-tab="insure" role="tab">保险保额</button>
+      <button class="tab" data-tab="car" role="tab">买车 vs 打车</button>
     </nav>
   </div>
 </header>
@@ -1352,6 +1356,237 @@
           <li><span>银行卖出价上浮 0.4% 后</span><b id="mc-spread">—</b></li>
         </ul>
         <p class="hint" id="mc-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-repayvs">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f">
+          <span>剩余贷款本金（元）</span>
+          <input id="rv-principal" type="number" inputmode="decimal" min="0" step="10000" value="800000">
+        </label>
+        <label class="f">
+          <span>贷款利率（年，%）</span>
+          <input id="rv-rate" type="number" inputmode="decimal" min="0" step="0.05" value="3.9">
+        </label>
+        <label class="f">
+          <span>剩余还款期数（月）</span>
+          <input id="rv-months" type="number" inputmode="numeric" min="1" step="12" value="240">
+        </label>
+        <label class="f">
+          <span>手里可用于提前还款的钱（元）</span>
+          <input id="rv-cash" type="number" inputmode="decimal" min="0" step="10000" value="200000">
+        </label>
+        <label class="f">
+          <span>理财年化收益率（%）</span>
+          <input id="rv-invest" type="number" inputmode="decimal" min="0" step="0.1" value="3">
+        </label>
+        <label class="f">
+          <span>比较年限（年）</span>
+          <input id="rv-years" type="number" inputmode="numeric" min="1" max="30" step="1" value="10">
+        </label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big">
+          <span class="k">提前还款多出的净资产</span>
+          <strong id="rv-diff">—</strong>
+          <span class="unit">元</span>
+        </div>
+        <ul class="kv">
+          <li><span>现在月供</span><b id="rv-pay0">—</b></li>
+          <li><span>提前还后月供（期限不变）</span><b id="rv-pay1">—</b></li>
+          <li><span>每月少还（拿去理财）</span><b id="rv-avg">—</b></li>
+          <li><span>方案A：闲钱理财终值</span><b id="rv-fa">—</b></li>
+          <li><span>方案A：期末仍欠本金</span><b id="rv-sa">—</b></li>
+          <li><span>方案B：每月少还的钱定投终值</span><b id="rv-fb">—</b></li>
+          <li><span>方案B：期末仍欠本金</span><b id="rv-sb">—</b></li>
+          <li><span>方案A 期末净资产（理财 − 欠款）</span><b id="rv-na">—</b></li>
+          <li><span>方案B 期末净资产（定投 − 欠款）</span><b id="rv-nb">—</b></li>
+          <li><span>结论</span><b id="rv-verdict">—</b></li>
+        </ul>
+        <p class="hint" id="rv-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-edu">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f">
+          <span>孩子现在几岁</span>
+          <input id="ed-age" type="number" inputmode="numeric" min="0" max="17" step="1" value="3">
+        </label>
+        <label class="f">
+          <span>计划上大学年龄</span>
+          <input id="ed-go" type="number" inputmode="numeric" min="15" max="25" step="1" value="18">
+        </label>
+        <label class="f">
+          <span>现在每年学费+生活费（元）</span>
+          <input id="ed-cur" type="number" inputmode="decimal" min="0" step="1000" value="30000">
+        </label>
+        <label class="f">
+          <span>教育费用年涨幅（%）</span>
+          <input id="ed-infl" type="number" inputmode="decimal" min="0" step="0.5" value="3">
+        </label>
+        <label class="f">
+          <span>已经存了多少（元）</span>
+          <input id="ed-have" type="number" inputmode="decimal" min="0" step="5000" value="50000">
+        </label>
+        <label class="f">
+          <span>这笔钱理财年化（%）</span>
+          <input id="ed-rate" type="number" inputmode="decimal" min="0" step="0.1" value="3">
+        </label>
+        <label class="f">
+          <span>现在每月能存（元）</span>
+          <input id="ed-monthly" type="number" inputmode="decimal" min="0" step="500" value="2000">
+        </label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big">
+          <span class="k">上大学时 4 年总花费</span>
+          <strong id="ed-total">—</strong>
+          <span class="unit">元</span>
+        </div>
+        <ul class="kv">
+          <li><span>距离上大学还有</span><b id="ed-years">—</b></li>
+          <li><span>届时第一年费用</span><b id="ed-first">—</b></li>
+          <li><span>已有存款届时变成</span><b id="ed-havefv">—</b></li>
+          <li><span>缺口（只算已有存款）</span><b id="ed-gap">—</b></li>
+          <li><span>按现在每月存能攒到</span><b id="ed-plan">—</b></li>
+          <li><span>要补上缺口每月得存</span><b id="ed-needm">—</b></li>
+          <li><span>缺口平摊到每个月</span><b id="ed-gapm">—</b></li>
+        </ul>
+        <p class="hint" id="ed-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-insure">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f">
+          <span>家庭年收入（元）</span>
+          <input id="in-income" type="number" inputmode="decimal" min="0" step="10000" value="300000">
+        </label>
+        <label class="f">
+          <span>家庭年支出（元）</span>
+          <input id="in-expense" type="number" inputmode="decimal" min="0" step="10000" value="120000">
+        </label>
+        <label class="f">
+          <span>负债余额（房贷车贷等，元）</span>
+          <input id="in-debt" type="number" inputmode="decimal" min="0" step="10000" value="800000">
+        </label>
+        <label class="f">
+          <span>子女教育金需求（元）</span>
+          <input id="in-edu" type="number" inputmode="decimal" min="0" step="10000" value="500000">
+        </label>
+        <label class="f">
+          <span>可变现资产（元）</span>
+          <input id="in-assets" type="number" inputmode="decimal" min="0" step="10000" value="300000">
+        </label>
+        <label class="f">
+          <span>已有寿险保额（元）</span>
+          <input id="in-have" type="number" inputmode="decimal" min="0" step="10000" value="0">
+        </label>
+        <label class="f">
+          <span>生活费按几年算</span>
+          <input id="in-years" type="number" inputmode="numeric" min="1" max="30" step="1" value="10">
+        </label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big">
+          <span class="k">建议寿险保额</span>
+          <strong id="in-need">—</strong>
+          <span class="unit">元</span>
+        </div>
+        <ul class="kv">
+          <li><span>家庭责任法</span><b id="in-need1">—</b></li>
+          <li><span>收入倍数法（10 倍年收入）</span><b id="in-need2">—</b></li>
+          <li><span>还差多少保额</span><b id="in-gap">—</b></li>
+          <li><span>重疾险建议（3 倍年收入）</span><b id="in-ci3">—</b></li>
+          <li><span>重疾险建议（5 倍年收入）</span><b id="in-ci5">—</b></li>
+          <li><span>意外险建议（10 倍年收入）</span><b id="in-acc">—</b></li>
+          <li><span>年保费预算（收入 5%–10%）</span><b id="in-prem">—</b></li>
+        </ul>
+        <p class="hint" id="in-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-car">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f">
+          <span>车价（元，含购置税等落地价差可另计）</span>
+          <input id="cr-price" type="number" inputmode="decimal" min="0" step="10000" value="150000">
+        </label>
+        <label class="f">
+          <span>计划开几年</span>
+          <input id="cr-years" type="number" inputmode="numeric" min="1" max="20" step="1" value="8">
+        </label>
+        <label class="f">
+          <span>届时残值率（%）</span>
+          <input id="cr-residual" type="number" inputmode="decimal" min="0" max="100" step="5" value="30">
+        </label>
+        <label class="f">
+          <span>每年行驶（公里）</span>
+          <input id="cr-km" type="number" inputmode="decimal" min="0" step="1000" value="15000">
+        </label>
+        <label class="f">
+          <span>综合油耗（L/100km）</span>
+          <input id="cr-fc" type="number" inputmode="decimal" min="0" step="0.5" value="8">
+        </label>
+        <label class="f">
+          <span>油价（元/升）</span>
+          <input id="cr-oil" type="number" inputmode="decimal" min="0" step="0.1" value="8">
+        </label>
+        <label class="f">
+          <span>保险（元/年）</span>
+          <input id="cr-ins" type="number" inputmode="decimal" min="0" step="500" value="5000">
+        </label>
+        <label class="f">
+          <span>保养维修（元/年）</span>
+          <input id="cr-maint" type="number" inputmode="decimal" min="0" step="500" value="2000">
+        </label>
+        <label class="f">
+          <span>停车洗车过路（元/年）</span>
+          <input id="cr-park" type="number" inputmode="decimal" min="0" step="500" value="3600">
+        </label>
+        <label class="f">
+          <span>打车折算单价（元/公里）</span>
+          <input id="cr-taxi" type="number" inputmode="decimal" min="0" step="0.1" value="2.4">
+        </label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big">
+          <span class="k">养车每年总成本</span>
+          <strong id="cr-total">—</strong>
+          <span class="unit">元</span>
+        </div>
+        <ul class="kv">
+          <li><span>每年折旧</span><b id="cr-dep">—</b></li>
+          <li><span>每年油费</span><b id="cr-fuel">—</b></li>
+          <li><span>保险+保养+停车</span><b id="cr-fixed">—</b></li>
+          <li><span>每公里成本</span><b id="cr-perkm">—</b></li>
+          <li><span>同等里程打车每年</span><b id="cr-taxi-year">—</b></li>
+          <li><span>打车 − 养车</span><b id="cr-diff">—</b></li>
+          <li><span>持有期内总花费</span><b id="cr-life">—</b></li>
+        </ul>
+        <p class="hint" id="cr-note"></p>
       </div>
     </div>
   </section>

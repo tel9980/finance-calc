@@ -1217,13 +1217,184 @@
       + " 另外个人年度便利化额度是每人每年等值 5 万美元，超过要提供真实用途凭证。";
   }
 
+  /* ================= 提前还款 vs 理财 ================= */
+  function leftAfter(P, i, pay, m) {
+    var x = P;
+    for (var k = 0; k < m; k++) { x = x * (1 + i) - pay; if (x <= 0) return 0; }
+    return x;
+  }
+
+  function calcRepayVs() {
+    var P = Math.max(0, num($("rv-principal"), 0));
+    var rate = Math.max(0, num($("rv-rate"), 0)) / 100;
+    var n = Math.max(1, Math.min(600, Math.round(num($("rv-months"), 240))));
+    var cash = Math.max(0, num($("rv-cash"), 0));
+    var inv = Math.max(0, num($("rv-invest"), 0)) / 100;
+    var yrs = Math.max(1, Math.min(30, Math.round(num($("rv-years"), 10))));
+    var N = Math.min(yrs * 12, n);
+    var r = rate / 12, im = inv / 12;
+
+    var pay0 = annuityPayment(P, r, n);
+    var P1 = Math.max(0, P - cash);
+    var leftover = Math.max(0, cash - P);       // 一次还清后剩下的钱
+    var pay1 = annuityPayment(P1, r, n);
+    var d = pay0 - pay1;
+    var SA = leftAfter(P, r, pay0, N);
+    var SB = leftAfter(P1, r, pay1, N);
+    var FA = cash * Math.pow(1 + im, N);
+    var FB = (im > 0 ? d * (Math.pow(1 + im, N) - 1) / im : d * N) + leftover * Math.pow(1 + im, N);
+    var NA = FA - SA;          // 方案A：不提前还 → 理财终值 减 仍欠本金
+    var NB = FB - SB;          // 方案B：提前还 → 少还的钱定投终值 减 仍欠本金
+    var diff = NB - NA;
+
+    $("rv-pay0").textContent = yuan(pay0) + " / 月";
+    $("rv-pay1").textContent = yuan(pay1) + " / 月";
+    $("rv-avg").textContent = yuan(d) + " / 月";
+    $("rv-fa").textContent = yuan(FA);
+    $("rv-sa").textContent = yuan(SA);
+    $("rv-fb").textContent = yuan(FB);
+    $("rv-sb").textContent = yuan(SB);
+    $("rv-na").textContent = yuan(NA);
+    $("rv-nb").textContent = yuan(NB);
+    $("rv-diff").textContent = money(Math.abs(diff));
+    $("rv-verdict").textContent = diff > 0 ? "提前还款更划算" : diff < 0 ? "拿钱去理财更划算" : "两者打平";
+
+    $("rv-note").textContent = "比的是 " + yrs + " 年后谁的家底更厚，两种方案都扣掉「那时还欠银行的钱」再比："
+      + " A 方案把 " + money(cash) + " 元拿去买 " + pct(inv, 2) + " 的理财，月供照旧 → " + money(FA) + " − 仍欠 " + money(SA) + " = " + money(NA) + "；"
+      + " B 方案先还 " + money(cash) + "，月供从 " + money(pay0) + " 降到 " + money(pay1) + "，每月省下的 " + money(d) + " 元也去买同样的理财 → " + money(FB) + " − 仍欠 " + money(SB) + " = " + money(NB) + "。"
+      + " 结论：" + (diff > 0
+        ? "提前还款赢 " + money(diff) + " 元，因为贷款利率 " + pct(rate, 2) + " 高于你的理财收益 " + pct(inv, 2) + "——相当于一笔无风险套利。"
+        : "理财赢 " + money(-diff) + " 元，因为你的理财收益 " + pct(inv, 2) + " 高于贷款利率 " + pct(rate, 2) + "，钱留在手里更值。")
+      + " 判断口诀：拿贷款利率和「你能稳定拿到的税后理财收益率」比，前者高就还、后者高就投。"
+      + " 别忘了三点：一是提前还款可能收违约金或限次数；二是还完就没这笔流动性了，家里要留 6 个月开支的应急钱；"
+      + "三是房贷利息还能抵扣个税（住房贷款利息专项附加扣除每月 1000 元额度），全部还清后这项扣除也就没了。";
+  }
+
+  /* ================= 教育金 ================= */
+  function calcEdu() {
+    var age = Math.max(0, Math.min(17, num($("ed-age"), 3)));
+    var go = Math.max(15, Math.min(25, num($("ed-go"), 18)));
+    var cur = Math.max(0, num($("ed-cur"), 0));
+    var infl = Math.max(0, num($("ed-infl"), 3)) / 100;
+    var have = Math.max(0, num($("ed-have"), 0));
+    var rate = Math.max(0, num($("ed-rate"), 3)) / 100;
+    var monthly = Math.max(0, num($("ed-monthly"), 0));
+    var k = Math.max(0, go - age);
+
+    var first = cur * Math.pow(1 + infl, k);
+    var total = 0;
+    for (var j = 0; j < 4; j++) total += first * Math.pow(1 + infl, j);
+    var haveFV = have * Math.pow(1 + rate, k);
+    var gap = total - haveFV;
+    var im = rate / 12, N = Math.round(k * 12);
+    var fac = im > 0 ? (Math.pow(1 + im, N) - 1) / im : N;
+    var plan = monthly * fac + haveFV;
+    var needM = plan >= total ? 0 : (gap > 0 ? gap / fac : 0);
+
+    $("ed-total").textContent = money(total);
+    $("ed-years").textContent = k + " 年（约 " + N + " 个月）";
+    $("ed-first").textContent = yuan(first);
+    $("ed-havefv").textContent = yuan(haveFV);
+    $("ed-gap").textContent = gap > 0 ? yuan(gap) : "无缺口，多出 " + money(-gap) + " 元";
+    $("ed-plan").textContent = yuan(plan);
+    $("ed-needm").textContent = needM > 0 ? yuan(needM) + " / 月" : "现在这样就够了";
+    $("ed-gapm").textContent = (gap > 0 && plan < total) ? yuan(gap / Math.max(1, N)) + " / 月" : "—";
+
+    $("ed-note").textContent = "现在每年 " + money(cur) + " 元，按每年涨 " + pct(infl, 1) + "、还有 " + k + " 年，" + go
+      + " 岁第一年就要 " + money(first) + " 元，4 年合计 " + money(total) + " 元（学费涨幅通常比 CPI 快，一线城市民办/海外更夸张，可用上面的涨幅调整）。"
+      + " 已存的 " + money(have) + " 元按 " + pct(rate, 2) + " 滚 " + k + " 年变成 " + money(haveFV) + " 元。"
+      + (gap > 0
+        ? " 缺口 " + money(gap) + " 元：按现在每月存 " + money(monthly) + " 元，届时能攒到 " + money(plan) + " 元，"
+          + (plan >= total ? "够了。" : "还差 " + money(total - plan) + " 元，每月要再多存 " + money((total - plan) / fac) + " 元。")
+        : " 没有缺口，可以适当降低每月储蓄或提高目标学校档次。")
+      + " 教育金是刚性支出、时间确定，别用股票/权益基金当唯一来源；"
+      + " 期限 5 年内的优先存款/国债/同业存单指数，期限长再考虑债基定投；也可用年金险锁定，但要注意流动性差、前几年退保会亏本。";
+  }
+
+  /* ================= 保险保额 ================= */
+  function calcInsure() {
+    var income = Math.max(0, num($("in-income"), 0));
+    var expense = Math.max(0, num($("in-expense"), 0));
+    var debt = Math.max(0, num($("in-debt"), 0));
+    var eduNeed = Math.max(0, num($("in-edu"), 0));
+    var assets = Math.max(0, num($("in-assets"), 0));
+    var have = Math.max(0, num($("in-have"), 0));
+    var yrs = Math.max(1, Math.min(30, Math.round(num($("in-years"), 10))));
+
+    var need1 = Math.max(0, expense * yrs + debt + eduNeed - assets);
+    var need2 = income * 10;
+    var need = Math.max(need1, need2);
+    var gap = Math.max(0, need - have);
+
+    $("in-need").textContent = money(need);
+    $("in-need1").textContent = yuan(need1) + "（支出×" + yrs + " + 负债 + 教育金 − 资产）";
+    $("in-need2").textContent = yuan(need2);
+    $("in-gap").textContent = gap > 0 ? yuan(gap) : "已覆盖";
+    $("in-ci3").textContent = yuan(income * 3);
+    $("in-ci5").textContent = yuan(income * 5);
+    $("in-acc").textContent = yuan(income * 10);
+    $("in-prem").textContent = yuan(income * 0.05) + " – " + yuan(income * 0.10);
+
+    $("in-note").textContent = "保额不是拍脑袋定的，用两种口径夹一下取大的："
+      + "家庭责任法 = 年支出 " + money(expense) + " × " + yrs + " 年 + 负债 " + money(debt) + " + 子女教育 " + money(eduNeed)
+      + " − 可变现资产 " + money(assets) + " = " + money(need1) + "（意思是人不在了，家人还能维持现有生活并把债还清）；"
+      + "收入倍数法 = 年收入 " + money(income) + " × 10 = " + money(need2) + "。取大值 " + money(need) + "，扣除已有 " + money(have) + "，"
+      + "还差 " + money(gap) + "。"
+      + " 险种优先级：① 百万医疗险（几百块换几百万额度，先给全家配上）；② 定期寿险（家庭经济支柱才需要，保到孩子独立、房贷还完为止，保额就按上面这个数）；"
+      + "③ 重疾险（覆盖 3–5 年收入，因为大病后往往 3–5 年不能正常上班）；④ 意外险（一年几十到几百，杠杆最高）。"
+      + " 理财型/返还型/分红型先别碰——保费贵、保障低，先纯保障把保额做够。"
+      + " 年保费控制在家庭年收入 5%–10%（" + money(income * 0.05) + "–" + money(income * 0.10) + "），超了说明结构有问题；"
+      + "健康告知一定要如实填，这是理赔时最容易踩的坑。";
+  }
+
+  /* ================= 买车 vs 打车 ================= */
+  function calcCar() {
+    var price = Math.max(0, num($("cr-price"), 0));
+    var yrs = Math.max(1, Math.min(20, Math.round(num($("cr-years"), 8))));
+    var resid = Math.min(100, Math.max(0, num($("cr-residual"), 30))) / 100;
+    var km = Math.max(0, num($("cr-km"), 0));
+    var fc = Math.max(0, num($("cr-fc"), 0));
+    var oil = Math.max(0, num($("cr-oil"), 0));
+    var ins = Math.max(0, num($("cr-ins"), 0));
+    var maint = Math.max(0, num($("cr-maint"), 0));
+    var park = Math.max(0, num($("cr-park"), 0));
+    var taxi = Math.max(0, num($("cr-taxi"), 0));
+
+    var dep = (price - price * resid) / yrs;
+    var fuel = km * fc / 100 * oil;
+    var fixed = ins + maint + park;
+    var total = dep + fuel + fixed;
+    var perkm = km > 0 ? total / km : 0;
+    var taxiYear = km * taxi;
+    var diff = taxiYear - total;
+
+    $("cr-total").textContent = money(total);
+    $("cr-dep").textContent = yuan(dep);
+    $("cr-fuel").textContent = yuan(fuel);
+    $("cr-fixed").textContent = yuan(fixed);
+    $("cr-perkm").textContent = km > 0 ? money(perkm) + " 元 / 公里" : "—（填了里程才算）";
+    $("cr-taxi-year").textContent = yuan(taxiYear);
+    $("cr-diff").textContent = (diff >= 0 ? "打车贵 " : "养车贵 ") + money(Math.abs(diff)) + " 元 / 年";
+    $("cr-life").textContent = yuan(total * yrs) + "（" + yrs + " 年）";
+
+    $("cr-note").textContent = "每年真实成本 = 折旧 " + money(dep) + "（" + money(price) + " 元开 " + yrs + " 年、残值 " + pct(resid, 0) + " 卖掉，这是最大的一块，也最容易被忽略）"
+      + " + 油费 " + money(fuel) + "（" + fmt(km, 0) + " 公里 × " + fmt(fc, 1) + "L/100km × " + money(oil) + " 元）"
+      + " + 保险保养停车 " + money(fixed) + " = " + money(total) + " 元，折合 " + money(perkm) + " 元/公里。"
+      + " 同样里程打车要 " + money(taxiYear) + " 元，" + (diff >= 0 ? "打车反而贵 " + money(diff) : "养车贵 " + money(-diff)) + " 元/年。"
+      + " 关键结论：车的大部分成本是「固定」的（折旧、保险、停车），开得越少每公里越贵——"
+      + "年里程低于 8000 公里、又在限行/停车贵的城市，打车+租车通常更划算；年里程过 1.5 万公里、有孩子要接送、常跑郊区，买车才值。"
+      + " 另外别忘了：购置税（燃油车约车价 8.85%）、上牌费、首年保险、贷款利息都没算在这里；"
+      + "电车还有充电/家充桩/电池衰减，油车还有大保养和轮胎。买之前先把这笔账算清，别只看月供。";
+  }
+
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
     annual: calcAnnual, inflation: calcInflation, tax: calcTax, deal: calcDeal,
     salary: calcSalary, rentbuy: calcRentBuy, card: calcCard, fx: calcFx,
     fund: calcFund, lpr: calcLpr, deed: calcDeed, split: calcSplit,
-    pension: calcPension, sell: calcSell, offset: calcOffset, multi: calcMulti
+    pension: calcPension, sell: calcSell, offset: calcOffset, multi: calcMulti,
+    repayvs: calcRepayVs, edu: calcEdu, insure: calcInsure, car: calcCar
   };
 
   function activate(name) {
@@ -1282,9 +1453,13 @@
     "pn-avg", "pn-index", "pn-years", "pn-balance", "pn-age", "pn-expense",
     "sv-price", "sv-loan", "sv-vat", "sv-it", "sv-agent", "sv-other", "sv-new", "sv-down", "sv-rate", "sv-years",
     "of-principal", "of-rate", "of-months", "of-acct", "of-dep", "of-mode",
-    "mc-amount", "mc-cur", "mc-usd", "mc-eur", "mc-jpy", "mc-hkd", "mc-gbp"
+    "mc-amount", "mc-cur", "mc-usd", "mc-eur", "mc-jpy", "mc-hkd", "mc-gbp",
+    "rv-principal", "rv-rate", "rv-months", "rv-cash", "rv-invest", "rv-years",
+    "ed-age", "ed-go", "ed-cur", "ed-infl", "ed-have", "ed-rate", "ed-monthly",
+    "in-income", "in-expense", "in-debt", "in-edu", "in-assets", "in-have", "in-years",
+    "cr-price", "cr-years", "cr-residual", "cr-km", "cr-fc", "cr-oil", "cr-ins", "cr-maint", "cr-park", "cr-taxi"
   ];
-  var KEY = "finance-calc-v6";
+  var KEY = "finance-calc-v7";
 
   function save() {
     try {
