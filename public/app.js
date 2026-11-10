@@ -4813,6 +4813,239 @@
       "已开未收的承兑汇票、已被质押的保证金不算可用现金，别把它们算进期初。";
   }
 
+
+  /* ---------------- 票据贴现成本 ---------------- */
+  function calcBill() {
+    var face = Math.max(0, num($("nt-face"), 0));
+    var days = Math.max(1, Math.round(num($("nt-days"), 180)));
+    var rate = Math.max(0, num($("nt-rate"), 0)) / 100;
+    var openR = Math.max(0, num($("nt-openfee"), 0)) / 100;
+    var marginR = Math.min(100, Math.max(0, num($("nt-margin"), 0))) / 100;
+    var capR = Math.max(0, num($("nt-cap"), 0)) / 100;
+    var loanR = Math.max(0, num($("nt-loan"), 0)) / 100;
+
+    var interest = face * rate * days / 360;
+    var net = face - interest;
+    var openFee = face * openR;
+    var mCost = face * marginR * capR * days / 360;
+    var total = interest + openFee + mCost;
+    var any = face > 0 ? total / face * 360 / days : 0;
+    var loanInt = face * loanR * days / 360;
+    var save = loanInt - total;
+
+    $("nt-net").textContent = money(net) + " 元";
+    $("nt-int").textContent = money(interest) + " 元（按 360 天）";
+    $("nt-real").textContent = net > 0 ? pct(interest / net * 360 / days) : "—";
+    $("nt-ofee").textContent = money(openFee) + " 元";
+    $("nt-mcost").textContent = money(mCost) + " 元";
+    $("nt-total").textContent = money(total) + " 元（占票面 " + pct(face > 0 ? total / face : 0) + "）";
+    $("nt-any").textContent = pct(any);
+    $("nt-loanint").textContent = money(loanInt) + " 元";
+    $("nt-save").textContent = (save >= 0 ? "省 " : "贵 ") + money(Math.abs(save)) + " 元";
+
+    var terms = [30, 60, 90, 180, 270, 360], html = "", i;
+    for (i = 0; i < terms.length; i++) {
+      var d = terms[i];
+      var it = face * rate * d / 360;
+      var t = it + openFee + face * marginR * capR * d / 360;
+      var a = face > 0 ? t / face * 360 / d : 0;
+      html += '<tr class="' + (d === days ? "c-info" : "") + '"><td>' + d + " 天</td><td>" + money(it) + "</td><td>" + money(face - it) +
+        "</td><td>" + pct(a) + "</td></tr>";
+    }
+    $("nt-body").innerHTML = html;
+
+    $("nt-note").textContent =
+      " 票面 " + money(face) + " 元的票据，贴现息 " + money(interest) + "，实际到账 " + money(net) + "，贴现这一段折年化 " + pct(interest / (net || 1) * 360 / days) + "。" +
+      " 但开票环节还有两块成本：手续费 " + money(openFee) + "（按票面、一次性）、保证金 " + money(face * marginR) + " 被银行占着，按你的资金成本折 " + money(mCost) + "。" +
+      " 加上这两块，票据全链条折年化 " + pct(any) + "，和同期借流贷 " + pct(loanR) + " 比" + (save >= 0 ? "省 " + money(save) : "贵 " + money(Math.abs(save))) + " 元。" +
+      " 三个实务点：① 贴现按 360 天计息，别用 365 天算；② 银行承兑汇票信用好、贴现率低，商票贴现率通常高出一大截，还要看开票人资质；" +
+      "③ 保证金比例是隐形成本——30% 保证金意味着你实际只拿到 70% 的钱，却付了 100% 的手续费。" +
+      " 决策口诀：票据成本要比的是「不贴现、等到期的机会成本」或「流贷利率」，不是比票面。";
+  }
+
+  /* ---------------- 贷款真实利率 ---------------- */
+  function calcLoanReal() {
+    var P = Math.max(0, num($("lr-p"), 0));
+    var r = Math.max(0, num($("lr-rate"), 0)) / 100;
+    var n = Math.max(1, Math.round(num($("lr-n"), 12)));
+    var fee = Math.max(0, num($("lr-fee"), 0));
+    var mgR = Math.min(100, Math.max(0, num($("lr-margin"), 0))) / 100;
+    var mgRate = Math.max(0, num($("lr-mrate"), 0)) / 100;
+    var mode = $("lr-mode") ? $("lr-mode").value : "amort";
+
+    var i = r / 12, mg = P * mgR, cash = P - fee - mg;
+    var pay = mode === "amort" ? annuityPayment(P, i, n) : P * i;
+    var cfs = [cash], t;
+    for (t = 1; t <= n; t++) {
+      var out = pay + (mode === "amort" ? 0 : (t === n ? P : 0));
+      if (t === n) out -= mg + mg * mgRate * n / 12;
+      cfs.push(-out);
+    }
+    function npv(rate) {
+      var s = 0, k;
+      for (k = 0; k < cfs.length; k++) s += cfs[k] / Math.pow(1 + rate, k);
+      return s;
+    }
+    var lo = 1e-9, hi = 0.5, mid, g;
+    for (g = 0; g < 200; g++) {
+      mid = (lo + hi) / 2;
+      if (npv(mid) < 0) lo = mid; else hi = mid;
+    }
+    var irrM = (lo + hi) / 2, irrY = irrM * 12;
+    var totalPay = pay * n + (mode === "amort" ? 0 : 0);
+    var grossOut = pay * n + fee + (mg - mg - mg * mgRate * n / 12);
+    var costTotal = pay * n - P + fee - mg * mgRate * n / 12;
+
+    $("lr-real").textContent = pct(irrY);
+    $("lr-nominal").textContent = pct(r);
+    $("lr-gap").textContent = "+" + fmt(irrY * 100 - r * 100, 2) + " 个百分点";
+    $("lr-cash").textContent = money(cash) + " 元";
+    $("lr-use").textContent = P > 0 ? pct(cash / P) : "—";
+    $("lr-pay").textContent = money(pay) + " 元/月" + (mode === "int" ? "（利息，到期另还本 " + money(P) + "）" : "");
+    $("lr-total").textContent = money(totalPay) + " 元";
+    $("lr-cost").textContent = money(costTotal) + " 元";
+
+    var ns = [12, 24, 36], html = "", j;
+    for (j = 0; j < ns.length; j++) {
+      var nn = ns[j];
+      var pp = mode === "amort" ? annuityPayment(P, i, nn) : P * i;
+      var cc = [cash], tt;
+      for (tt = 1; tt <= nn; tt++) {
+        var o2 = pp + (mode === "amort" ? 0 : (tt === nn ? P : 0));
+        if (tt === nn) o2 -= mg + mg * mgRate * nn / 12;
+        cc.push(-o2);
+      }
+      function npv2(rate) { var s = 0, k; for (k = 0; k < cc.length; k++) s += cc[k] / Math.pow(1 + rate, k); return s; }
+      var a = 1e-9, b = 0.5, m2, q;
+      for (q = 0; q < 200; q++) { m2 = (a + b) / 2; if (npv2(m2) < 0) a = m2; else b = m2; }
+      html += '<tr class="' + (nn === n ? "c-info" : "") + '"><td>' + nn + " 期</td><td>" + money(pp) + "</td><td>" + money(pp * nn) + "</td><td>" + pct((a + b) / 2 * 12) + "</td></tr>";
+    }
+    $("lr-body").innerHTML = html;
+
+    $("lr-note").textContent =
+      " 银行报的名义年化 " + pct(r) + "，按现金流折出来的真实年化（IRR）是 " + pct(irrY) + "，差 " + fmt(irrY * 100 - r * 100, 2) + " 个百分点。" +
+      " 差在哪：① 服务费 " + money(fee) + " 从放款里先扣，你实际只拿到 " + money(cash) + "（合同额的 " + pct(P > 0 ? cash / P : 0) + "）；" +
+      "② 保证金 " + money(mg) + " 被占着，到期才退；③ 等额本息每月还本，本金平均只用了一半时间，利息却按全额收。" +
+      " 所以选贷款只看一个数：真实年化 IRR。银行说的「月息 5 厘」「年化 6%」都是名义口径，含费之后往往高 2–4 个点。" +
+      " 想压低真实成本：优先选先息后本（本例先息后本比等额本息低，因为本金用得久）、砍服务费、把保证金挪到不占用的产品上；" +
+      " 期限越长、费越低，真实年化越接近名义值——短期小额过桥贷款的真实成本通常最惊人。";
+  }
+
+  /* ---------------- 催收优先级 ---------------- */
+  function calcCollect() {
+    var rate = Math.max(0, num($("co-rate"), 0)) / 100;
+    var list = [], total = 0, i;
+    for (i = 1; i <= 4; i++) {
+      var a = Math.max(0, num($("co-a" + i), 0));
+      var d = Math.max(0, num($("co-d" + i), 0));
+      list.push({ a: a, d: d, score: a * d });
+      total += a;
+    }
+    var wavg = 0, cost = 0, high = 0, late = 0;
+    for (i = 0; i < list.length; i++) {
+      wavg += list[i].a * list[i].d;
+      cost += list[i].a * rate * list[i].d / 365;
+      if (list[i].d > 180) high += list[i].a;
+      if (list[i].d >= 1095) late++;
+    }
+    wavg = total > 0 ? wavg / total : 0;
+
+    function act(d) {
+      if (d <= 30) return "电话+账单提醒";
+      if (d <= 90) return "书面催款函，暂停新单";
+      if (d <= 180) return "上门面谈，签还款计划";
+      if (d < 1095) return "法务介入，评估起诉";
+      return "时效风险，先取得书面确认";
+    }
+    var sorted = list.slice().sort(function (x, y) { return y.score - x.score; });
+    var html = "", k;
+    for (k = 0; k < list.length; k++) {
+      var r0 = list[k];
+      var rank = sorted.indexOf(r0) + 1;
+      var cls = r0.d > 180 ? "c-bad" : (r0.d > 90 ? "c-warn" : "");
+      html += '<tr class="' + cls + '"><td>客户 ' + String.fromCharCode(65 + k) + "（第 " + rank + " 优先）</td><td>" + money(r0.a) +
+        "</td><td>" + r0.d + " 天</td><td>" + fmt(r0.score / 10000, 1) + " 万·天</td><td>" + act(r0.d) + "</td></tr>";
+    }
+    $("co-body").innerHTML = html;
+
+    $("co-total").textContent = money(total) + " 元";
+    $("co-wavg").textContent = fmt(wavg, 1) + " 天";
+    $("co-cost").textContent = money(cost) + " 元";
+    $("co-high").textContent = money(high) + " 元 / " + pct(total > 0 ? high / total : 0);
+    $("co-limit").textContent = late + " 笔" + (late === 0 ? "（暂无）" : "（必须马上处理）");
+    $("co-first").textContent = sorted[0].a > 0 ? "金额×天数最大那笔：" + money(sorted[0].a) + " 元、" + sorted[0].d + " 天" : "无";
+    $("co-act").textContent = act(sorted[0].d);
+
+    $("co-note").textContent =
+      " 逾期应收 " + money(total) + " 元，加权平均逾期 " + fmt(wavg, 1) + " 天，占着的资金一年值 " + money(cost) + " 元（按 " + pct(rate) + " 算）。" +
+      " 排序逻辑是「金额 × 天数」：大额短逾期和小额长逾期都可能更紧急——前者影响现金流，后者影响能不能收回（拖过 3 年诉讼时效，法院就不支持了）。" +
+      " 超 180 天的 " + money(high) + " 元（" + pct(total > 0 ? high / total : 0) + "）按现行准则要单独评估减值，别再用「都能收回来」的口径做账。" +
+      " 催收的三个硬道理：① 越早越容易收回，回款概率随时间断崖式下降；② 停供是最有效的催收手段——已经发的货要不回来，还没发的可以停；" +
+      "③ 诉讼时效 3 年，中间让对方签一份对账确认单或还款计划就能重新起算，这一步比打电话管用。";
+  }
+
+  /* ---------------- 月度经营数据包 ---------------- */
+  function calcMgmtPack() {
+    var rev = Math.max(0, num($("pk-rev"), 0));
+    var bud = Math.max(0, num($("pk-bud"), 0));
+    var ly = Math.max(0, num($("pk-ly"), 0));
+    var gm = num($("pk-gm"), 0);
+    var net = num($("pk-net"), 0);
+    var ar = Math.max(0, num($("pk-ar"), 0));
+    var inv = Math.max(0, num($("pk-inv"), 0));
+    var cfo = num($("pk-cfo"), 0);
+
+    var ach = bud > 0 ? rev / bud : NaN;
+    var yoy = ly > 0 ? (rev - ly) / ly : NaN;
+    var gmr = rev > 0 ? gm / rev : NaN;
+    var nmr = rev > 0 ? net / rev : NaN;
+    var cogs = rev - gm;
+    var dso = rev > 0 ? ar / rev * 30 : NaN;
+    var dio = cogs > 0 ? inv / cogs * 30 : NaN;
+    var cycle = (isFinite(dso) ? dso : 0) + (isFinite(dio) ? dio : 0);
+
+    $("pk-ach").textContent = isFinite(ach) ? pct(ach) : "—";
+    $("pk-yoy").textContent = isFinite(yoy) ? (yoy >= 0 ? "+" : "") + pct(yoy) : "—";
+    $("pk-margin").textContent = pct(gmr) + " / " + pct(nmr);
+    $("pk-dso").textContent = isFinite(dso) ? fmt(dso, 1) + " 天" : "—";
+    $("pk-dio").textContent = isFinite(dio) ? fmt(dio, 1) + " 天" : "—";
+    $("pk-cycle").textContent = fmt(cycle, 1) + " 天";
+    $("pk-cash").textContent = money(cfo) + " 元 vs 净利 " + money(net) + " 元" + (cfo < net ? "（现金没跟上利润）" : "（现金比利润好）");
+
+    var focus = [];
+    if (isFinite(ach) && ach < 0.95) focus.push("收入没达成，查大单丢在哪");
+    if (isFinite(gmr) && gmr < 0.25) focus.push("毛利率偏低，查降价与成本");
+    if (cfo < 0) focus.push("经营现金流为负，先问应收和存货");
+    if (isFinite(dso) && dso > 60) focus.push("应收账款回款慢（DSO " + fmt(dso, 1) + " 天）");
+    if (isFinite(dio) && dio > 60) focus.push("存货压得多（DIO " + fmt(dio, 1) + " 天）");
+    $("pk-focus").textContent = focus.length ? focus.join("；") : "各项正常，按计划推进";
+
+    var rows = [
+      ["收入达成率", isFinite(ach) ? pct(ach) : "—", "100%", isFinite(ach) && ach >= 1 ? "达成" : "未达成"],
+      ["收入同比", isFinite(yoy) ? pct(yoy) : "—", "正增长", isFinite(yoy) && yoy > 0 ? "增长" : "下滑"],
+      ["毛利率", pct(gmr), "≥ 25%", isFinite(gmr) && gmr >= 0.25 ? "可以" : "偏低"],
+      ["净利率", pct(nmr), "≥ 5%", isFinite(nmr) && nmr >= 0.05 ? "可以" : "偏薄"],
+      ["应收周转天数", isFinite(dso) ? fmt(dso, 1) + " 天" : "—", "≤ 60 天", isFinite(dso) && dso <= 60 ? "正常" : "偏慢"],
+      ["存货周转天数", isFinite(dio) ? fmt(dio, 1) + " 天" : "—", "≤ 60 天", isFinite(dio) && dio <= 60 ? "正常" : "偏慢"],
+      ["经营现金流", money(cfo) + " 元", "≥ 净利润", cfo >= net ? "健康" : "需解释"]
+    ];
+    var html = "", i;
+    for (i = 0; i < rows.length; i++) {
+      var bad = rows[i][3] === "未达成" || rows[i][3] === "下滑" || rows[i][3] === "偏低" || rows[i][3] === "偏薄" || rows[i][3] === "偏慢" || rows[i][3] === "需解释";
+      html += "<tr" + (bad ? ' class="c-warn"' : "") + "><td>" + rows[i][0] + "</td><td>" + rows[i][1] + "</td><td>" + rows[i][2] + "</td><td>" + rows[i][3] + "</td></tr>";
+    }
+    $("pk-body").innerHTML = html;
+
+    $("pk-note").textContent =
+      " 一句话开场：收入 " + money(rev) + " 元，达成 " + (isFinite(ach) ? pct(ach) : "—") + "，同比 " + (isFinite(yoy) ? pct(yoy) : "—") +
+      "；毛利率 " + pct(gmr) + "、净利率 " + pct(nmr) + "；经营现金流 " + money(cfo) + " 元。" +
+      " 开会顺序建议：先看收入（卖得怎么样）→ 再看毛利（价格和成本谁在动）→ 再看现金（利润是真的吗）→ 最后看应收存货（钱压在哪）。" +
+      " 最容易糊弄过去的一页就是「有利润没现金」：本例净利 " + money(net) + " 元但经营现金流 " + money(cfo) + " 元，" +
+      "差额要靠应收（" + money(ar) + "）和存货（" + money(inv) + "）解释清楚，说不清就是账没做实。" +
+      " 口径提醒：DSO 用「应收 ÷ 收入 × 30」、DIO 用「存货 ÷ 营业成本 × 30」，分母别都用收入；" +
+      "现金周期严格口径还要减应付账款周转天数（DPO），本页没减，所以算是偏保守的上限。";
+  }
+
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
@@ -4837,7 +5070,8 @@
     invoice: calcInvoice, expbudget: calcExpBudget, efficiency: calcEfficiency, cashstmt: calcCashStmt,
     invstock: calcInvStock, exportrebate: calcExport, tieout: calcTieOut, feetrend: calcFeeTrend,
     mpbe: calcMpbe, payroll: calcPayroll, assetdiff: calcAssetDiff, monthclose: calcMonthClose,
-    factoring: calcFactoring, deadstock: calcDeadStock, aptalk: calcApTalk, cash13: calcCash13
+    factoring: calcFactoring, deadstock: calcDeadStock, aptalk: calcApTalk, cash13: calcCash13,
+    bill: calcBill, loanreal: calcLoanReal, collect: calcCollect, mgmtpack: calcMgmtPack
   };
 
   function setCat(cat) {
@@ -4980,12 +5214,16 @@
     "pc-gross", "pc-si", "pc-hf", "pc-tax", "pc-other", "pc-act", "pc-tax2", "pc-cosi", "pc-cohf", "pc-rev", "pc-head",
     "ad-cost", "ad-dep", "ad-rv", "ad-cd", "ad-comp", "ad-ins", "ad-vat", "ad-tr",
     "mw-total", "mw-done", "mw-key", "mw-days", "mw-per", "mw-people",
+    "nt-face", "nt-days", "nt-rate", "nt-openfee", "nt-margin", "nt-cap", "nt-loan",
+    "lr-p", "lr-rate", "lr-n", "lr-fee", "lr-margin", "lr-mrate", "lr-mode",
+    "co-a1", "co-d1", "co-a2", "co-d2", "co-a3", "co-d3", "co-a4", "co-d4", "co-rate",
+    "pk-rev", "pk-bud", "pk-ly", "pk-gm", "pk-net", "pk-ar", "pk-inv", "pk-cfo",
     "fc-amt", "fc-days", "fc-rate", "fc-fee", "fc-margin", "fc-loan",
     "ds-q", "ds-cost", "ds-price", "ds-prob", "ds-store", "ds-cut", "ds-scrap", "ds-val",
     "tn-buy", "tn-now", "tn-target", "tn-rate", "tn-markup",
     "wk-open", "wk-in", "wk-out", "wk-e1", "wk-w1", "wk-e2", "wk-w2", "wk-safe"
   ];
-  var KEY = "finance-calc-v23";
+  var KEY = "finance-calc-v24";
   var CAT_KEY = "finance-calc-cat";
 
   /* ---------------- 现金流月历 ---------------- */
