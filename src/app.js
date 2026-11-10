@@ -9424,6 +9424,88 @@
     }
   });
 
+  /* ---------------- 备份与迁移（快照 JSON / 整站备份） ---------------- */
+  function dlJson(name, obj) {
+    var blob = new Blob([JSON.stringify(obj, null, 2)], { type: "application/json;charset=utf-8" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+  }
+  function stamp() {
+    var d = new Date(), p = function (n) { return (n < 10 ? "0" : "") + n; };
+    return "" + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + "-" + p(d.getHours()) + p(d.getMinutes());
+  }
+  function readJsonFile(input, cb) {
+    var f = input.files && input.files[0];
+    if (!f) return;
+    var fr = new FileReader();
+    fr.onload = function () {
+      var obj = null;
+      try { obj = JSON.parse(String(fr.result)); } catch (e) { obj = null; }
+      input.value = "";
+      if (!obj) { window.alert("这个文件不是有效的 JSON，没有导入。"); return; }
+      cb(obj);
+    };
+    fr.readAsText(f, "utf-8");
+  }
+  if ($("snap-export")) $("snap-export").addEventListener("click", function () {
+    dlJson("财务计算器-方案快照-" + stamp() + ".json",
+      { app: "finance-calc", kind: "snaps", v: 1, at: new Date().toISOString(), snaps: loadSnaps() });
+    flash(this, "已导出");
+  });
+  if ($("snap-import")) $("snap-import").addEventListener("click", function () { if ($("snap-file")) $("snap-file").click(); });
+  if ($("snap-file")) $("snap-file").addEventListener("change", function () {
+    readJsonFile(this, function (obj) {
+      var incoming = (obj && obj.snaps) || (Object.prototype.toString.call(obj) === "[object Array]" ? obj : null);
+      if (!incoming || !incoming.length) { window.alert("文件里没有找到方案快照。"); return; }
+      var cur = loadSnaps(), ids = {}, add = 0;
+      cur.forEach(function (s) { ids[s.id] = 1; });
+      incoming.forEach(function (s) {
+        if (!s || !s.id || !s.mod || ids[s.id]) return;
+        ids[s.id] = 1; cur.unshift(s); add++;
+      });
+      saveSnaps(cur.slice(0, 12));
+      runCalc("snaps");
+      flash($("snap-import"), add ? "导入 " + add + " 条" : "没有新方案");
+    });
+  });
+  if ($("snap-backup")) $("snap-backup").addEventListener("click", function () {
+    var data = {};
+    FIELDS.forEach(function (f) { var el = $(f); if (el && el.value !== "") data[f] = el.value; });
+    var cat = "hot";
+    try { cat = localStorage.getItem(CAT_KEY) || "hot"; } catch (e) {}
+    dlJson("财务计算器-备份-" + stamp() + ".json", {
+      app: "finance-calc", kind: "all", v: 1, at: new Date().toISOString(),
+      fields: data, fav: favList, presets: presets, snaps: loadSnaps(), cat: cat,
+      theme: document.documentElement.getAttribute("data-theme") || "light"
+    });
+    flash(this, "已备份");
+  });
+  if ($("snap-restore")) $("snap-restore").addEventListener("click", function () { if ($("bak-file")) $("bak-file").click(); });
+  if ($("bak-file")) $("bak-file").addEventListener("change", function () {
+    readJsonFile(this, function (obj) {
+      if (!obj || obj.app !== "finance-calc" || !obj.kind) { window.alert("这不是财务计算器的备份文件。"); return; }
+      var ok = true;
+      try { ok = window.confirm("用这份备份覆盖本机的填写值、置顶、预设与快照？页面会刷新。"); } catch (e) {}
+      if (!ok) return;
+      try {
+        if (obj.fields) FIELDS.forEach(function (f) {
+          var el = $(f);
+          if (el && obj.fields[f] !== undefined && obj.fields[f] !== null) el.value = obj.fields[f];
+        });
+        if (obj.fav) localStorage.setItem(FAV_KEY, JSON.stringify(obj.fav));
+        if (obj.presets) localStorage.setItem(PRE_KEY, JSON.stringify(obj.presets));
+        if (obj.snaps) localStorage.setItem(SNAP_KEY, JSON.stringify(obj.snaps.slice(0, 12)));
+        if (obj.cat) localStorage.setItem(CAT_KEY, obj.cat);
+        if (obj.theme) localStorage.setItem(THEME_KEY, obj.theme);
+        save();
+      } catch (e) {}
+      location.reload();
+    });
+  });
+
   /* ---------------- 启动 ---------------- */
   restore();
   refreshCounts();

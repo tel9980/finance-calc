@@ -8469,8 +8469,14 @@
             <p class="btnrow">
               <button class="ghost" type="button" id="snap-cmp">刷新对比</button>
               <button class="ghost" type="button" id="snap-clear">清空全部</button>
+              <button class="ghost" type="button" id="snap-export">导出快照 JSON</button>
+              <button class="ghost" type="button" id="snap-import">导入快照</button>
+              <button class="ghost" type="button" id="snap-backup">整站备份</button>
+              <button class="ghost" type="button" id="snap-restore">恢复备份</button>
+              <input type="file" id="snap-file" accept=".json,application/json" hidden>
+              <input type="file" id="bak-file" accept=".json,application/json" hidden>
             </p>
-            <em>已存 <b id="snap-count">0</b> 个方案。点模块名可以带着当时的参数跳回那个模块继续调。</em>
+            <em>已存 <b id="snap-count">0</b> 个方案。点模块名可以带着当时的参数跳回那个模块继续调；换手机或换浏览器时用「整站备份」把填写值、置顶、预设、快照一起带走。</em>
           </div>
           <div class="card res">
             <h2>快照列表</h2>
@@ -8502,6 +8508,6 @@
   </p>
 </main>
 
-<script src="./assets/app.d076df7104.js"></script>
+<script src="./assets/app.f96d66944b.js"></script>
 </body>
 </html>
