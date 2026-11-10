@@ -253,6 +253,20 @@
       </div>
       <p class="hint" id="snap-note"></p>
     </div>
+    <div class="card res">
+      <h2>月度跟踪（同一个模块的前后两版）</h2>
+      <p class="btnrow">
+        <select class="ghost" id="snap-track-mod" aria-label="选择要跟踪的模块"><option value="">先选模块</option></select>
+        <button class="ghost" type="button" id="snap-track">生成跟踪表</button>
+      </p>
+      <div class="tablebox">
+        <table>
+          <thead><tr><th class="tal">指标</th><th>上一版</th><th>最新一版</th><th>变化</th></tr></thead>
+          <tbody id="snap-track-body"></tbody>
+        </table>
+      </div>
+      <p class="hint" id="snap-track-note"></p>
+    </div>
   </section>
   <section class="panel is-on" id="panel-deposit">
     <div class="cols">
@@ -8365,6 +8379,115 @@
         <h2 class="sub">年报正文</h2>
         <div id="yrp-text" class="yrptext"></div>
         <p class="hint" id="yrp-note"></p>
+      </div>
+    </div>
+  </section>
+  <section class="panel" id="panel-fifocost">
+    <div class="cols">
+      <div class="card">
+        <h2>输入：存货计价对比（先进先出 vs 加权平均）</h2>
+        <label class="f"><span>期初库存数量（件）</span><input id="fifo-begq" type="number" inputmode="numeric" min="0" step="10" value="100"></label>
+        <label class="f"><span>期初单位成本（元）</span><input id="fifo-begp" type="number" inputmode="decimal" min="0" step="1" value="10"></label>
+        <label class="f"><span>本期购入数量（件）</span><input id="fifo-inq" type="number" inputmode="numeric" min="0" step="10" value="200"></label>
+        <label class="f"><span>本期购入单价（元）</span><input id="fifo-inp" type="number" inputmode="decimal" min="0" step="1" value="12"></label>
+        <label class="f"><span>本期销售数量（件）</span><input id="fifo-sold" type="number" inputmode="numeric" min="0" step="10" value="250"></label>
+        <label class="f"><span>销售单价（元）</span><input id="fifo-price" type="number" inputmode="decimal" min="0" step="1" value="20"></label>
+        <em>同一批进货成本不同时，销货成本与期末库存金额会随计价方法改变。数量别超过期初+购入。</em>
+      </div>
+      <div class="card res">
+        <h2>两种口径算出来</h2>
+        <div class="big"><span class="k">销货成本差额（加权 − 先进先出）</span><strong id="fifo-big">—</strong><span class="unit">元</span></div>
+        <ul class="kv">
+          <li><span>先进先出 · 销货成本</span><b id="fifo-cogs-fifo">—</b></li>
+          <li><span>加权平均 · 销货成本</span><b id="fifo-cogs-wa">—</b></li>
+          <li><span>先进先出 · 期末库存</span><b id="fifo-end-fifo">—</b></li>
+          <li><span>加权平均 · 期末库存</span><b id="fifo-end-wa">—</b></li>
+          <li><span>加权平均单位成本</span><b id="fifo-unit">—</b></li>
+          <li><span>毛利差额（先进先出 − 加权）</span><b id="fifo-gp">—</b></li>
+          <li><span>税后净利影响（税率 25%）</span><b id="fifo-np">—</b></li>
+        </ul>
+        <p class="hint" id="fifo-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-trialbal">
+    <div class="cols">
+      <div class="card">
+        <h2>输入：试算平衡表（借方 / 贷方）</h2>
+        <label class="f"><span>库存现金（左借 / 右贷）</span><span class="row"><input id="tba-d1" type="number" inputmode="decimal" step="100" value="5000" aria-label="库存现金借方"><input id="tba-c1" type="number" inputmode="decimal" step="100" value="0" aria-label="库存现金贷方"></span></label>
+        <label class="f"><span>银行存款（左借 / 右贷）</span><span class="row"><input id="tba-d2" type="number" inputmode="decimal" step="100" value="45000" aria-label="银行存款借方"><input id="tba-c2" type="number" inputmode="decimal" step="100" value="0" aria-label="银行存款贷方"></span></label>
+        <label class="f"><span>应收账款（左借 / 右贷）</span><span class="row"><input id="tba-d3" type="number" inputmode="decimal" step="100" value="20000" aria-label="应收账款借方"><input id="tba-c3" type="number" inputmode="decimal" step="100" value="0" aria-label="应收账款贷方"></span></label>
+        <label class="f"><span>固定资产（左借 / 右贷）</span><span class="row"><input id="tba-d4" type="number" inputmode="decimal" step="100" value="30000" aria-label="固定资产借方"><input id="tba-c4" type="number" inputmode="decimal" step="100" value="0" aria-label="固定资产贷方"></span></label>
+        <label class="f"><span>应付账款（左借 / 右贷）</span><span class="row"><input id="tba-d5" type="number" inputmode="decimal" step="100" value="0" aria-label="应付账款借方"><input id="tba-c5" type="number" inputmode="decimal" step="100" value="10000" aria-label="应付账款贷方"></span></label>
+        <label class="f"><span>短期借款（左借 / 右贷）</span><span class="row"><input id="tba-d6" type="number" inputmode="decimal" step="100" value="0" aria-label="短期借款借方"><input id="tba-c6" type="number" inputmode="decimal" step="100" value="20000" aria-label="短期借款贷方"></span></label>
+        <label class="f"><span>实收资本（左借 / 右贷）</span><span class="row"><input id="tba-d7" type="number" inputmode="decimal" step="100" value="0" aria-label="实收资本借方"><input id="tba-c7" type="number" inputmode="decimal" step="100" value="60000" aria-label="实收资本贷方"></span></label>
+        <label class="f"><span>主营业务收入（左借 / 右贷）</span><span class="row"><input id="tba-d8" type="number" inputmode="decimal" step="100" value="0" aria-label="主营业务收入借方"><input id="tba-c8" type="number" inputmode="decimal" step="100" value="10000" aria-label="主营业务收入贷方"></span></label>
+        <em>每行两个格子：左借方、右贷方。哪边没有就填 0。借贷不平要么漏了一笔，要么金额抄错、方向写反。</em>
+      </div>
+      <div class="card res">
+        <h2>试算结果</h2>
+        <div class="big"><span class="k">借贷差额</span><strong id="tba-big">—</strong><span class="unit">元</span></div>
+        <ul class="kv">
+          <li><span>借方合计</span><b id="tba-debit">—</b></li>
+          <li><span>贷方合计</span><b id="tba-credit">—</b></li>
+          <li><span>是否平衡</span><b id="tba-bal">—</b></li>
+          <li><span>差额方向</span><b id="tba-dir">—</b></li>
+        </ul>
+        <p class="hint" id="tba-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-citprep">
+    <div class="cols">
+      <div class="card">
+        <h2>输入：季度企业所得税预缴</h2>
+        <label class="f"><span>累计营业收入（元）</span><input id="cit-income" type="number" inputmode="decimal" step="10000" value="5000000"></label>
+        <label class="f"><span>累计营业成本（元）</span><input id="cit-cost" type="number" inputmode="decimal" step="10000" value="3500000"></label>
+        <label class="f"><span>累计期间费用（元）</span><input id="cit-expense" type="number" inputmode="decimal" step="10000" value="800000"></label>
+        <label class="f"><span>其他损益（元，可负数）</span><input id="cit-other" type="number" inputmode="decimal" step="10000" value="0"></label>
+        <label class="f"><span>纳税调增额（元）</span><input id="cit-adjust" type="number" inputmode="decimal" step="10000" value="200000"></label>
+        <label class="f"><span>弥补以前年度亏损（元）</span><input id="cit-loss" type="number" inputmode="decimal" step="10000" value="100000"></label>
+        <label class="f"><span>已预缴所得税（元）</span><input id="cit-prepaid" type="number" inputmode="decimal" step="10000" value="80000"></label>
+        <label class="f"><span>适用税率（%）</span><input id="cit-rate" type="number" inputmode="decimal" min="0" max="35" step="0.25" value="25"></label>
+        <em>按「累计数」口径：本季预缴 = 累计应纳税额 − 已预缴。小型微利、高新等优惠税率没写死，税率自己改。</em>
+      </div>
+      <div class="card res">
+        <h2>预缴结果</h2>
+        <div class="big"><span class="k">本季应补（退）税额</span><strong id="cit-big">—</strong><span class="unit">元</span></div>
+        <ul class="kv">
+          <li><span>利润总额</span><b id="cit-profit">—</b></li>
+          <li><span>应纳税所得额</span><b id="cit-taxable">—</b></li>
+          <li><span>累计应纳所得税额</span><b id="cit-tax">—</b></li>
+          <li><span>累计实际税负率</span><b id="cit-burden">—</b></li>
+        </ul>
+        <p class="hint" id="cit-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-hlcost">
+    <div class="cols">
+      <div class="card">
+        <h2>输入：成本性态（高低点法）</h2>
+        <label class="f"><span>最高业务量（件/工时）</span><input id="hlc-hq" type="number" inputmode="numeric" min="0" step="10" value="1000"></label>
+        <label class="f"><span>最高业务量总成本（元）</span><input id="hlc-hc" type="number" inputmode="decimal" min="0" step="100" value="8000"></label>
+        <label class="f"><span>最低业务量（件/工时）</span><input id="hlc-lq" type="number" inputmode="numeric" min="0" step="10" value="400"></label>
+        <label class="f"><span>最低业务量总成本（元）</span><input id="hlc-lc" type="number" inputmode="decimal" min="0" step="100" value="5000"></label>
+        <label class="f"><span>想预测的业务量（件/工时）</span><input id="hlc-pq" type="number" inputmode="numeric" min="0" step="10" value="700"></label>
+        <em>用最高和最低两个业务量点，把总成本拆成「固定 + 单位变动 × 业务量」。只适合成本性态比较稳定的区间，极端月份会被高估/低估。</em>
+      </div>
+      <div class="card res">
+        <h2>成本方程</h2>
+        <div class="big"><span class="k">预测业务量下的总成本</span><strong id="hlc-big">—</strong><span class="unit">元</span></div>
+        <ul class="kv">
+          <li><span>单位变动成本</span><b id="hlc-vc">—</b></li>
+          <li><span>固定成本总额</span><b id="hlc-fc">—</b></li>
+          <li><span>成本方程</span><b id="hlc-eq">—</b></li>
+          <li><span>变动成本占预测总成本</span><b id="hlc-vr">—</b></li>
+        </ul>
+        <p class="hint" id="hlc-note"></p>
       </div>
     </div>
   </section>

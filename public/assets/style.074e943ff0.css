@@ -102,6 +102,11 @@ button{font:inherit;cursor:pointer}
 .row input{flex:1;min-width:0}
 .row select{flex:0 0 92px}
 .chk{display:flex;gap:16px;flex-wrap:wrap;font-size:14px;color:var(--ink2)}
+/* 输入框内嵌单位（% / 年 / 月 / 天…），单位不参与保存 */
+.suff{display:flex;flex:1;min-width:0;position:relative;align-items:center}
+.suff input{flex:1;min-width:0;padding-right:42px}
+.suff .unit{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--ink3);pointer-events:none;font-style:normal;line-height:1}
+.row .suff{flex:1;min-width:0}
 .chk label{display:flex;align-items:center;gap:6px;cursor:pointer}
 .chk input{accent-color:var(--accent2)}
 
@@ -281,7 +286,18 @@ html[data-theme="dark"] .ghost{background:#16212f;color:#9fc0ff}
   .hint{color:#333 !important}
   input,select{border:1px solid #bbb !important;background:#fff !important;color:#000 !important}
   .foot{display:block !important;color:#555}
+  .printcover{display:block !important;page-break-after:always;border:0}
+  .pc-in{padding:40px 20px;text-align:center;font-family:inherit;color:#000}
+  .pc-in h1{font-size:30px;letter-spacing:4px;color:#1e3a8a;margin:0 0 18px}
+  .pc-in h2{font-size:22px;margin:0 0 14px}
+  .pc-in p{font-size:13px;color:#444;margin:6px 0}
+  .pc-in .pc-time{margin-top:30px;color:#666}
+  .pc-in .pc-note{max-width:460px;margin:14px auto 0;line-height:1.7}
+  thead{display:table-header-group}
+  tr{page-break-inside:avoid}
 }
+
+.printcover{display:none}
 
 /* 方案快照 / 一页体检报告 */
 .btnrow{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 10px}

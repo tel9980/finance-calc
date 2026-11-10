@@ -64,6 +64,21 @@
     var clean = el.value.replace(/[^0-9.\-万千亿kKwW,，\s]/g, "");
     if (clean !== el.value) el.value = clean;
   }
+  /* 哪些输入框带内嵌单位（% / 年 / 月 / 天 / 岁 / 公里…）。金额框不在这张表里，保持干净。 */
+  function unitFor(id) {
+    if (id === "fx-rate") return "";                       // 汇率是「1 外币 = ? 人民币」
+    if (id === "ud-rate") return "‱";                       // 逾期日利率是万分之几
+    if (id === "lab-srate" || id === "lab-arate") return "元/时";
+    if (id === "dl-discount") return "折";
+    if (/(-rate|-growth|-ratio|-down|-deed|-agent|-vac|-swr)$/.test(id)) return "%";
+    if (id === "rb-invest" || id === "rv-invest" || id === "bxsp-goal") return "%";
+    if (/(-years)$/.test(id)) return "年";
+    if (/(-months)$/.test(id)) return "月";
+    if (/(-days)$/.test(id)) return "天";
+    if (/(-km)$/.test(id)) return "公里";
+    if (["hk-age","rp-age","ed-age","ra-age","fr-age","cc-age","pa-age"].indexOf(id) >= 0) return "岁";
+    return "";
+  }
   function enhanceNums(root) {
     var list = (root && root.querySelectorAll ? root : document).querySelectorAll('input[type="number"],input.num');
     for (var i = 0; i < list.length; i++) {
@@ -78,6 +93,18 @@
       el.addEventListener("focus", numFocus);
       el.addEventListener("blur", numBlur);
       el.addEventListener("input", numInput);
+      /* 内嵌单位：包一层 .suff，单位放在输入框右端（不参与保存） */
+      var u = unitFor(el.id || "");
+      if (u && !el.parentNode.classList.contains("suff")) {
+        var wrap = document.createElement("span");
+        wrap.className = "suff";
+        el.parentNode.insertBefore(wrap, el);
+        wrap.appendChild(el);
+        var unit = document.createElement("i");
+        unit.className = "unit";
+        unit.textContent = u;
+        wrap.appendChild(unit);
+      }
     }
   }
 
@@ -8562,6 +8589,7 @@
   function calcSnaps() {
     renderSnapList();
     renderSnapCompare();
+    refreshTrackMods();
   }
 
   /* 只重绘列表（存/删/清空时用） */
@@ -8657,6 +8685,53 @@
     });
     box.innerHTML = head + "</tr>" + body;
     $("snap-note").textContent = "已选 " + sel.length + " 个方案并排对比（最多 3 个）；最后一列是相对第一个方案的差额与百分比。点「导出 CSV」可以把这张表存下来。";
+  }
+
+  /* 月度跟踪：同一个模块的前后两版快照对比 */
+  function refreshTrackMods() {
+    var sel = $("snap-track-mod");
+    if (!sel) return;
+    var arr = loadSnaps();
+    var groups = {};
+    arr.forEach(function (s) { (groups[s.mod] = groups[s.mod] || []).push(s); });
+    var keys = Object.keys(groups).filter(function (k) { return groups[k].length >= 2; });
+    var cur = sel.value;
+    sel.innerHTML = '<option value="">先选模块</option>' + keys.map(function (k) {
+      return '<option value="' + k + '">' + groups[k][0].modName + "（" + groups[k].length + " 版）</option>";
+    }).join("");
+    if (cur) sel.value = cur;
+    return groups;
+  }
+  function renderTrack(prev, cur) {
+    var tb = $("snap-track-body"), note = $("snap-track-note");
+    if (!tb) return;
+    var map = {};
+    (prev.rows || []).forEach(function (r) { map[r[0]] = r[1]; });
+    var labels = [];
+    (cur.rows || []).forEach(function (r) { if (labels.indexOf(r[0]) < 0) labels.push(r[0]); });
+    (prev.rows || []).forEach(function (r) { if (labels.indexOf(r[0]) < 0) labels.push(r[0]); });
+    function numOf(x) {
+      var s = String(x == null ? "" : x).replace(/,/g, "").replace(/−/g, "-");
+      var m = s.match(/-?\d+(\.\d+)?/);
+      return m ? parseFloat(m[0]) : null;
+    }
+    var rows = "";
+    labels.forEach(function (lab) {
+      var a2 = map[lab], b2 = null;
+      (cur.rows || []).forEach(function (r) { if (r[0] === lab) b2 = r[1]; });
+      var na = numOf(a2), nb = numOf(b2);
+      var delta = "—", cls = "";
+      if (na !== null && nb !== null && String(a2) !== String(b2)) {
+        var d = nb - na;
+        delta = (d > 0 ? "+" : d < 0 ? "−" : "") + fmt(Math.abs(d));
+        cls = " class=\"c-info\"";
+      }
+      rows += "<tr" + cls + "><td class=\"tal\">" + lab + "</td><td>" + (a2 === undefined ? "—" : a2) + "</td><td>" + (b2 === undefined ? "—" : b2) + "</td><td class=\"tal\">" + delta + "</td></tr>";
+    });
+    tb.innerHTML = rows;
+    var day1 = new Date(prev.at).toLocaleDateString("zh-CN");
+    var day2 = new Date(cur.at).toLocaleDateString("zh-CN");
+    note.textContent = "「上一版」" + (prev.name || "") + "（" + day1 + "）→「最新一版」" + (cur.name || "") + "（" + day2 + "）。蓝色行是有变化；建议存方案时名字带上月份（如「10 月」），月底回来看这一版。";
   }
 
   /* ---------------- 购房一次性支出 ---------------- */
@@ -9425,6 +9500,114 @@
       + "；应急金 6 个月是常用安全线；负债率 50% 是多数家庭的警戒线。自住房计入净资产但不变现，所以别把它当现金流。";
   }
 
+  /* ============ 存货计价对比（先进先出 vs 加权平均） ============ */
+  function calcFifoCost() {
+    var bq = Math.max(0, num($("fifo-begq"), 0));
+    var bp = Math.max(0, num($("fifo-begp"), 0));
+    var iq = Math.max(0, num($("fifo-inq"), 0));
+    var ip = Math.max(0, num($("fifo-inp"), 0));
+    var sold = Math.max(0, num($("fifo-sold"), 0));
+    var price = Math.max(0, num($("fifo-price"), 0));
+    var totalQ = bq + iq;
+    if (!(totalQ > 0)) {
+      ["fifo-big","fifo-cogs-fifo","fifo-cogs-wa","fifo-end-fifo","fifo-end-wa","fifo-unit","fifo-gp","fifo-np"].forEach(function(id){ $(id).textContent = "—"; });
+      $("fifo-note").textContent = "把期初数量或本期购入数量填上。";
+      return;
+    }
+    var sold2 = Math.min(sold, totalQ);
+    var begCost = bq * bp, inCost = iq * ip, totalCost = begCost + inCost;
+    var waUnit = totalCost / totalQ;
+    var cogsWa = sold2 * waUnit;
+    var endWa = totalCost - cogsWa;
+    var cogsFifo, endFifo;
+    if (sold2 <= bq) {
+      cogsFifo = sold2 * bp; endFifo = totalCost - cogsFifo;
+    } else {
+      cogsFifo = bq * bp + (sold2 - bq) * ip; endFifo = (totalQ - sold2) * ip;
+    }
+    var diff = cogsWa - cogsFifo;             // 加权 − 先进先出
+    var gpDiff = -diff;                        // 毛利差额：先进先出 − 加权
+    var npDiff = gpDiff * 0.75;
+    $("fifo-cogs-fifo").textContent = money(cogsFifo);
+    $("fifo-cogs-wa").textContent = money(cogsWa);
+    $("fifo-end-fifo").textContent = money(endFifo);
+    $("fifo-end-wa").textContent = money(endWa);
+    $("fifo-unit").textContent = money(waUnit) + " / 件";
+    $("fifo-big").textContent = money(diff);
+    $("fifo-gp").textContent = money(gpDiff);
+    $("fifo-np").textContent = money(npDiff);
+    $("fifo-note").textContent = diff > 0.005
+      ? "进货价在涨：加权平均把新老成本一锅端，销货成本比先进先出高 " + money(diff) + " 元、期末库存低 " + money(diff) + " 元；先进先出毛利高、更像「先买的先卖」。"
+      : (diff < -0.005
+        ? "进货价在跌：加权平均的销货成本反而更低。"
+        : "两种方法算出来一样（单价没变）。") + " 所得税上存货计价方法一经选定不得随意变更。";
+  }
+
+  /* ============ 试算平衡表 ============ */
+  function calcTrialBal() {
+    var d = 0, c = 0;
+    for (var i = 1; i <= 8; i++) {
+      d += Math.max(0, num($("tba-d" + i), 0));
+      c += Math.max(0, num($("tba-c" + i), 0));
+    }
+    var diff = d - c;
+    $("tba-debit").textContent = money(d);
+    $("tba-credit").textContent = money(c);
+    $("tba-big").textContent = money(Math.abs(diff));
+    $("tba-dir").textContent = diff === 0 ? "—" : (diff > 0 ? "借方多" : "贷方多");
+    $("tba-bal").textContent = diff === 0 ? "平" : "不平";
+    $("tba-note").textContent = diff === 0
+      ? "借贷平衡：借方合计 = 贷方合计 = " + money(d) + " 元。试算平不代表账一定对，漏记又补记、借贷同时错记等还是查不出，月底要再和银行对账单、往来函证核对。"
+      : "不平衡，差额 " + money(Math.abs(diff)) + " 元（" + (diff > 0 ? "借方多" : "贷方多") + "）。先查三处：是不是漏录了一笔、金额有没有抄错（如 4500 写成 45000）、借贷方向有没有写反。";
+  }
+
+  /* ============ 季度企业所得税预缴 ============ */
+  function calcCitPrep() {
+    var income = Math.max(0, num($("cit-income"), 0));
+    var cost = Math.max(0, num($("cit-cost"), 0));
+    var expense = Math.max(0, num($("cit-expense"), 0));
+    var other = num($("cit-other"), 0);
+    var adjust = Math.max(0, num($("cit-adjust"), 0));
+    var loss = Math.max(0, num($("cit-loss"), 0));
+    var prepaid = Math.max(0, num($("cit-prepaid"), 0));
+    var rate = Math.max(0, num($("cit-rate"), 25)) / 100;
+    var profit = income - cost - expense + other;
+    var taxable = Math.max(0, profit + adjust - loss);
+    var tax = taxable * rate;
+    var due = tax - prepaid;
+    $("cit-profit").textContent = money(profit);
+    $("cit-taxable").textContent = money(taxable);
+    $("cit-tax").textContent = money(tax);
+    $("cit-burden").textContent = income > 0 ? pct(tax / income) : "—";
+    $("cit-big").textContent = money(due);
+    $("cit-note").textContent = due >= 0
+      ? "累计口径下还要补缴 " + money(due) + " 元。季度预缴按「累计数」算，不是每季度利润单独乘税率；亏损季度可零申报，下季度累计转正再缴。"
+      : "累计已多缴 " + money(-due) + " 元，可以留抵以后季度，或次年汇算清缴时申请退税。";
+  }
+
+  /* ============ 成本性态（高低点法） ============ */
+  function calcHlCost() {
+    var hq = Math.max(0, num($("hlc-hq"), 0));
+    var hc = Math.max(0, num($("hlc-hc"), 0));
+    var lq = Math.max(0, num($("hlc-lq"), 0));
+    var lc = Math.max(0, num($("hlc-lc"), 0));
+    var pq = Math.max(0, num($("hlc-pq"), 0));
+    if (!(hq > lq)) {
+      ["hlc-big","hlc-vc","hlc-fc","hlc-eq","hlc-vr"].forEach(function(id){ $(id).textContent = "—"; });
+      $("hlc-note").textContent = "最高业务量要大于最低业务量。";
+      return;
+    }
+    var b = (hc - lc) / (hq - lq);
+    var a = hc - b * hq;
+    var y = a + b * pq;
+    $("hlc-vc").textContent = money(b) + " / 件";
+    $("hlc-fc").textContent = money(a);
+    $("hlc-eq").textContent = "y = " + money(a) + " + " + money(b) + " × x";
+    $("hlc-vr").textContent = y > 0 ? pct(b * pq / y) : "—";
+    $("hlc-big").textContent = money(y);
+    $("hlc-note").textContent = "按最高（" + money(hq) + "，成本 " + money(hc) + "）和最低（" + money(lq) + "，成本 " + money(lc) + "）两个点拆出来：单位变动成本 " + money(b) + " 元、固定成本 " + money(a) + " 元。预测 " + money(pq) + " 件的总成本 = " + money(y) + " 元。高低点法只看两头，中间月份波动被忽略，预算初筛够用，正式定价建议用回归。";
+  }
+
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
@@ -9474,7 +9657,8 @@
     salesallow: calcSalesAllow, lease: calcLease, gpmix: calcGpmix, vatchoose: calcVatChoose,
     datemath: calcDatemath, pct3: calcPct3, xlhelp: calcXlHelp, csvrecon: calcCsvRecon,
     contractperf: calcContractPerf, projrev: calcProjRev, creditpolicy: calcCreditPolicy, rateadj: calcRateAdj,
-    bundle: calcBundle, monthly: calcMonthly, yearcmp: calcYearCmp, yearreport: calcYearReport
+    bundle: calcBundle, monthly: calcMonthly, yearcmp: calcYearCmp, yearreport: calcYearReport,
+    fifocost: calcFifoCost, hlcost: calcHlCost, trialbal: calcTrialBal, citprep: calcCitPrep
   };
 
   var curCat = "hot", curSub = "";
@@ -9799,9 +9983,13 @@
     "yrp-inc", "yrp-out", "yrp-a0", "yrp-a1", "yrp-cash", "yrp-debt", "yrp-house",
     "yrp-pinc", "yrp-pout", "yrp-pa1",
     "yc-target", "yc-years",
-    "mtg-1-1", "mtg-1-2", "mtg-1-3", "mtg-1-4", "mtg-1-5", "mtg-1-6", "mtg-2-1", "mtg-2-2", "mtg-2-3", "mtg-2-4", "mtg-2-5", "mtg-2-6", "mtg-3-1", "mtg-3-2", "mtg-3-3", "mtg-3-4", "mtg-3-5", "mtg-3-6", "mtg-4-1", "mtg-4-2", "mtg-4-3", "mtg-4-4", "mtg-4-5", "mtg-4-6", "mtg-5-1", "mtg-5-2", "mtg-5-3", "mtg-5-4", "mtg-5-5", "mtg-5-6", "mtg-6-1", "mtg-6-2", "mtg-6-3", "mtg-6-4", "mtg-6-5", "mtg-6-6", "mtg-7-1", "mtg-7-2", "mtg-7-3", "mtg-7-4", "mtg-7-5", "mtg-7-6", "mtg-8-1", "mtg-8-2", "mtg-8-3", "mtg-8-4", "mtg-8-5", "mtg-8-6", "mtg-9-1", "mtg-9-2", "mtg-9-3", "mtg-9-4", "mtg-9-5", "mtg-9-6", "mtg-10-1", "mtg-10-2", "mtg-10-3", "mtg-10-4", "mtg-10-5", "mtg-10-6", "mtg-11-1", "mtg-11-2", "mtg-11-3", "mtg-11-4", "mtg-11-5", "mtg-11-6", "mtg-12-1", "mtg-12-2", "mtg-12-3", "mtg-12-4", "mtg-12-5", "mtg-12-6"
+    "mtg-1-1", "mtg-1-2", "mtg-1-3", "mtg-1-4", "mtg-1-5", "mtg-1-6", "mtg-2-1", "mtg-2-2", "mtg-2-3", "mtg-2-4", "mtg-2-5", "mtg-2-6", "mtg-3-1", "mtg-3-2", "mtg-3-3", "mtg-3-4", "mtg-3-5", "mtg-3-6", "mtg-4-1", "mtg-4-2", "mtg-4-3", "mtg-4-4", "mtg-4-5", "mtg-4-6", "mtg-5-1", "mtg-5-2", "mtg-5-3", "mtg-5-4", "mtg-5-5", "mtg-5-6", "mtg-6-1", "mtg-6-2", "mtg-6-3", "mtg-6-4", "mtg-6-5", "mtg-6-6", "mtg-7-1", "mtg-7-2", "mtg-7-3", "mtg-7-4", "mtg-7-5", "mtg-7-6", "mtg-8-1", "mtg-8-2", "mtg-8-3", "mtg-8-4", "mtg-8-5", "mtg-8-6", "mtg-9-1", "mtg-9-2", "mtg-9-3", "mtg-9-4", "mtg-9-5", "mtg-9-6", "mtg-10-1", "mtg-10-2", "mtg-10-3", "mtg-10-4", "mtg-10-5", "mtg-10-6", "mtg-11-1", "mtg-11-2", "mtg-11-3", "mtg-11-4", "mtg-11-5", "mtg-11-6", "mtg-12-1", "mtg-12-2", "mtg-12-3", "mtg-12-4", "mtg-12-5", "mtg-12-6",
+    "fifo-begq", "fifo-begp", "fifo-inq", "fifo-inp", "fifo-sold", "fifo-price",
+    "tba-d1", "tba-c1", "tba-d2", "tba-c2", "tba-d3", "tba-c3", "tba-d4", "tba-c4", "tba-d5", "tba-c5", "tba-d6", "tba-c6", "tba-d7", "tba-c7", "tba-d8", "tba-c8",
+    "cit-income", "cit-cost", "cit-expense", "cit-other", "cit-adjust", "cit-loss", "cit-prepaid", "cit-rate",
+    "hlc-hq", "hlc-hc", "hlc-lq", "hlc-lc", "hlc-pq"
 ];
-  var KEY = "finance-calc-v53";
+  var KEY = "finance-calc-v54";
   var CAT_KEY = "finance-calc-cat";
 
   /* ---------------- 现金流月历 ---------------- */
@@ -10089,6 +10277,18 @@
     }
     DEFERRED_TAPS = rest;
   }
+  /* 月度跟踪按钮（挂在 tap 之后，确保 DEFERRED_TAPS 已就绪） */
+  tap("snap-track", "click", function () {
+    var sel = $("snap-track-mod");
+    var mod = sel ? sel.value : "";
+    var groups = refreshTrackMods();
+    var g = mod ? groups[mod] : null;
+    if (!g || g.length < 2) { flash(this, "先给同一个模块存两版快照"); if ($("snap-track-body")) $("snap-track-body").innerHTML = ""; return; }
+    var sorted = g.slice().sort(function (x, y) { return x.at - y.at; });
+    renderTrack(sorted[sorted.length - 2], sorted[sorted.length - 1]);
+  });
+  tap("snap-track-mod", "change", function () {});
+  if ($("snap-track-mod")) refreshTrackMods();
 
   function save() {
     try {
@@ -10601,6 +10801,81 @@
     }, "image/png");
   });
 
+  /* 竖版长图：更适合发群里 / 朋友圈的窄高版 */
+  tap("btn-vcard", "click", function () {
+    var btn = this, sn = snapshot();
+    if (!sn.rows.length) { flash(btn, "这个模块没有可截图的结果"); return; }
+    var mod = document.querySelector(".tab.is-on");
+    var name = mod ? mod.textContent.trim() : sn.name;
+    var FONT = "-apple-system,'PingFang SC','Microsoft YaHei',sans-serif";
+    var W = 750, pad = 26, top = 96;
+    var rows = sn.rows.slice(0, 15);
+    var cv0 = document.createElement("canvas"), g0 = cv0.getContext("2d");
+    g0.font = "14px " + FONT;
+    function wrap(txt, max, cap) {
+      if (!txt) return [];
+      var out = [], line = "";
+      for (var i = 0; i < txt.length && out.length < cap; i++) {
+        if (g0.measureText(line + txt[i]).width > max) { out.push(line); line = ""; }
+        line += txt[i];
+      }
+      if (line && out.length < cap) out.push(line);
+      return out;
+    }
+    var notes = wrap(sn.note || "", W - pad * 2, 8);
+    var share = "";
+    try { share = buildShare().replace(/^https?:\/\//, ""); } catch (e) { share = ""; }
+    var shareLine = share ? wrap("打开这个链接就是当前参数：" + share, W - pad * 2, 2) : [];
+    var hgt = top + rows.length * 34 + 10 + notes.length * 20 + shareLine.length * 19 + 64;
+    var cv = document.createElement("canvas");
+    var dpr = Math.min(2, window.devicePixelRatio || 1);
+    cv.width = W * dpr; cv.height = hgt * dpr;
+    var g = cv.getContext("2d");
+    g.scale(dpr, dpr);
+    g.fillStyle = "#ffffff"; g.fillRect(0, 0, W, hgt);
+    g.fillStyle = "#1e3a8a"; g.fillRect(0, 0, W, 8);
+    g.font = "bold 24px " + FONT; g.fillStyle = "#0f172a";
+    g.fillText(name, pad, 46);
+    g.font = "12px " + FONT; g.fillStyle = "#94a3b8";
+    g.fillText("财务计算器 · " + location.host, pad, 68);
+    g.fillText(new Date().toLocaleString("zh-CN"), pad, 86);
+    g.strokeStyle = "#e2e8f0"; g.beginPath(); g.moveTo(pad, top - 14); g.lineTo(W - pad, top - 14); g.stroke();
+    g.textBaseline = "middle";
+    for (var i = 0; i < rows.length; i++) {
+      var y = top + i * 34 + 4;
+      if (i === 0) {
+        g.fillStyle = "#eef2ff"; g.fillRect(pad - 10, y - 22, W - pad * 2 + 20, 34);
+        g.font = "bold 16px " + FONT; g.fillStyle = "#1e3a8a"; g.textAlign = "left";
+        g.fillText(rows[i][0], pad, y);
+        g.textAlign = "right"; g.font = "bold 20px " + FONT;
+        g.fillText(rows[i][1], W - pad, y);
+        g.textAlign = "left";
+      } else {
+        g.font = "13px " + FONT; g.fillStyle = "#64748b"; g.textAlign = "left";
+        g.fillText(rows[i][0], pad, y);
+        g.fillStyle = "#0f172a"; g.font = "14px " + FONT; g.textAlign = "right";
+        g.fillText(rows[i][1], W - pad, y);
+        g.textAlign = "left";
+      }
+    }
+    var ny = top + rows.length * 34 + 12;
+    g.font = "11.5px " + FONT; g.fillStyle = "#94a3b8";
+    for (var n = 0; n < notes.length; n++) g.fillText(notes[n], pad, ny + n * 20);
+    var sy = ny + notes.length * 20 + 4;
+    g.fillStyle = "#64748b"; g.font = "11px " + FONT;
+    for (var s2 = 0; s2 < shareLine.length; s2++) g.fillText(shareLine[s2], pad, sy + s2 * 19);
+    g.fillStyle = "#cbd5e1"; g.font = "11px " + FONT;
+    g.fillText("纯前端计算，数据不上传 · 结果按页面假设推算", pad, hgt - 20);
+    cv.toBlob(function (blob) {
+      var a2 = document.createElement("a");
+      a2.href = URL.createObjectURL(blob);
+      a2.download = "财务计算器-" + name + "-竖版.png";
+      document.body.appendChild(a2); a2.click(); document.body.removeChild(a2);
+      setTimeout(function () { URL.revokeObjectURL(a2.href); }, 2000);
+      flash(btn, "已导出竖版长图");
+    }, "image/png");
+  });
+
   /* 体检报告：打印 / 存 PDF（浏览器打印面板里选「另存为 PDF」） */
   tap("mt-csv", "click", function () {
     var mode = $("mt-mode") ? $("mt-mode").value : "avg";
@@ -10628,17 +10903,32 @@
     setTimeout(function () { document.title = old; }, 1500);
   });
 
-  tap("rp-pdf", "click", function () {
-    document.title = "财务计算器-家庭财务体检";
+  /* 打印：加封面页 + 页脚（含页码，Chrome 打印时生效）+ 表头跨页重复 */
+  function printCover(name) {
+    var el = document.getElementById("print-cover");
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "print-cover";
+      el.className = "printcover";
+      document.body.appendChild(el);
+    }
+    el.innerHTML = '<div class="pc-in"><h1>财务计算器</h1><h2>' + name.replace(/</g, "&lt;") + '</h2><p>纯前端计算 · 数据不上传</p><p class="pc-time">' + new Date().toLocaleString("zh-CN") + '</p><p class="pc-note">本页为打印封面，结果以正文为准；计算按页面假设推算，实际以合同与当地政策为准。</p></div>';
+  }
+  function doPrint(name) {
+    printCover(name);
+    document.title = "财务计算器-" + name;
+    var old = document.title;
     window.print();
-    setTimeout(function () { document.title = "财务计算器 · 个人理财 + 公司财务"; }, 1200);
+    setTimeout(function () { document.title = old; }, 1200);
+  }
+
+  tap("rp-pdf", "click", function () {
+    doPrint("家庭财务体检");
   });
 
   if ($("btn-print")) $("btn-print").addEventListener("click", function () {
     var t = document.querySelector(".tab.is-on");
-    document.title = "财务计算器-" + (t ? t.textContent.trim() : "计算");
-    window.print();
-    setTimeout(function () { document.title = "财务计算器 · 个人理财 + 公司财务"; }, 1200);
+    doPrint(t ? t.textContent.trim() : "计算");
   });
 
   tap("snap-sort", "change", function () { renderSnapList(); });
