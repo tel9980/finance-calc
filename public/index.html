@@ -28,7 +28,7 @@
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"WebApplication","name":"财务计算器","alternateName":"Finance Calculator","url":"https://js.1211.cc.cd/","applicationCategory":"FinanceApplication","operatingSystem":"Any","inLanguage":"zh-CN","isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"CNY"},"description":"180 个模块的免费财务计算器，覆盖个人理财与公司财务。纯前端计算，数据不上传。","featureList":"存款利息、贷款月供、提前还款、组合贷、个税与到手工资、社保公积金、租房还是买房、资产负债、FIRE、公司财务报表与税务测算"}
 </script>
-<link rel="stylesheet" href="./assets/style.74d98d7c9a.css">
+<link rel="stylesheet" href="./assets/style.807123a0b5.css">
 </head>
 <body>
 
@@ -45,10 +45,12 @@
         </details>
       </div>
     </div>
-    <input class="q" id="q" type="search" autocomplete="off" placeholder="搜模块：大写金额 / 账期 / 工作日 / 年化 / 分摊 / 税前">
+    <input class="q" id="q" type="search" autocomplete="off" placeholder="搜模块：名称 / 拼音首字母（如 gsb 公司财务体检）或英文名（如 vat），回车直达">
+    <p class="qcount" id="qcount" hidden></p>
     <nav class="cats" id="cats" role="tablist" aria-label="分类">
       <button class="cat is-on" data-cat="hot" data-label="常用" role="tab">常用</button>
       <button class="cat" data-cat="fav" data-label="置顶" role="tab">置顶</button>
+      <button class="cat" data-cat="recent" data-label="最近" role="tab">最近</button>
       <button class="cat" data-cat="save" data-label="存钱理财" role="tab">存钱理财</button>
       <button class="cat" data-cat="loan" data-label="贷款房贷" role="tab">贷款房贷</button>
       <button class="cat" data-cat="house" data-label="房子买卖" role="tab">房子买卖</button>
@@ -68,186 +70,186 @@
       <button class="sub" data-grp="report" role="tab">报表分析</button>
     </nav>
     <nav class="tabs" id="tabs" role="tablist">
-      <button class="tab" data-tab="healthcheck" data-cat="hot" role="tab">家庭财务体检</button>
-        <button class="tab" data-tab="housecash" data-cat="house family" role="tab">购房一次性支出</button>
-        <button class="tab" data-tab="planner" data-cat="family hot" role="tab">组合规划·买房后</button>
-      <button class="tab" data-tab="report" data-cat="hot family" role="tab">一页体检报告</button>
-      <button class="tab" data-tab="snaps" data-cat="hot util" role="tab">方案快照</button>
-      <button class="tab is-on" data-tab="deposit" data-cat="save hot" role="tab">存款利息</button>
-      <button class="tab" data-tab="loan" data-cat="loan hot" role="tab">贷款月供</button>
-      <button class="tab" data-tab="combo" data-cat="loan" role="tab">组合贷</button>
-      <button class="tab" data-tab="prepay" data-cat="loan hot" role="tab">提前还款</button>
-      <button class="tab" data-tab="compound" data-cat="save hot" role="tab">复利/定投</button>
-      <button class="tab" data-tab="goal" data-cat="save" role="tab">攒钱目标</button>
-      <button class="tab" data-tab="installment" data-cat="life hot" role="tab">分期利率</button>
-      <button class="tab" data-tab="annual" data-cat="save" role="tab">年化换算</button>
-      <button class="tab" data-tab="inflation" data-cat="save" role="tab">通胀购买力</button>
-      <button class="tab" data-tab="tax" data-cat="tax hot" role="tab">个税测算</button>
-      <button class="tab" data-tab="deal" data-cat="life" role="tab">折扣单价</button>
-      <button class="tab" data-tab="salary" data-cat="tax hot" role="tab">到手工资</button>
-      <button class="tab" data-tab="rentbuy" data-cat="house" role="tab">租房还是买房</button>
-      <button class="tab" data-tab="card" data-cat="life" role="tab">信用卡利息</button>
-      <button class="tab" data-tab="fx" data-cat="life" role="tab">汇率单位</button>
-      <button class="tab" data-tab="fund" data-cat="loan" role="tab">公积金额度</button>
-      <button class="tab" data-tab="lpr" data-cat="loan" role="tab">利率调整月供</button>
-      <button class="tab" data-tab="deed" data-cat="house" role="tab">二手房税费</button>
-      <button class="tab" data-tab="split" data-cat="life" role="tab">AA 分摊</button>
-      <button class="tab" data-tab="pension" data-cat="tax" role="tab">退休金测算</button>
-      <button class="tab" data-tab="sell" data-cat="house" role="tab">卖房换房</button>
-      <button class="tab" data-tab="offset" data-cat="loan" role="tab">公积金对冲</button>
-      <button class="tab" data-tab="multi" data-cat="life" role="tab">多币种折算</button>
-      <button class="tab" data-tab="repayvs" data-cat="loan" role="tab">提前还款 vs 理财</button>
-      <button class="tab" data-tab="edu" data-cat="family" role="tab">教育金</button>
-      <button class="tab" data-tab="insure" data-cat="family" role="tab">保险保额</button>
-      <button class="tab" data-tab="car" data-cat="life" role="tab">买车 vs 打车</button>
-      <button class="tab" data-tab="bonus" data-cat="tax" role="tab">年终奖拆分</button>
-      <button class="tab" data-tab="deduct" data-cat="tax" role="tab">专项附加扣除</button>
-      <button class="tab" data-tab="ladder" data-cat="save" role="tab">存单阶梯</button>
-      <button class="tab" data-tab="rentyield" data-cat="house" role="tab">租售比</button>
-      <button class="tab" data-tab="settle" data-cat="tax hot" role="tab">年度汇算退税</button>
-      <button class="tab" data-tab="balance" data-cat="family" role="tab">家庭资产负债</button>
-      <button class="tab" data-tab="selfins" data-cat="tax" role="tab">灵活就业社保</button>
-      <button class="tab" data-tab="underpay" data-cat="tax" role="tab">社保少缴核查</button>
-      <button class="tab" data-tab="loanways" data-cat="loan" role="tab">三种还法对撞</button>
-      <button class="tab" data-tab="dca" data-cat="save" role="tab">定投 vs 一次性</button>
-      <button class="tab" data-tab="checkup" data-cat="family" role="tab">保单体检</button>
-      <button class="tab" data-tab="calendar" data-cat="save" role="tab">到期日历</button>
-      <button class="tab" data-tab="cashflow" data-cat="family hot" role="tab">现金流月历</button>
-      <button class="tab" data-tab="zeroloan" data-cat="loan" role="tab">0 利率真实成本</button>
-      <button class="tab" data-tab="riskalloc" data-cat="family" role="tab">风险测评配置</button>
-      <button class="tab" data-tab="penalty" data-cat="loan" role="tab">违约金临界点</button>
-      <button class="tab" data-tab="debtfree" data-cat="life" role="tab">债务先还哪笔</button>
-      <button class="tab" data-tab="fire" data-cat="family" role="tab">FIRE 自由</button>
-      <button class="tab" data-tab="annualfee" data-cat="family" role="tab">年缴费用分摊</button>
-      <button class="tab" data-tab="budget" data-cat="house" role="tab">买房预算反推</button>
-      <button class="tab" data-tab="zhuan" data-cat="loan" role="tab">商转公</button>
-      <button class="tab" data-tab="medins" data-cat="tax" role="tab">医保报销</button>
-      <button class="tab" data-tab="childcost" data-cat="family" role="tab">养娃成本</button>
-      <button class="tab" data-tab="ppension" data-cat="tax" role="tab">个人养老金</button>
-      <button class="tab" data-tab="fundlimit" data-cat="loan" role="tab">公积金缴存额度</button>
-      <button class="tab" data-tab="emergency" data-cat="family hot" role="tab">应急金</button>
-      <button class="tab" data-tab="rule503020" data-cat="family" role="tab">收入分配体检</button>
-      <button class="tab" data-tab="debtmerge" data-cat="life" role="tab">债务置换</button>
-      <button class="tab" data-tab="freeperiod" data-cat="life" role="tab">信用卡免息期</button>
-      <button class="tab" data-tab="overtime" data-cat="tax" role="tab">加班费与请假</button>
-      <button class="tab" data-tab="rentup" data-cat="house" role="tab">涨租 vs 搬家</button>
-      <button class="tab" data-tab="ev" data-cat="life" role="tab">油车 vs 电车</button>
-      <button class="tab" data-tab="vat" data-cat="acct" data-grp="tax" role="tab">发票价税分离</button>
-      <button class="tab" data-tab="vatdue" data-cat="acct" data-grp="tax" role="tab">增值税与附加</button>
-      <button class="tab" data-tab="deprec" data-cat="acct" data-grp="cost" role="tab">固定资产折旧</button>
-      <button class="tab" data-tab="breakeven" data-cat="acct" data-grp="perf" role="tab">保本点与目标利润</button>
-      <button class="tab" data-tab="ratios" data-cat="acct" data-grp="report" role="tab">报表体检（杜邦）</button>
-      <button class="tab" data-tab="recon" data-cat="acct" data-grp="report" role="tab">银行余额调节</button>
-      <button class="tab" data-tab="expense" data-cat="acct" data-grp="report" role="tab">差旅报销单</button>
-      <button class="tab" data-tab="aging" data-cat="acct" data-grp="bd" role="tab">应收账龄</button>
-      <button class="tab" data-tab="funding" data-cat="acct" data-grp="cash" role="tab">资金排期</button>
-      <button class="tab" data-tab="pricing" data-cat="acct" data-grp="perf" role="tab">报价毛利</button>
-      <button class="tab" data-tab="triplede" data-cat="acct" data-grp="report" role="tab">三表勾稽</button>
-      <button class="tab" data-tab="multimargin" data-cat="acct" data-grp="perf" role="tab">多产品毛利</button>
-      <button class="tab" data-tab="apterms" data-cat="acct" data-grp="bd" role="tab">应付折扣</button>
-      <button class="tab" data-tab="assetledger" data-cat="acct" data-grp="cost" role="tab">固资台账</button>
-      <button class="tab" data-tab="payage" data-cat="acct" data-grp="bd" role="tab">应付账龄</button>
-      <button class="tab" data-tab="costcard" data-cat="acct" data-grp="cost" role="tab">成本核算</button>
-      <button class="tab" data-tab="budgetvar" data-cat="acct" data-grp="cost" role="tab">预算差异</button>
-      <button class="tab" data-tab="finreport" data-cat="acct" data-grp="report" role="tab">月度利润表</button>
-      <button class="tab" data-tab="invoice" data-cat="acct" data-grp="bd" role="tab">开票与收款台账</button>
-      <button class="tab" data-tab="expbudget" data-cat="acct" data-grp="report" role="tab">费用预算差异</button>
-      <button class="tab" data-tab="efficiency" data-cat="acct" data-grp="report" role="tab">人效与费用率</button>
-      <button class="tab" data-tab="cashstmt" data-cat="acct" data-grp="report" role="tab">现金流量表</button>
-      <button class="tab" data-tab="mpbe" data-cat="acct" data-grp="perf" role="tab">多产品保本</button>
-      <button class="tab" data-tab="payroll" data-cat="acct" data-grp="perf" role="tab">工资勾稽</button>
-      <button class="tab" data-tab="assetdiff" data-cat="acct" data-grp="cost" role="tab">盘点差异</button>
-      <button class="tab" data-tab="monthclose" data-cat="acct" data-grp="report" role="tab">关账进度</button>
-      <button class="tab" data-tab="factoring" data-cat="acct" data-grp="cash" role="tab">应收保理贴现</button>
-      <button class="tab" data-tab="deadstock" data-cat="acct" data-grp="bd" role="tab">呆滞库存清理</button>
-      <button class="tab" data-tab="aptalk" data-cat="acct" data-grp="cash" role="tab">账期谈判收益</button>
-      <button class="tab" data-tab="cash13" data-cat="acct" data-grp="cash" role="tab">13周现金流</button>
-      <button class="tab" data-tab="bill" data-cat="acct" data-grp="cash" role="tab">票据贴现成本</button>
-      <button class="tab" data-tab="loanreal" data-cat="loan acct" data-grp="cash" role="tab">贷款真实利率</button>
-      <button class="tab" data-tab="collect" data-cat="acct" data-grp="bd" role="tab">催收优先级</button>
-      <button class="tab" data-tab="mgmtpack" data-cat="acct" data-grp="report" role="tab">月度经营数据包</button>
-      <button class="tab" data-tab="settleway" data-cat="acct" data-grp="cash" role="tab">结算方式对比</button>
-      <button class="tab" data-tab="creditline" data-cat="acct" data-grp="cash" role="tab">授信测算</button>
-      <button class="tab" data-tab="impair" data-cat="acct" data-grp="bd" role="tab">存货跌价</button>
-      <button class="tab" data-tab="fxgain" data-cat="acct" data-grp="cash" role="tab">出口汇兑</button>
-      <button class="tab" data-tab="taxburden" data-cat="acct" data-grp="tax" role="tab">增值税税负率</button>
-      <button class="tab" data-tab="sens" data-cat="acct" data-grp="report" role="tab">利润敏感性</button>
-      <button class="tab" data-tab="consol" data-cat="acct" data-grp="report" role="tab">合并抵销</button>
-      <button class="tab" data-tab="eoq" data-cat="acct" data-grp="bd" role="tab">订货批量</button>
-      <button class="tab" data-tab="commission" data-cat="acct" data-grp="perf" role="tab">销售提成</button>
-      <button class="tab" data-tab="capex" data-cat="acct" data-grp="cost" role="tab">固定资产投决</button>
-      <button class="tab" data-tab="pooling" data-cat="acct" data-grp="cash" role="tab">资金归集</button>
-      <button class="tab" data-tab="creditlimit" data-cat="acct" data-grp="cash" role="tab">客户信用额度</button>
-      <button class="tab" data-tab="bplan" data-cat="acct" data-grp="report" role="tab">年度预算联动</button>
-      <button class="tab" data-tab="refundflow" data-cat="acct" data-grp="tax" role="tab">退税资金占用</button>
-      <button class="tab" data-tab="costalloc" data-cat="acct" data-grp="cost" role="tab">制造费用分摊</button>
-      <button class="tab" data-tab="importcost" data-cat="acct" data-grp="perf" role="tab">进口到岸成本</button>
-      <button class="tab" data-tab="makeorbuy" data-cat="acct" data-grp="cost" role="tab">自产还是外购</button>
-      <button class="tab" data-tab="ecl" data-cat="acct" data-grp="bd" role="tab">应收减值ECL</button>
-      <button class="tab" data-tab="quotefx" data-cat="acct" data-grp="perf" role="tab">出口报价换算</button>
-      <button class="tab" data-tab="capacity" data-cat="acct" data-grp="cost" role="tab">多厂排产</button>
-      <button class="tab" data-tab="custwin" data-cat="acct" data-grp="bd" role="tab">客户级盈利</button>
-      <button class="tab" data-tab="upgrade" data-cat="acct" data-grp="cost" role="tab">设备换新</button>
-      <button class="tab" data-tab="deptalloc" data-cat="acct" data-grp="cost" role="tab">辅助部门分摊</button>
-      <button class="tab" data-tab="payout" data-cat="acct" data-grp="perf" role="tab">分红与股东回报</button>
-      <button class="tab" data-tab="numwords" data-cat="util" role="tab">金额大写</button>
-      <button class="tab" data-tab="duedate" data-cat="util" role="tab">账期到期日</button>
-      <button class="tab" data-tab="workday" data-cat="util" role="tab">工作日与日期差</button>
-      <button class="tab" data-tab="cagr" data-cat="util" role="tab">增幅与年化</button>
-      <button class="tab" data-tab="apportion" data-cat="util" role="tab">尾差分摊</button>
-      <button class="tab" data-tab="grossup" data-cat="util" role="tab">税后反推税前</button>
-      <button class="tab" data-tab="datemath" data-cat="util" role="tab">日期加减月</button>
-      <button class="tab" data-tab="pct3" data-cat="util" role="tab">百分比换算</button>
-      <button class="tab" data-tab="xlhelp" data-cat="util" role="tab">Excel 公式速查</button>
-      <button class="tab" data-tab="csvrecon" data-cat="util" role="tab">流水核对</button>
-      <button class="tab" data-tab="mold" data-cat="acct" data-grp="cost" role="tab">模具摊销批量</button>
-      <button class="tab" data-tab="rebate" data-cat="acct" data-grp="perf" role="tab">阶梯返利测算</button>
-      <button class="tab" data-tab="stdcost" data-cat="acct" data-grp="cost" role="tab">标准成本差异</button>
-      <button class="tab" data-tab="svc" data-cat="acct" data-grp="bd" role="tab">安全库存水平</button>
-      <button class="tab" data-tab="taxadj" data-cat="acct" data-grp="tax" role="tab">汇算清缴调整</button>
-      <button class="tab" data-tab="supplier" data-cat="acct" data-grp="bd" role="tab">供应商集中度</button>
-      <button class="tab" data-tab="debtcap" data-cat="acct" data-grp="tax" role="tab">关联方利息扣除</button>
-      <button class="tab" data-tab="accdep" data-cat="acct" data-grp="tax" role="tab">设备一次性扣除</button>
-      <button class="tab" data-tab="trprice" data-cat="acct" data-grp="cash" role="tab">转移定价税负</button>
-      <button class="tab" data-tab="esop" data-cat="acct" data-grp="tax" role="tab">股权激励摊销</button>
-      <button class="tab" data-tab="rdexp" data-cat="acct" data-grp="tax" role="tab">研发加计扣除</button>
-      <button class="tab" data-tab="rollfc" data-cat="acct" data-grp="report" role="tab">滚动预测差异</button>
-      <button class="tab" data-tab="invstock" data-cat="acct" data-grp="bd" role="tab">存货周转与库龄</button>
-      <button class="tab" data-tab="exportrebate" data-cat="acct" data-grp="tax" role="tab">出口退税免抵退</button>
-      <button class="tab" data-tab="tieout" data-cat="acct" data-grp="bd" role="tab">往来对账差额</button>
-      <button class="tab" data-tab="feetrend" data-cat="acct" data-grp="report" role="tab">三费趋势（6期）</button>
-      <button class="tab" data-tab="contractperf" data-cat="acct" data-grp="report" role="tab">合同履约进度</button>
-      <button class="tab" data-tab="projrev" data-cat="acct" data-grp="report" role="tab">工程收入确认</button>
-      <button class="tab" data-tab="creditpolicy" data-cat="acct" data-grp="bd" role="tab">信用政策组合</button>
-      <button class="tab" data-tab="rateadj" data-cat="tax" role="tab">社保调基</button>
-      <button class="tab" data-tab="invfund" data-cat="acct" data-grp="bd" role="tab">存货资金占用</button>
-      <button class="tab" data-tab="machrate" data-cat="acct" data-grp="cost" role="tab">工厂小时费率</button>
-      <button class="tab" data-tab="govgrant" data-cat="acct" data-grp="tax" role="tab">政府补助</button>
-      <button class="tab" data-tab="fxtranslate" data-cat="acct" data-grp="report" role="tab">外币报表折算</button>
-      <button class="tab" data-tab="rebateacc" data-cat="acct" data-grp="perf" role="tab">销售返利与渠道费</button>
-      <button class="tab" data-tab="pledgeloan" data-cat="acct" data-grp="cash" role="tab">应收质押融资</button>
-      <button class="tab" data-tab="labvar" data-cat="acct" data-grp="cost" role="tab">人工效率与产能</button>
-      <button class="tab" data-tab="rdcap" data-cat="acct" data-grp="tax" role="tab">研发资本化</button>
-      <button class="tab" data-tab="salesallow" data-cat="acct" data-grp="tax" role="tab">销售折让与赠品</button>
-      <button class="tab" data-tab="lease" data-cat="acct" data-grp="report" role="tab">经营租赁入表</button>
-      <button class="tab" data-tab="gpmix" data-cat="acct" data-grp="report" role="tab">毛利率变动归因</button>
-      <button class="tab" data-tab="vatchoose" data-cat="acct" data-grp="tax" role="tab">一般纳税人 vs 小规模</button>
-      <button class="tab" data-tab="processcost" data-cat="acct" data-grp="cost" role="tab">分步法成本还原</button>
-      <button class="tab" data-tab="makeoroutsource" data-cat="acct" data-grp="cost" role="tab">委外还是自制</button>
-      <button class="tab" data-tab="rebatedta" data-cat="acct" data-grp="tax" role="tab">返利退货递延所得税</button>
-      <button class="tab" data-tab="leasebuy" data-cat="acct" data-grp="cash" role="tab">租赁 vs 购买</button>
-      <button class="tab" data-tab="welfare" data-cat="acct" data-grp="tax" role="tab">三项经费与残保金</button>
-      <button class="tab" data-tab="inputout" data-cat="acct" data-grp="tax" role="tab">进项税转出</button>
-      <button class="tab" data-tab="stampduty" data-cat="acct" data-grp="tax" role="tab">印花税速算</button>
-      <button class="tab" data-tab="assetdisp" data-cat="acct" data-grp="cost" role="tab">固定资产处置</button>
-      <button class="tab" data-tab="headcount" data-cat="acct" data-grp="perf" role="tab">人员编制与预算</button>
-      <button class="tab" data-tab="markroi" data-cat="acct" data-grp="perf" role="tab">市场投入产出</button>
-      <button class="tab" data-tab="rdproject" data-cat="acct" data-grp="cost" role="tab">研发项目预算</button>
-      <button class="tab" data-tab="intsvc" data-cat="acct" data-grp="tax" role="tab">内部服务费分摊</button>
-      <button class="tab" data-tab="accrual" data-cat="acct" data-grp="report" role="tab">跨期费用与预提</button>
-      <button class="tab" data-tab="cfconsol" data-cat="acct" data-grp="report" role="tab">合并现金流抵销</button>
-      <button class="tab" data-tab="exportcheck" data-cat="acct" data-grp="tax" role="tab">出口退税勾稽</button>
-      <button class="tab" data-tab="vatcheck" data-cat="acct" data-grp="tax" role="tab">增值税申报勾稽</button>
+      <button class="tab" data-tab="healthcheck" data-cat="hot" role="tab" data-py="jtcwtj jiatingcaiwutijian" data-alias="tijian caiwutijian jk">家庭财务体检</button>
+        <button class="tab" data-tab="housecash" data-cat="house family" role="tab" data-py="gfycxzc goufangyicixingzhichu" data-alias="goufang yicixing shoufu sf">购房一次性支出</button>
+        <button class="tab" data-tab="planner" data-cat="family hot" role="tab" data-py="zhghmfh zuheguihuamaifanghou" data-alias="guihua zhdai maifanghou">组合规划·买房后</button>
+      <button class="tab" data-tab="report" data-cat="hot family" role="tab" data-py="yytjbg yiyetijianbaogao" data-alias="baogao yiyetijian bg">一页体检报告</button>
+      <button class="tab" data-tab="snaps" data-cat="hot util" role="tab" data-py="fakz fangankuaizhao" data-alias="kuaizhao fangan kz">方案快照</button>
+      <button class="tab is-on" data-tab="deposit" data-cat="save hot" role="tab" data-py="cklx cunkuanlixi" data-alias="cunqian ck lixi dingqi">存款利息</button>
+      <button class="tab" data-tab="loan" data-cat="loan hot" role="tab" data-py="dkyg daikuanyuegong" data-alias="fangdai fd anjie yuegong">贷款月供</button>
+      <button class="tab" data-tab="combo" data-cat="loan" role="tab" data-py="zhd zuhedai" data-alias="zuhedai zhgd">组合贷</button>
+      <button class="tab" data-tab="prepay" data-cat="loan hot" role="tab" data-py="tqhk tiqianhaikuan" data-alias="tqhk tiqianhuanakuan">提前还款</button>
+      <button class="tab" data-tab="compound" data-cat="save hot" role="tab" data-py="fldt fulidingtou" data-alias="fuli dttz dingtou">复利/定投</button>
+      <button class="tab" data-tab="goal" data-cat="save" role="tab" data-py="zqmb zanqianmubiao" data-alias="zanqian mb mbiao">攒钱目标</button>
+      <button class="tab" data-tab="installment" data-cat="life hot" role="tab" data-py="fqll fenqililv" data-alias="fenqi fqlv">分期利率</button>
+      <button class="tab" data-tab="annual" data-cat="save" role="tab" data-py="nhhs nianhuahuansuan" data-alias="nianhua nh">年化换算</button>
+      <button class="tab" data-tab="inflation" data-cat="save" role="tab" data-py="tzgml tongzhanggoumaili" data-alias="tongzhang tz">通胀购买力</button>
+      <button class="tab" data-tab="tax" data-cat="tax hot" role="tab" data-py="gscs geshuicesuan" data-alias="geshui gs">个税测算</button>
+      <button class="tab" data-tab="deal" data-cat="life" role="tab" data-py="zkdj zhekoudanjia" data-alias="zhekou dj danjia">折扣单价</button>
+      <button class="tab" data-tab="salary" data-cat="tax hot" role="tab" data-py="dsgz daoshougongzi" data-alias="daoshou dakeren gongzi">到手工资</button>
+      <button class="tab" data-tab="rentbuy" data-cat="house" role="tab" data-py="zfhsmf zufanghaishimaifang" data-alias="zumaifang zmf">租房还是买房</button>
+      <button class="tab" data-tab="card" data-cat="life" role="tab" data-py="xyklx xinyongkalixi">信用卡利息</button>
+      <button class="tab" data-tab="fx" data-cat="life" role="tab" data-py="hldw huilvdanwei" data-alias="huilv hl duihuan">汇率单位</button>
+      <button class="tab" data-tab="fund" data-cat="loan" role="tab" data-py="gjjed gongjijinedu">公积金额度</button>
+      <button class="tab" data-tab="lpr" data-cat="loan" role="tab" data-py="lltzyg lilvtiaozhengyuegong">利率调整月供</button>
+      <button class="tab" data-tab="deed" data-cat="house" role="tab" data-py="esfsf ershoufangshuifei">二手房税费</button>
+      <button class="tab" data-tab="split" data-cat="life" role="tab" data-py="ft fentan">AA 分摊</button>
+      <button class="tab" data-tab="pension" data-cat="tax" role="tab" data-py="txjcs tuixiujincesuan">退休金测算</button>
+      <button class="tab" data-tab="sell" data-cat="house" role="tab" data-py="mfhf maifanghuanfang">卖房换房</button>
+      <button class="tab" data-tab="offset" data-cat="loan" role="tab" data-py="gjjdc gongjijinduichong">公积金对冲</button>
+      <button class="tab" data-tab="multi" data-cat="life" role="tab" data-py="dbzzs duobizhongzhesuan">多币种折算</button>
+      <button class="tab" data-tab="repayvs" data-cat="loan" role="tab" data-py="tqhklc tiqianhaikuanlicai">提前还款 vs 理财</button>
+      <button class="tab" data-tab="edu" data-cat="family" role="tab" data-py="jyj jiaoyujin">教育金</button>
+      <button class="tab" data-tab="insure" data-cat="family" role="tab" data-py="bxbe baoxianbaoe">保险保额</button>
+      <button class="tab" data-tab="car" data-cat="life" role="tab" data-py="mcdc maichedache">买车 vs 打车</button>
+      <button class="tab" data-tab="bonus" data-cat="tax" role="tab" data-py="nzjcf nianzhongjiangchaifen">年终奖拆分</button>
+      <button class="tab" data-tab="deduct" data-cat="tax" role="tab" data-py="zxfjkc zhuanxiangfujiakouchu">专项附加扣除</button>
+      <button class="tab" data-tab="ladder" data-cat="save" role="tab" data-py="cdjt cundanjieti">存单阶梯</button>
+      <button class="tab" data-tab="rentyield" data-cat="house" role="tab" data-py="zsb zushoubi" data-alias="zushoubi zsb">租售比</button>
+      <button class="tab" data-tab="settle" data-cat="tax hot" role="tab" data-py="ndhsts nianduhuisuantuishui">年度汇算退税</button>
+      <button class="tab" data-tab="balance" data-cat="family" role="tab" data-py="jtzcfz jiatingzichanfuzhai">家庭资产负债</button>
+      <button class="tab" data-tab="selfins" data-cat="tax" role="tab" data-py="lhjysb linghuojiuyeshebao">灵活就业社保</button>
+      <button class="tab" data-tab="underpay" data-cat="tax" role="tab" data-py="sbsjhc shebaoshaojiaohecha">社保少缴核查</button>
+      <button class="tab" data-tab="loanways" data-cat="loan" role="tab" data-py="szhfdz sanzhonghaifaduizhuang">三种还法对撞</button>
+      <button class="tab" data-tab="dca" data-cat="save" role="tab" data-py="dtycx dingtouyicixing">定投 vs 一次性</button>
+      <button class="tab" data-tab="checkup" data-cat="family" role="tab" data-py="bdtj baodantijian">保单体检</button>
+      <button class="tab" data-tab="calendar" data-cat="save" role="tab" data-py="dqrl daoqirili">到期日历</button>
+      <button class="tab" data-tab="cashflow" data-cat="family hot" role="tab" data-py="xjlyl xianjinliuyueli">现金流月历</button>
+      <button class="tab" data-tab="zeroloan" data-cat="loan" role="tab" data-py="llzscb lilvzhenshichengben">0 利率真实成本</button>
+      <button class="tab" data-tab="riskalloc" data-cat="family" role="tab" data-py="fxcppz fengxiancepingpeizhi">风险测评配置</button>
+      <button class="tab" data-tab="penalty" data-cat="loan" role="tab" data-py="wyjljd weiyuejinlinjiedian">违约金临界点</button>
+      <button class="tab" data-tab="debtfree" data-cat="life" role="tab" data-py="zwxhnb zhaiwuxianhainabi">债务先还哪笔</button>
+      <button class="tab" data-tab="fire" data-cat="family" role="tab" data-py="zy ziyou">FIRE 自由</button>
+      <button class="tab" data-tab="annualfee" data-cat="family" role="tab" data-py="njfyft nianjiaofeiyongfentan">年缴费用分摊</button>
+      <button class="tab" data-tab="budget" data-cat="house" role="tab" data-py="mfysft maifangyusuanfantui">买房预算反推</button>
+      <button class="tab" data-tab="zhuan" data-cat="loan" role="tab" data-py="szg shangzhuangong">商转公</button>
+      <button class="tab" data-tab="medins" data-cat="tax" role="tab" data-py="ybbx yibaobaoxiao">医保报销</button>
+      <button class="tab" data-tab="childcost" data-cat="family" role="tab" data-py="ywcb yangwachengben">养娃成本</button>
+      <button class="tab" data-tab="ppension" data-cat="tax" role="tab" data-py="grylj gerenyanglaojin">个人养老金</button>
+      <button class="tab" data-tab="fundlimit" data-cat="loan" role="tab" data-py="gjjjced gongjijinjiaocunedu">公积金缴存额度</button>
+      <button class="tab" data-tab="emergency" data-cat="family hot" role="tab" data-py="yjj yingjijin">应急金</button>
+      <button class="tab" data-tab="rule503020" data-cat="family" role="tab" data-py="srfptj shourufenpeitijian">收入分配体检</button>
+      <button class="tab" data-tab="debtmerge" data-cat="life" role="tab" data-py="zwzh zhaiwuzhihuan">债务置换</button>
+      <button class="tab" data-tab="freeperiod" data-cat="life" role="tab" data-py="xykmxq xinyongkamianxiqi">信用卡免息期</button>
+      <button class="tab" data-tab="overtime" data-cat="tax" role="tab" data-py="jbfyqj jiabanfeiyuqingjia">加班费与请假</button>
+      <button class="tab" data-tab="rentup" data-cat="house" role="tab" data-py="zzbj zhangzubanjia">涨租 vs 搬家</button>
+      <button class="tab" data-tab="ev" data-cat="life" role="tab" data-py="ycdc youchedianche">油车 vs 电车</button>
+      <button class="tab" data-tab="vat" data-cat="acct" data-grp="tax" role="tab" data-py="fpjsfl fapiaojiashuifenli">发票价税分离</button>
+      <button class="tab" data-tab="vatdue" data-cat="acct" data-grp="tax" role="tab" data-py="zzsyfj zengzhishuiyufujia">增值税与附加</button>
+      <button class="tab" data-tab="deprec" data-cat="acct" data-grp="cost" role="tab" data-py="gdzczj gudingzichanzhejiu">固定资产折旧</button>
+      <button class="tab" data-tab="breakeven" data-cat="acct" data-grp="perf" role="tab" data-py="bbdymblr baobendianyumubiaolirun">保本点与目标利润</button>
+      <button class="tab" data-tab="ratios" data-cat="acct" data-grp="report" role="tab" data-py="bbtjdb baobiaotijiandubang">报表体检（杜邦）</button>
+      <button class="tab" data-tab="recon" data-cat="acct" data-grp="report" role="tab" data-py="yhyetj yinhangyuetiaojie">银行余额调节</button>
+      <button class="tab" data-tab="expense" data-cat="acct" data-grp="report" role="tab" data-py="clbxd chalvbaoxiaodan">差旅报销单</button>
+      <button class="tab" data-tab="aging" data-cat="acct" data-grp="bd" role="tab" data-py="yszl yingshouzhangling">应收账龄</button>
+      <button class="tab" data-tab="funding" data-cat="acct" data-grp="cash" role="tab" data-py="zjpq zijinpaiqi">资金排期</button>
+      <button class="tab" data-tab="pricing" data-cat="acct" data-grp="perf" role="tab" data-py="bjml baojiamaoli">报价毛利</button>
+      <button class="tab" data-tab="triplede" data-cat="acct" data-grp="report" role="tab" data-py="sbgj sanbiaogouji">三表勾稽</button>
+      <button class="tab" data-tab="multimargin" data-cat="acct" data-grp="perf" role="tab" data-py="dcpml duochanpinmaoli">多产品毛利</button>
+      <button class="tab" data-tab="apterms" data-cat="acct" data-grp="bd" role="tab" data-py="yfzk yingfuzhekou">应付折扣</button>
+      <button class="tab" data-tab="assetledger" data-cat="acct" data-grp="cost" role="tab" data-py="gztz guzitaizhang">固资台账</button>
+      <button class="tab" data-tab="payage" data-cat="acct" data-grp="bd" role="tab" data-py="yfzl yingfuzhangling">应付账龄</button>
+      <button class="tab" data-tab="costcard" data-cat="acct" data-grp="cost" role="tab" data-py="cbhs chengbenhesuan">成本核算</button>
+      <button class="tab" data-tab="budgetvar" data-cat="acct" data-grp="cost" role="tab" data-py="yscy yusuanchayi">预算差异</button>
+      <button class="tab" data-tab="finreport" data-cat="acct" data-grp="report" role="tab" data-py="ydlrb yuedulirunbiao">月度利润表</button>
+      <button class="tab" data-tab="invoice" data-cat="acct" data-grp="bd" role="tab" data-py="kpysktz kaipiaoyushoukuantaizhang">开票与收款台账</button>
+      <button class="tab" data-tab="expbudget" data-cat="acct" data-grp="report" role="tab" data-py="fyyscy feiyongyusuanchayi">费用预算差异</button>
+      <button class="tab" data-tab="efficiency" data-cat="acct" data-grp="report" role="tab" data-py="rxyfyl renxiaoyufeiyonglv">人效与费用率</button>
+      <button class="tab" data-tab="cashstmt" data-cat="acct" data-grp="report" role="tab" data-py="xjllb xianjinliuliangbiao">现金流量表</button>
+      <button class="tab" data-tab="mpbe" data-cat="acct" data-grp="perf" role="tab" data-py="dcpbb duochanpinbaoben">多产品保本</button>
+      <button class="tab" data-tab="payroll" data-cat="acct" data-grp="perf" role="tab" data-py="gzgj gongzigouji">工资勾稽</button>
+      <button class="tab" data-tab="assetdiff" data-cat="acct" data-grp="cost" role="tab" data-py="pdcy pandianchayi">盘点差异</button>
+      <button class="tab" data-tab="monthclose" data-cat="acct" data-grp="report" role="tab" data-py="gzjd guanzhangjindu">关账进度</button>
+      <button class="tab" data-tab="factoring" data-cat="acct" data-grp="cash" role="tab" data-py="ysbltx yingshoubaolitiexian">应收保理贴现</button>
+      <button class="tab" data-tab="deadstock" data-cat="acct" data-grp="bd" role="tab" data-py="dzkcql daizhikucunqingli">呆滞库存清理</button>
+      <button class="tab" data-tab="aptalk" data-cat="acct" data-grp="cash" role="tab" data-py="zqtpsy zhangqitanpanshouyi">账期谈判收益</button>
+      <button class="tab" data-tab="cash13" data-cat="acct" data-grp="cash" role="tab" data-py="zxjl zhouxianjinliu">13周现金流</button>
+      <button class="tab" data-tab="bill" data-cat="acct" data-grp="cash" role="tab" data-py="pjtxcb piaojutiexianchengben">票据贴现成本</button>
+      <button class="tab" data-tab="loanreal" data-cat="loan acct" data-grp="cash" role="tab" data-py="dkzsll daikuanzhenshililv">贷款真实利率</button>
+      <button class="tab" data-tab="collect" data-cat="acct" data-grp="bd" role="tab" data-py="csyxj cuishouyouxianji">催收优先级</button>
+      <button class="tab" data-tab="mgmtpack" data-cat="acct" data-grp="report" role="tab" data-py="ydjysjb yuedujingyingshujubao">月度经营数据包</button>
+      <button class="tab" data-tab="settleway" data-cat="acct" data-grp="cash" role="tab" data-py="jsfsdb jiesuanfangshiduibi">结算方式对比</button>
+      <button class="tab" data-tab="creditline" data-cat="acct" data-grp="cash" role="tab" data-py="sxcs shouxincesuan">授信测算</button>
+      <button class="tab" data-tab="impair" data-cat="acct" data-grp="bd" role="tab" data-py="chdj cunhuodiejia">存货跌价</button>
+      <button class="tab" data-tab="fxgain" data-cat="acct" data-grp="cash" role="tab" data-py="ckhd chukouhuidui">出口汇兑</button>
+      <button class="tab" data-tab="taxburden" data-cat="acct" data-grp="tax" role="tab" data-py="zzssfl zengzhishuishuifulv">增值税税负率</button>
+      <button class="tab" data-tab="sens" data-cat="acct" data-grp="report" role="tab" data-py="lrmgx lirunminganxing">利润敏感性</button>
+      <button class="tab" data-tab="consol" data-cat="acct" data-grp="report" role="tab" data-py="hbdx hebingdixiao">合并抵销</button>
+      <button class="tab" data-tab="eoq" data-cat="acct" data-grp="bd" role="tab" data-py="dhpl dinghuopiliang">订货批量</button>
+      <button class="tab" data-tab="commission" data-cat="acct" data-grp="perf" role="tab" data-py="xstc xiaoshouticheng">销售提成</button>
+      <button class="tab" data-tab="capex" data-cat="acct" data-grp="cost" role="tab" data-py="gdzctj gudingzichantoujue">固定资产投决</button>
+      <button class="tab" data-tab="pooling" data-cat="acct" data-grp="cash" role="tab" data-py="zjgj zijinguiji">资金归集</button>
+      <button class="tab" data-tab="creditlimit" data-cat="acct" data-grp="cash" role="tab" data-py="khxyed kehuxinyongedu">客户信用额度</button>
+      <button class="tab" data-tab="bplan" data-cat="acct" data-grp="report" role="tab" data-py="ndysld nianduyusuanliandong">年度预算联动</button>
+      <button class="tab" data-tab="refundflow" data-cat="acct" data-grp="tax" role="tab" data-py="tszjzy tuishuizijinzhanyong">退税资金占用</button>
+      <button class="tab" data-tab="costalloc" data-cat="acct" data-grp="cost" role="tab" data-py="zzfyft zhizaofeiyongfentan">制造费用分摊</button>
+      <button class="tab" data-tab="importcost" data-cat="acct" data-grp="perf" role="tab" data-py="jkdacb jinkoudaoanchengben">进口到岸成本</button>
+      <button class="tab" data-tab="makeorbuy" data-cat="acct" data-grp="cost" role="tab" data-py="zchswg zichanhaishiwaigou">自产还是外购</button>
+      <button class="tab" data-tab="ecl" data-cat="acct" data-grp="bd" role="tab" data-py="ysjz yingshoujianzhi">应收减值ECL</button>
+      <button class="tab" data-tab="quotefx" data-cat="acct" data-grp="perf" role="tab" data-py="ckbjhs chukoubaojiahuansuan">出口报价换算</button>
+      <button class="tab" data-tab="capacity" data-cat="acct" data-grp="cost" role="tab" data-py="dcpc duochangpaichan">多厂排产</button>
+      <button class="tab" data-tab="custwin" data-cat="acct" data-grp="bd" role="tab" data-py="khjyl kehujiyingli">客户级盈利</button>
+      <button class="tab" data-tab="upgrade" data-cat="acct" data-grp="cost" role="tab" data-py="sbhx shebeihuanxin">设备换新</button>
+      <button class="tab" data-tab="deptalloc" data-cat="acct" data-grp="cost" role="tab" data-py="fzbmft fuzhubumenfentan">辅助部门分摊</button>
+      <button class="tab" data-tab="payout" data-cat="acct" data-grp="perf" role="tab" data-py="fhygdhb fenhongyugudonghuibao">分红与股东回报</button>
+      <button class="tab" data-tab="numwords" data-cat="util" role="tab" data-py="jedx jinedaxie">金额大写</button>
+      <button class="tab" data-tab="duedate" data-cat="util" role="tab" data-py="zqdqr zhangqidaoqiri">账期到期日</button>
+      <button class="tab" data-tab="workday" data-cat="util" role="tab" data-py="gzryrqc gongzuoriyuriqicha">工作日与日期差</button>
+      <button class="tab" data-tab="cagr" data-cat="util" role="tab" data-py="zfynh zengfuyunianhua">增幅与年化</button>
+      <button class="tab" data-tab="apportion" data-cat="util" role="tab" data-py="wcft weichafentan">尾差分摊</button>
+      <button class="tab" data-tab="grossup" data-cat="util" role="tab" data-py="shftsq shuihoufantuishuiqian">税后反推税前</button>
+      <button class="tab" data-tab="datemath" data-cat="util" role="tab" data-py="rqjjy riqijiajianyue">日期加减月</button>
+      <button class="tab" data-tab="pct3" data-cat="util" role="tab" data-py="bfbhs baifenbihuansuan">百分比换算</button>
+      <button class="tab" data-tab="xlhelp" data-cat="util" role="tab" data-py="gssc gongshisucha">Excel 公式速查</button>
+      <button class="tab" data-tab="csvrecon" data-cat="util" role="tab" data-py="lshd liushuihedui">流水核对</button>
+      <button class="tab" data-tab="mold" data-cat="acct" data-grp="cost" role="tab" data-py="mjtxpl mujutanxiaopiliang">模具摊销批量</button>
+      <button class="tab" data-tab="rebate" data-cat="acct" data-grp="perf" role="tab" data-py="jtflcs jietifanlicesuan">阶梯返利测算</button>
+      <button class="tab" data-tab="stdcost" data-cat="acct" data-grp="cost" role="tab" data-py="bzcbcy biaozhunchengbenchayi">标准成本差异</button>
+      <button class="tab" data-tab="svc" data-cat="acct" data-grp="bd" role="tab" data-py="aqkcsp anquankucunshuiping">安全库存水平</button>
+      <button class="tab" data-tab="taxadj" data-cat="acct" data-grp="tax" role="tab" data-py="hsqjtz huisuanqingjiaotiaozheng">汇算清缴调整</button>
+      <button class="tab" data-tab="supplier" data-cat="acct" data-grp="bd" role="tab" data-py="gysjzd gongyingshangjizhongdu">供应商集中度</button>
+      <button class="tab" data-tab="debtcap" data-cat="acct" data-grp="tax" role="tab" data-py="glflxkc guanlianfanglixikouchu">关联方利息扣除</button>
+      <button class="tab" data-tab="accdep" data-cat="acct" data-grp="tax" role="tab" data-py="sbycxkc shebeiyicixingkouchu">设备一次性扣除</button>
+      <button class="tab" data-tab="trprice" data-cat="acct" data-grp="cash" role="tab" data-py="zydjsf zhuanyidingjiashuifu">转移定价税负</button>
+      <button class="tab" data-tab="esop" data-cat="acct" data-grp="tax" role="tab" data-py="gqjltx guquanjilitanxiao">股权激励摊销</button>
+      <button class="tab" data-tab="rdexp" data-cat="acct" data-grp="tax" role="tab" data-py="yfjjkc yanfajiajikouchu">研发加计扣除</button>
+      <button class="tab" data-tab="rollfc" data-cat="acct" data-grp="report" role="tab" data-py="gdyccy gundongyucechayi">滚动预测差异</button>
+      <button class="tab" data-tab="invstock" data-cat="acct" data-grp="bd" role="tab" data-py="chzzykl cunhuozhouzhuanyukuling">存货周转与库龄</button>
+      <button class="tab" data-tab="exportrebate" data-cat="acct" data-grp="tax" role="tab" data-py="cktsmdt chukoutuishuimianditui">出口退税免抵退</button>
+      <button class="tab" data-tab="tieout" data-cat="acct" data-grp="bd" role="tab" data-py="wldzce wanglaiduizhangchae">往来对账差额</button>
+      <button class="tab" data-tab="feetrend" data-cat="acct" data-grp="report" role="tab" data-py="sfqsq sanfeiqushiqi">三费趋势（6期）</button>
+      <button class="tab" data-tab="contractperf" data-cat="acct" data-grp="report" role="tab" data-py="htlyjd hetonglvyuejindu">合同履约进度</button>
+      <button class="tab" data-tab="projrev" data-cat="acct" data-grp="report" role="tab" data-py="gcsrqr gongchengshouruqueren">工程收入确认</button>
+      <button class="tab" data-tab="creditpolicy" data-cat="acct" data-grp="bd" role="tab" data-py="xyzczh xinyongzhengcezuhe">信用政策组合</button>
+      <button class="tab" data-tab="rateadj" data-cat="tax" role="tab" data-py="sbdj shebaodiaoji">社保调基</button>
+      <button class="tab" data-tab="invfund" data-cat="acct" data-grp="bd" role="tab" data-py="chzjzy cunhuozijinzhanyong">存货资金占用</button>
+      <button class="tab" data-tab="machrate" data-cat="acct" data-grp="cost" role="tab" data-py="gcxsfl gongchangxiaoshifeilv">工厂小时费率</button>
+      <button class="tab" data-tab="govgrant" data-cat="acct" data-grp="tax" role="tab" data-py="zfbz zhengfubuzhu">政府补助</button>
+      <button class="tab" data-tab="fxtranslate" data-cat="acct" data-grp="report" role="tab" data-py="wbbbzs waibibaobiaozhesuan">外币报表折算</button>
+      <button class="tab" data-tab="rebateacc" data-cat="acct" data-grp="perf" role="tab" data-py="xsflyqdf xiaoshoufanliyuqudaofei">销售返利与渠道费</button>
+      <button class="tab" data-tab="pledgeloan" data-cat="acct" data-grp="cash" role="tab" data-py="yszyrz yingshouzhiyarongzi">应收质押融资</button>
+      <button class="tab" data-tab="labvar" data-cat="acct" data-grp="cost" role="tab" data-py="rgxlycn rengongxiaolvyuchanneng">人工效率与产能</button>
+      <button class="tab" data-tab="rdcap" data-cat="acct" data-grp="tax" role="tab" data-py="yfzbh yanfazibenhua">研发资本化</button>
+      <button class="tab" data-tab="salesallow" data-cat="acct" data-grp="tax" role="tab" data-py="xszryzp xiaoshouzherangyuzengpin">销售折让与赠品</button>
+      <button class="tab" data-tab="lease" data-cat="acct" data-grp="report" role="tab" data-py="jyzlrb jingyingzulinrubiao">经营租赁入表</button>
+      <button class="tab" data-tab="gpmix" data-cat="acct" data-grp="report" role="tab" data-py="mllbdgy maolilvbiandongguiyin">毛利率变动归因</button>
+      <button class="tab" data-tab="vatchoose" data-cat="acct" data-grp="tax" role="tab" data-py="ybnsrxgm yibannashuirenxiaoguimo">一般纳税人 vs 小规模</button>
+      <button class="tab" data-tab="processcost" data-cat="acct" data-grp="cost" role="tab" data-py="fbfcbhy fenbufachengbenhuanyuan">分步法成本还原</button>
+      <button class="tab" data-tab="makeoroutsource" data-cat="acct" data-grp="cost" role="tab" data-py="wwhszz weiwaihaishizizhi">委外还是自制</button>
+      <button class="tab" data-tab="rebatedta" data-cat="acct" data-grp="tax" role="tab" data-py="flthdysds fanlituihuodiyansuodeshui">返利退货递延所得税</button>
+      <button class="tab" data-tab="leasebuy" data-cat="acct" data-grp="cash" role="tab" data-py="zlgm zulingoumai">租赁 vs 购买</button>
+      <button class="tab" data-tab="welfare" data-cat="acct" data-grp="tax" role="tab" data-py="sxjfycbj sanxiangjingfeiyucanbaojin">三项经费与残保金</button>
+      <button class="tab" data-tab="inputout" data-cat="acct" data-grp="tax" role="tab" data-py="jxszc jinxiangshuizhuanchu">进项税转出</button>
+      <button class="tab" data-tab="stampduty" data-cat="acct" data-grp="tax" role="tab" data-py="yhsss yinhuashuisusuan">印花税速算</button>
+      <button class="tab" data-tab="assetdisp" data-cat="acct" data-grp="cost" role="tab" data-py="gdzccz gudingzichanchuzhi">固定资产处置</button>
+      <button class="tab" data-tab="headcount" data-cat="acct" data-grp="perf" role="tab" data-py="rybzyys renyuanbianzhiyuyusuan">人员编制与预算</button>
+      <button class="tab" data-tab="markroi" data-cat="acct" data-grp="perf" role="tab" data-py="sctrcc shichangtouruchanchu">市场投入产出</button>
+      <button class="tab" data-tab="rdproject" data-cat="acct" data-grp="cost" role="tab" data-py="yfxmys yanfaxiangmuyusuan">研发项目预算</button>
+      <button class="tab" data-tab="intsvc" data-cat="acct" data-grp="tax" role="tab" data-py="nbfwfft neibufuwufeifentan">内部服务费分摊</button>
+      <button class="tab" data-tab="accrual" data-cat="acct" data-grp="report" role="tab" data-py="kqfyyyt kuaqifeiyongyuyuti">跨期费用与预提</button>
+      <button class="tab" data-tab="cfconsol" data-cat="acct" data-grp="report" role="tab" data-py="hbxjldx hebingxianjinliudixiao">合并现金流抵销</button>
+      <button class="tab" data-tab="exportcheck" data-cat="acct" data-grp="tax" role="tab" data-py="cktsgj chukoutuishuigouji">出口退税勾稽</button>
+      <button class="tab" data-tab="vatcheck" data-cat="acct" data-grp="tax" role="tab" data-py="zzssbgj zengzhishuishenbaogouji">增值税申报勾稽</button>
     </nav>
   </div>
 </header>
@@ -581,6 +583,6 @@
   </p>
 </main>
 
-<script src="./assets/app.62bdbbb99a.js"></script>
+<script src="./assets/app.772965d332.js"></script>
 </body>
 </html>

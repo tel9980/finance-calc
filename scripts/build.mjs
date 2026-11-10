@@ -3,6 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const PUB = path.join(ROOT, 'public');
@@ -15,11 +16,33 @@ const html = read(path.join(PUB, 'index.html'));
 
 /* ---------- 1. tab -> 分类 ---------- */
 const tabCat = {};
+const tabSub = {};
 for (const m of html.matchAll(/<button class="tab[^"]*"([^>]*)>/g)) {
   const attrs = m[1];
   const id = /data-tab="([^"]+)"/.exec(attrs);
   const cat = /data-cat="([^"]+)"/.exec(attrs);
+  const grp = /data-grp="([^"]*)"/.exec(attrs);
   if (id) tabCat[id[1]] = cat ? cat[1] : 'hot';
+  if (id && grp) tabSub[id[1]] = grp[1];
+}
+
+/* ---------- 1.5 搜索增强：给每个 tab 注入拼音首字母/全拼（data-py）与别名（data-alias） ---------- */
+const ALIAS = {
+  deposit: 'cunqian ck lixi dingqi', loan: 'fangdai fd anjie yuegong', combo: 'zuhedai zhgd',
+  prepay: 'tqhk tiqianhuanakuan', compound: 'fuli dttz dingtou', goal: 'zanqian mb mbiao',
+  installment: 'fenqi fqlv', annual: 'nianhua nh', inflation: 'tongzhang tz', tax: 'geshui gs',
+  salary: 'daoshou dakeren gongzi', deal: 'zhekou dj danjia', fx: 'huilv hl duihuan',
+  healthcheck: 'tijian caiwutijian jk', report: 'baogao yiyetijian bg', snaps: 'kuaizhao fangan kz',
+  planner: 'guihua zhdai maifanghou', housecash: 'goufang yicixing shoufu sf',
+  rentbuy: 'zumaifang zmf', rentyield: 'zushoubi zsb', debitfree: 'haiqian hd'
+};
+
+let pyMap = {};
+try {
+  const raw = execFileSync('python3', [path.join(ROOT, 'scripts/pinyin.py'), path.join(PUB, 'index.html')], { encoding: 'utf8', maxBuffer: 1 << 22 });
+  pyMap = JSON.parse(raw || '{}');
+} catch (e) {
+  console.warn('拼音表生成失败，搜索退化为文字/英文匹配：' + e.message);
 }
 
 /* ---------- 2. calcMap 条目 ---------- */
@@ -58,7 +81,9 @@ const fnKeys = {};            // fnName -> [keys]
 const groupOf = {};
 for (const [k, fn] of entries) {
   const cats = (tabCat[k] || 'hot').split(/\s+/);
-  const grp = cats.find(c => c !== 'hot') || 'hot';
+  let grp = cats.find(c => c !== 'hot') || 'hot';
+  /* 公司财务太大（557KB），按二级分组再拆成 acct-cost / acct-tax / … */
+  if (grp === 'acct') grp = 'acct-' + (tabSub[k] || 'misc');
   groupOf[k] = grp;
   (fnKeys[fn] = fnKeys[fn] || []).push(k);
   if (fnChunk[fn] && fnChunk[fn] !== grp) throw new Error('fn in two groups: ' + fn);
@@ -281,6 +306,16 @@ let out = html
   .replace(/<!-- PANELS-CORE:START -->[\s\S]*?<!-- PANELS-CORE:END -->/, '<!-- PANELS-CORE:START -->\n' + corePanelsHtml + '  <!-- PANELS-CORE:END -->')
   .replace(/<link rel="stylesheet" href="\.\/assets\/style\.[^"]*\.css">/, '<link rel="stylesheet" href="./assets/' + cssName + '">')
   .replace(/<script src="\.\/assets\/app\.[^"]*\.js"><\/script>/, '<script src="./assets/' + coreName + '"></script>');
+/* 给 tab 注入拼音与别名（幂等：已有属性则覆盖） */
+out = out.replace(/<button class="tab([^"]*)"([^>]*)>/g, (all, cls, attrs) => {
+  const idm = /data-tab="([^"]+)"/.exec(attrs);
+  if (!idm) return all;
+  const id = idm[1];
+  let a = attrs.replace(/\s*data-(py|alias)="[^"]*"/g, '');
+  if (pyMap[id]) a += ' data-py="' + pyMap[id].replace(/"/g, '') + '"';
+  if (ALIAS[id]) a += ' data-alias="' + ALIAS[id].replace(/"/g, '') + '"';
+  return '<button class="tab' + cls + '"' + a + '>';
+});
 if (!out.includes('./assets/' + coreName) || !out.includes('./assets/' + cssName)) throw new Error('index.html 引用未替换');
 fs.writeFileSync(path.join(PUB, 'index.html'), out);
 

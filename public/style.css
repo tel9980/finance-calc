@@ -299,3 +299,7 @@ a.snap-load{color:var(--accent2);text-decoration:underline;text-underline-offset
 .pri{margin:10px 0 0;padding-left:22px;font-size:14px;line-height:1.62}
 .pri li{margin:7px 0}
 .pri li b{color:var(--accent);font-weight:650}
+
+/* 搜索命中数 / 快照备注 */
+.qcount{margin:4px 0 0;font-size:12.5px;color:var(--muted,#6b7280)}
+.mut{opacity:.62;font-size:12px}

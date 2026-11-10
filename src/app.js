@@ -8176,7 +8176,7 @@
   }
 
   /* 把当前面板（模块、名字、主结果、指标、参数）打成一个快照对象 */
-  function makeSnap(name) {
+  function makeSnap(name, note) {
     var panel = document.querySelector(".panel.is-on");
     var tab = document.querySelector(".tab.is-on");
     if (!panel || !tab) return null;
@@ -8187,7 +8187,7 @@
       var sp = lab ? lab.querySelector("span") : null;
       return { id: el.id, label: sp ? sp.textContent.trim() : el.id, value: el.value };
     });
-    return { id: "s" + Date.now(), mod: mod, modName: snapNameOf(mod), name: name || snapNameOf(mod), rows: rows, params: params, at: Date.now() };
+    return { id: "s" + Date.now(), mod: mod, modName: snapNameOf(mod), name: name || snapNameOf(mod), note: note || "", rows: rows, params: params, at: Date.now() };
   }
 
   /* ---------------- 家庭财务体检 ---------------- */
@@ -8389,8 +8389,8 @@
       var main = s.rows && s.rows.length ? s.rows[0][1] : "—";
       h += "<tr><td><input type=\"checkbox\" class=\"snap-pick\" data-id=\"" + s.id + "\"" + (SNAP_PICK[s.id] ? " checked" : "") + " aria-label=\"选择方案\"></td>"
         + "<td class=\"tal\"><a href=\"#" + s.mod + "\" class=\"snap-load\" data-id=\"" + s.id + "\">" + s.modName + "</a></td>"
-        + "<td class=\"tal\">" + (s.name || "") + "</td>"
-        + "<td>" + main + "</td><td>" + fmtAt(s.at) + " <button type=\"button\" class=\"ghost sm snap-del\" data-id=\"" + s.id + "\">删</button></td></tr>";
+        + "<td class=\"tal\"><b>" + (s.name || "") + "</b>" + (s.note ? "<br><span class=\"mut\">" + s.note + "</span>" : "") + "</td>"
+        + "<td>" + main + "</td><td>" + fmtAt(s.at) + " <button type=\"button\" class=\"ghost sm snap-ren\" data-id=\"" + s.id + "\">改</button><button type=\"button\" class=\"ghost sm snap-del\" data-id=\"" + s.id + "\">删</button></td></tr>";
     }
     tb.innerHTML = h;
     $("snap-count").textContent = String(arr.length);
@@ -8415,7 +8415,7 @@
       (s.rows || []).forEach(function (r) { if (labels.indexOf(r[0]) < 0) labels.push(r[0]); });
     });
     var head = "<tr><th class=\"tal\">指标</th>";
-    sel.forEach(function (s) { head += "<th>" + s.modName + " · " + (s.name || "") + "</th>"; });
+    sel.forEach(function (s) { head += "<th>" + s.modName + " · " + (s.name || "") + (s.note ? "（" + s.note + "）" : "") + "</th>"; });
     if (sel.length >= 2) head += "<th>差异（相对第一个）</th>";
     function plNum(x) {
       var s = String(x == null ? "" : x).replace(/,/g, "").replace(/−/g, "-");
@@ -8687,6 +8687,18 @@
   };
 
   var curCat = "hot", curSub = "";
+  var RECENT_KEY = "finance-calc-recent";
+  var recentList = [];
+  try { recentList = JSON.parse(localStorage.getItem(RECENT_KEY) || "[]") || []; } catch (e) { recentList = []; }
+  function pushRecent(id) {
+    if (!id) return;
+    var i = recentList.indexOf(id);
+    if (i >= 0) recentList.splice(i, 1);
+    recentList.unshift(id);
+    if (recentList.length > 10) recentList = recentList.slice(0, 10);
+    try { localStorage.setItem(RECENT_KEY, JSON.stringify(recentList)); } catch (e) {}
+    if (typeof refreshCounts === "function") refreshCounts();
+  }
   var FAV_KEY = "finance-calc-fav";
   var favList = [];
   try { favList = JSON.parse(localStorage.getItem(FAV_KEY) || "[]") || []; } catch (e) { favList = []; }
@@ -8699,24 +8711,48 @@
     var chips = document.querySelectorAll(".cat");
     for (var c = 0; c < chips.length; c++) {
       var cat = chips[c].dataset.cat, label = chips[c].dataset.label || chips[c].textContent.trim();
-      var n = cat === "fav" ? favList.length
-        : document.querySelectorAll('.tab[data-cat~="' + cat + '"]').length;
+      var n;
+      if (cat === "fav") n = favList.length;
+      else if (cat === "recent") n = Math.min(recentList.length, 10);
+      else n = document.querySelectorAll('.tab[data-cat~="' + cat + '"]').length;
       chips[c].textContent = label + " " + n;
     }
   }
+  function matchQ(el, q) {
+    if (el.textContent.toLowerCase().indexOf(q) >= 0) return true;
+    if ((el.dataset.tab || "").indexOf(q) >= 0) return true;
+    if ((el.dataset.py || "").indexOf(q) >= 0) return true;
+    if ((el.dataset.alias || "").toLowerCase().indexOf(q) >= 0) return true;
+    return false;
+  }
   function applyFilter() {
-    var tb = document.querySelectorAll(".tab");
+    var qb = $("q");
+    var q = (qb && qb.value ? qb.value : "").trim().toLowerCase();
+    var tb = document.querySelectorAll(".tab"), shown = 0;
     for (var t = 0; t < tb.length; t++) {
       var el = tb[t], cat = el.dataset.cat || "", ok;
-      if (curCat === "fav") ok = isFav(el.dataset.tab);
-      else ok = cat.split(/\s+/).indexOf(curCat) >= 0;
-      if (ok && curCat === "acct" && curSub) ok = (el.dataset.grp || "") === curSub;
+      if (q) {
+        ok = matchQ(el, q);                    /* 一搜索就跨分类找，不用先切分类 */
+      } else if (curCat === "fav") {
+        ok = isFav(el.dataset.tab);
+      } else if (curCat === "recent") {
+        ok = recentList.indexOf(el.dataset.tab) >= 0;
+      } else {
+        ok = cat.split(/\s+/).indexOf(curCat) >= 0;
+        if (ok && curCat === "acct" && curSub) ok = (el.dataset.grp || "") === curSub;
+      }
       el.hidden = !ok;
+      if (ok) shown++;
     }
     var subs = $("subs");
-    if (subs) subs.hidden = curCat !== "acct";
+    if (subs) subs.hidden = curCat !== "acct" || !!q;
     var tn = $("tabs");
-    if (tn) tn.classList.toggle("tall", curCat === "acct" && !curSub);
+    if (tn) tn.classList.toggle("tall", curCat === "acct" && !curSub && !q);
+    var qc = $("qcount");
+    if (qc) {
+      qc.hidden = !q;
+      if (q) qc.textContent = shown ? "命中 " + shown + " 个" : "没有匹配的模块";
+    }
   }
   function setCat(cat) {
     curCat = cat; curSub = "";
@@ -8735,6 +8771,7 @@
   }
 
   function activate(name) {
+    pushRecent(name);
     var self = document.querySelector('.tab[data-tab="' + name + '"]');
     var qb = $("q");
     if (qb && qb.value) { qb.value = ""; applyFilter(); }
@@ -8774,19 +8811,18 @@
     if ($("q")) $("q").value = "";
     setCat(c.dataset.cat);
     var first = document.querySelector('.tab[data-cat~="' + c.dataset.cat + '"]');
+    if (!first) first = document.querySelector(".tab:not([hidden])");
     if (first && first.dataset.tab) activate(first.dataset.tab);
   });
 
-  if ($("q")) $("q").addEventListener("input", function () {
-    var q = this.value.trim().toLowerCase();
-    var tb = document.querySelectorAll(".tab"), subs = $("subs");
-    if (!q) { applyFilter(); return; }
-    if (subs) subs.hidden = true;
-    for (var i = 0; i < tb.length; i++) {
-      var hit = tb[i].textContent.toLowerCase().indexOf(q) >= 0 || tb[i].dataset.tab.indexOf(q) >= 0;
-      tb[i].hidden = !hit;
-    }
-  });
+  if ($("q")) {
+    $("q").addEventListener("input", function () { applyFilter(); });
+    $("q").addEventListener("keydown", function (e) {
+      if (e.key !== "Enter") return;
+      var first = document.querySelector(".tab:not([hidden])");
+      if (first) { activate(first.dataset.tab); flash($("q"), "跳到「" + first.textContent.trim() + "」"); }
+    });
+  }
   if ($("subs")) $("subs").addEventListener("click", function (e) {
     var s = e.target.closest(".sub");
     if (!s) return;
@@ -9642,8 +9678,9 @@
     var tab = document.querySelector(".tab.is-on");
     var def = (tab ? tab.textContent.trim() : "方案") + " #" + (loadSnaps().length + 1);
     var nm = "";
-    try { nm = window.prompt("给这个方案起个名（可留空）", def) || ""; } catch (e) { nm = ""; }
-    var s = makeSnap(nm.trim() || def);
+    try { nm = window.prompt("方案名称（可留空；想写备注就写「名称｜备注」）", def) || ""; } catch (e) { nm = ""; }
+    var parts = nm.split(/[｜|]/);
+    var s = makeSnap((parts[0] || "").trim() || def, (parts[1] || "").trim());
     if (!s) return;
     var arr = loadSnaps();
     arr.unshift(s);
@@ -9665,6 +9702,22 @@
   });
 
   document.addEventListener("click", function (e) {
+    var ren = e.target.closest ? e.target.closest(".snap-ren") : null;
+    if (ren) {
+      var rarr = loadSnaps();
+      var one = rarr.filter(function (x) { return x.id === ren.dataset.id; })[0];
+      if (!one) return;
+      var nm2 = "";
+      try { nm2 = window.prompt("方案名称", one.name || ""); } catch (err) { return; }
+      if (nm2 === null) return;
+      var nt2 = "";
+      try { nt2 = window.prompt("备注（可留空，如：A 客户 / 保守版）", one.note || ""); } catch (err) { nt2 = one.note || ""; }
+      one.name = (nm2 || "").trim() || one.name;
+      one.note = (nt2 || "").trim();
+      saveSnaps(rarr);
+      runCalc("snaps");
+      return;
+    }
     var del = e.target.closest ? e.target.closest(".snap-del") : null;
     if (del) {
       var id = del.dataset.id;
