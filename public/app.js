@@ -7850,6 +7850,107 @@
       + "提前解约罚则和资产不归自己的问题，购买则压现金流、占授信。";
   }
 
+  function calcWelfare() {
+    var wage = num($("wlf-wage"), 0);
+    var wel = num($("wlf-wel"), 0), edu = num($("wlf-edu"), 0), uni = num($("wlf-union"), 0);
+    var tax = num($("wlf-tax"), 0) / 100;
+    var emp = num($("wlf-emp"), 0), dis = num($("wlf-dis"), 0);
+    var avg = num($("wlf-avg"), 0), crate = num($("wlf-rate"), 0) / 100;
+    var limWel = wage * 0.14, limEdu = wage * 0.08, limUni = wage * 0.02;
+    var overWel = Math.max(0, wel - limWel), overEdu = Math.max(0, edu - limEdu), overUni = Math.max(0, uni - limUni);
+    var over = overWel + overEdu + overUni;
+    var taxOut = over * tax;
+    var need = emp * 0.015;
+    var gap = Math.max(0, need - dis);
+    var fund = gap * avg * crate;
+    var save = Math.min(gap, 1) > 0 ? avg * crate : 0;
+    $("wlf-big").textContent = money(over);
+    $("wlf-welout").textContent = money(limWel) + " / " + money(wel) + (overWel > 0 ? "（超 " + money(overWel) + "）" : "（未超）");
+    $("wlf-eduout").textContent = money(limEdu) + " / " + money(edu) + (overEdu > 0 ? "（超 " + money(overEdu) + "，可结转以后年度）" : "（未超）");
+    $("wlf-uniout").textContent = money(limUni) + " / " + money(uni) + (overUni > 0 ? "（超 " + money(overUni) + "）" : "（未超）");
+    $("wlf-taxout").textContent = money(taxOut) + " 元（调增 " + money(over) + " × " + pct(tax, 0) + "）";
+    $("wlf-gap").textContent = fmt(need, 2) + " − " + fmt(dis, 0) + " = " + fmt(gap, 2) + " 人（按 1.5% 应安置 " + fmt(need, 2) + " 人）";
+    $("wlf-fund").textContent = money(fund) + " 元（" + fmt(gap, 2) + " 人 × 年均工资 " + money(avg) + " × 征收比例 " + pct(crate, 0) + "）";
+    $("wlf-save").textContent = money(save) + " 元/年（再多安置 1 人）";
+    $("wlf-note").textContent = "三项经费的扣除基数都是「实际发放」的工资薪金，计提未发的不算；"
+      + "福利费超 14% 永久性调增（不能结转），教育经费超 8% 可以结转以后年度继续扣，"
+      + "工会经费要取得《工会经费收入专用收据》或税务代收凭据才能扣，只计提不上缴的不认。"
+      + "残保金 = 差额人数 × 年平均工资 × 分档比例，安排残疾人就业比例越高征得越少，"
+      + "安置 1–2 级残疾或重度残疾通常按 2 人折算，且要签 1 年以上合同、实际支付不低于最低工资、足额缴社保才算。";
+  }
+
+  function calcInputOut() {
+    var inp = num($("itr-input"), 0);
+    var t = num($("itr-tax"), 0), s = num($("itr-simple"), 0), f = num($("itr-free"), 0);
+    var wf = num($("itr-welf"), 0), ls = num($("itr-loss"), 0);
+    var tot = t + s + f;
+    var ratio = tot > 0 ? (s + f) / tot : 0;
+    var part = inp * ratio;
+    var full = wf + ls;
+    var out = part + full;
+    var left = inp - part;
+    $("itr-big").textContent = money(out);
+    $("itr-ratio").textContent = pct(ratio, 2) + "（免税＋简易 " + money(s + f) + " ÷ 全部 " + money(tot) + "）";
+    $("itr-part").textContent = money(part) + " 元（无法划分进项 " + money(inp) + " × 比例）";
+    $("itr-full").textContent = money(wf) + " / " + money(ls) + " 元";
+    $("itr-left").textContent = money(left) + " 元（只就一般计税项目抵扣）";
+    $("itr-pct").textContent = inp > 0 ? pct(out / inp, 2) : "—";
+    $("itr-risk").textContent = money(out * 12) + " 元／年（按本月水平外推，另加每日万分之五滞纳金）";
+    $("itr-note").textContent = "能划分的按用途直接归集：专用于简易计税、免税、集体福利、个人消费的进项，以及非正常损失对应的进项，一律不得抵扣、全额转出；"
+      + "只有「无法划分」的部分才按销售额比例分摊，公式是：不得抵扣进项 = 无法划分进项 ×（免税＋简易销售额 ÷ 全部销售额）。"
+      + "常见漏项：食堂宿舍的水电气、给员工发的自产产品、管理不善导致的存货毁损、"
+      + "简易计税项目领用的原材料；漏转被查要补税并加收滞纳金，还会影响纳税信用评级。"
+      + "年度终了还要按全年数据清算一次，平时按月度比例转出的差额要调整。";
+  }
+
+  function calcStampDuty() {
+    var sale = num($("sdt-sale"), 0), loan = num($("sdt-loan"), 0), lease = num($("sdt-lease"), 0);
+    var trans = num($("sdt-trans"), 0), eq = num($("sdt-equity"), 0), cap = num($("sdt-capital"), 0);
+    var half = $("sdt-half").value === "1";
+    var v1 = sale * 0.0003, v2 = loan * 0.00005, v3 = lease * 0.001, v4 = trans * 0.0003, v5 = eq * 0.0005, v6 = cap * 0.00025;
+    var raw = v1 + v2 + v3 + v4 + v5 + v6;
+    var total = half ? raw * 0.5 : raw;
+    var base = sale + loan + lease + trans + eq + cap;
+    $("sdt-big").textContent = money(total);
+    $("sdt-k1").textContent = money(v1) + " / " + money(v2) + " 元";
+    $("sdt-k2").textContent = money(v3) + " / " + money(v4) + " 元";
+    $("sdt-k3").textContent = money(v5) + " / " + money(v6) + " 元";
+    $("sdt-raw").textContent = money(raw) + " 元（减半额 " + money(raw - total) + "）";
+    $("sdt-rate").textContent = base > 0 ? pct(total / base, 3) : "—";
+    $("sdt-tip").textContent = "若合同只写含税总价，按含税金额计税，多缴 " + money(total * 0.13 / 1.13) + " 元左右";
+    $("sdt-note").textContent = "印花税按合同所列金额计征，合同分别列明价款和增值税的可按不含税金额算，"
+      + "没分别列明的从高按含税金额，所以签合同时把「不含税价＋税率＋税额」写清楚是省钱动作。"
+      + "常见坑：框架协议只写「按实际发生结算」的，先按 0 申报但要在实际结算时补；"
+      + "同一合同含不同税目要分别计税，从高适用税率；电子合同、订单也算应税凭证。"
+      + "小规模纳税人、小型微利企业和个体工商户可享「六税两费」减半（政策有期限，按当期执行）。"
+      + "印花税不计入应交税费的「应交增值税」，而是税金及附加，一次缴清不退税。";
+  }
+
+  function calcAssetDisp() {
+    var orig = num($("adsp-orig"), 0), dep = num($("adsp-dep"), 0), imp = num($("adsp-imp"), 0);
+    var price = num($("adsp-price"), 0), vat = num($("adsp-vat"), 0) / 100;
+    var fee = num($("adsp-fee"), 0), tax = num($("adsp-tax"), 0) / 100;
+    var nbv = orig - dep - imp;
+    var net = price / (1 + vat);
+    var vatOut = price - net;
+    var pl = net - nbv - fee;
+    var taxOut = pl * tax;
+    var after = pl - taxOut;
+    var be = (nbv + fee) * (1 + vat);
+    $("adsp-big").textContent = money(pl);
+    $("adsp-nbv").textContent = money(nbv) + " 元（原值 " + money(orig) + " − 折旧 " + money(dep) + " − 减值 " + money(imp) + "）";
+    $("adsp-net").textContent = money(net) + " / " + money(vatOut) + " 元";
+    $("adsp-feeout").textContent = money(fee) + " 元";
+    $("adsp-taxout").textContent = (pl >= 0 ? "多缴 " : "少缴 ") + money(Math.abs(taxOut)) + " 元";
+    $("adsp-after").textContent = money(after) + " 元" + (pl < 0 ? "（计提资产处置损失）" : "（计入资产处置收益）");
+    $("adsp-be").textContent = money(be) + " 元（含税，低于此价即亏损）";
+    $("adsp-note").textContent = "处置损益 = 不含税售价 − 账面净值 − 清理费用，进「资产处置收益」（正常出售）"
+      + "或「营业外收支」（报废毁损、非正常损失）。增值税看两头：已抵扣进项的按 13% 计销项；"
+      + "以前未抵扣、简易计税的，可按 3% 减按 2% 征收（放弃则按 3%）。"
+      + "别忘：报废毁损属于非正常损失时，之前抵扣的进项要转出；提前报废的损失要做专项申报才能在税前扣除；"
+      + "处置当月照提折旧、次月起停止。保本售价 " + money(be) + " 元是含税口径，谈判时别拿净值直接当底价。";
+  }
+
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
@@ -7890,6 +7991,7 @@
     invfund: calcInvFund, machrate: calcMachRate, govgrant: calcGovGrant, fxtranslate: calcFxTranslate,
     rebateacc: calcRebateAcc, pledgeloan: calcPledgeLoan, labvar: calcLabVar, rdcap: calcRdCap,
     processcost: calcProcessCost, makeoroutsource: calcMakeOrOutsource, rebatedta: calcRebateDTA, leasebuy: calcLeaseBuy,
+    welfare: calcWelfare, inputout: calcInputOut, stampduty: calcStampDuty, assetdisp: calcAssetDisp,
     salesallow: calcSalesAllow, lease: calcLease, gpmix: calcGpmix, vatchoose: calcVatChoose,
     datemath: calcDatemath, pct3: calcPct3, xlhelp: calcXlHelp, csvrecon: calcCsvRecon,
     contractperf: calcContractPerf, projrev: calcProjRev, creditpolicy: calcCreditPolicy, rateadj: calcRateAdj
@@ -8141,9 +8243,13 @@
     "stp-m1", "stp-c1", "stp-q1", "stp-q2", "stp-m2", "stp-c2", "stp-scrap",
     "mko-qty", "mko-vc", "mko-inv", "mko-life", "mko-opp", "mko-price", "mko-extra",
     "rdt-rebate", "rdt-return", "rdt-stock", "rdt-tax",
-    "lbu-price", "lbu-rent", "lbu-years", "lbu-rate", "lbu-tax", "lbu-maint", "lbu-resid"
+    "lbu-price", "lbu-rent", "lbu-years", "lbu-rate", "lbu-tax", "lbu-maint", "lbu-resid",
+    "wlf-wage", "wlf-wel", "wlf-edu", "wlf-union", "wlf-tax", "wlf-emp", "wlf-dis", "wlf-avg", "wlf-rate",
+    "itr-input", "itr-tax", "itr-simple", "itr-free", "itr-welf", "itr-loss",
+    "sdt-sale", "sdt-loan", "sdt-lease", "sdt-trans", "sdt-equity", "sdt-capital", "sdt-half",
+    "adsp-orig", "adsp-dep", "adsp-imp", "adsp-price", "adsp-vat", "adsp-fee", "adsp-tax"
 ];
-  var KEY = "finance-calc-v40";
+  var KEY = "finance-calc-v41";
   var CAT_KEY = "finance-calc-cat";
 
   /* ---------------- 现金流月历 ---------------- */
