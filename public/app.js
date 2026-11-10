@@ -3383,7 +3383,7 @@
       net += events[i].amt;
       if (bal < minBal) { minBal = bal; minDay = events[i].day; }
       if (bal < -0.005 && !firstNeg) firstNeg = events[i].day;
-      html += "<tr" + (bal < -0.005 ? ' style="background:#fff1f1"' : "") + "><td>" + events[i].day + " 日</td><td>" +
+      html += "<tr" + (bal < -0.005 ? ' class="c-bad"' : "") + "><td>" + events[i].day + " 日</td><td>" +
         events[i].name + "</td><td>" + (events[i].amt >= 0 ? "+" : "−") + money(Math.abs(events[i].amt)) +
         "</td><td>" + money(bal) + "</td></tr>";
     }
@@ -3446,7 +3446,7 @@
       var pi = inc * (1 - d);
       var pe = pi / (1 + vat);
       var pg = pe - cost;
-      html += "<tr" + (Math.abs(d - disc) < 0.001 ? ' style="background:#eef2ff"' : "") + "><td>" +
+      html += "<tr" + (Math.abs(d - disc) < 0.001 ? ' class="c-info"' : "") + "><td>" +
         fmt(d * 100, 0) + "%</td><td>" + money(pi) + "</td><td>" + money(pe) + "</td><td>" +
         (pe > 0 ? pct(pg / pe) : "—") + "</td></tr>";
     }
@@ -3501,7 +3501,7 @@
     var html = "";
     for (var i = 0; i < rows.length; i++) {
       var r = rows[i];
-      html += "<tr" + (r[4] ? "" : ' style="background:#fdecec"') +
+      html += "<tr" + (r[4] ? "" : ' class="c-soft"') +
         "><td>" + r[0] + "</td><td>" + money(r[1]) + "</td><td>" + money(r[2]) +
         "</td><td>" + money(r[3]) + "</td><td>" + (r[4] ? "平" : "不平") + "</td></tr>";
     }
@@ -3576,7 +3576,7 @@
     var html = "";
     for (i = 0; i < rows.length; i++) {
       var r = rows[i];
-      html += "<tr" + (r.gp < -0.005 ? ' style="background:#fdecec"' : "") + "><td>" + r.name +
+      html += "<tr" + (r.gp < -0.005 ? ' class="c-soft"' : "") + "><td>" + r.name +
         "</td><td>" + fmt(r.q, 0) + "</td><td>" + money(r.rev) + "</td><td>" + money(r.gp) +
         "</td><td>" + pct(r.margin) + "</td><td>" + pct(r.share) + "</td></tr>";
     }
@@ -3625,7 +3625,7 @@
       var rr = rateList[i];
       var it = need * rr * (gap / 365);
       var ng = discAmt - it;
-      var hi = Math.abs(rr - rate) < 0.0005 ? ' style="background:#eef2ff"' : "";
+      var hi = Math.abs(rr - rate) < 0.0005 ? ' class="c-info"' : "";
       html += "<tr" + hi + "><td>" + fmt(rr * 100, 0) + "%</td><td>" + money(it) + "</td><td>" +
         money(ng) + "</td><td>" + (ng > 0 ? "该早付" : "不该") + "</td></tr>";
     }
@@ -3755,7 +3755,7 @@
       else if (i === 3) status = "严重超期";
       else status = "已超期";
       var bad = status !== "未到期";
-      html += "<tr" + (bad ? ' style="background:#fff5f5"' : "") + "><td>" + names[i] + "</td><td>" +
+      html += "<tr" + (bad ? ' class="c-bad"' : "") + "><td>" + names[i] + "</td><td>" +
         money(amts[i]) + "</td><td>" + pct(share) + "</td><td>" + status + "</td></tr>";
     }
     $("pg-body").innerHTML = html;
@@ -3812,7 +3812,7 @@
       html += "<tr><td>" + rows[i][0] + "</td><td>" + money(rows[i][1]) + "</td><td>" +
         fmt(rows[i][2], 2) + "</td><td>" + money(rows[i][3]) + "</td></tr>";
     }
-    html += '<tr style="background:#eef2ff"><td>合计</td><td>' + money(totalIn) + "</td><td>—</td><td>" +
+    html += '<tr class="c-info"><td>合计</td><td>' + money(totalIn) + "</td><td>—</td><td>" +
       money(unit) + "</td></tr>";
     $("cw-body").innerHTML = html;
 
@@ -3871,7 +3871,7 @@
       var v = items[i][1];
       if (v < worst[1]) worst = items[i];
       var cls = Math.abs(v) < 0.005 ? "持平" : v > 0 ? "有利" : "不利";
-      html += "<tr" + (v < 0 ? ' style="background:#fff5f5"' : "") + "><td>" + items[i][0] + "</td><td>" +
+      html += "<tr" + (v < 0 ? ' class="c-bad"' : "") + "><td>" + items[i][0] + "</td><td>" +
         money(v) + "</td><td>" + cls + "</td><td>" + items[i][2] + "</td></tr>";
     }
     $("bv-body").innerHTML = html;
@@ -3941,7 +3941,7 @@
     for (var i = 0; i < rows.length; i++) {
       var name = rows[i][0], v = rows[i][1];
       var bold = (name === "毛利" || name === "营业利润" || name === "利润总额" || name === "净利润");
-      var bg = bold ? ' style="background:#eef2ff"' : "";
+      var bg = bold ? ' class="c-info"' : "";
       html += "<tr" + bg + "><td style=\"text-align:left\">" + (bold ? "<strong>" + name + "</strong>" : name) +
         "</td><td>" + money(v) + "</td><td>" + (rev > 0 ? pct(v / rev) : "—") + "</td></tr>";
     }
@@ -4004,7 +4004,7 @@
     var html = "", i;
     for (i = 0; i < rows.length; i++) {
       var flag = i === 4 && over > 0;
-      html += "<tr" + (flag ? ' style="background:#fff5f5"' : "") + "><td>" + rows[i][0] + "</td><td>" +
+      html += "<tr" + (flag ? ' class="c-bad"' : "") + "><td>" + rows[i][0] + "</td><td>" +
         money(rows[i][1]) + "</td><td>" + money(rows[i][2]) + "</td><td>" + money(rows[i][3]) + "</td></tr>";
     }
     $("iv-body").innerHTML = html;
@@ -4045,7 +4045,7 @@
       if (d < 0) { saveCnt++; saveSum += -d; }
       if (r > topRate && d > 0) { topRate = r; topRateName = names[i]; }
       var bad = d > 0 && r >= 0.1;
-      html += "<tr" + (bad ? ' style="background:#fff5f5"' : "") + "><td>" + names[i] + "</td><td>" + money(b[i]) +
+      html += "<tr" + (bad ? ' class="c-bad"' : "") + "><td>" + names[i] + "</td><td>" + money(b[i]) +
         "</td><td>" + money(a[i]) + "</td><td>" + (d > 0 ? "+" : "") + money(d) + "</td><td>" + pct(r) + "</td></tr>";
     }
     html += "<tr><td>合计</td><td>" + money(tb) + "</td><td>" + money(ta) + "</td><td>" +
@@ -4175,7 +4175,7 @@
     var html = "", i;
     for (i = 0; i < rows.length; i++) {
       var neg = rows[i][3] < 0;
-      html += "<tr" + (neg ? ' style="background:#fff5f5"' : "") + "><td>" + rows[i][0] + "</td><td>" + money(rows[i][1]) +
+      html += "<tr" + (neg ? ' class="c-bad"' : "") + "><td>" + rows[i][0] + "</td><td>" + money(rows[i][1]) +
         "</td><td>" + money(rows[i][2]) + "</td><td>" + (rows[i][3] >= 0 ? "+" : "") + money(rows[i][3]) + "</td></tr>";
     }
     $("cs-body").innerHTML = html;
@@ -4228,7 +4228,7 @@
     for (i = 0; i < bins.length; i++) {
       var share = tot > 0 ? bins[i][1] / tot : 0;
       var p = bins[i][1] * bins[i][2];
-      html += "<tr" + (bins[i][2] > 0 ? ' style="background:#fff8f0"' : "") + "><td>" + bins[i][0] + "</td><td>" + money(bins[i][1]) +
+      html += "<tr" + (bins[i][2] > 0 ? ' class="c-warn"' : "") + "><td>" + bins[i][0] + "</td><td>" + money(bins[i][1]) +
         "</td><td>" + pct(share, 2) + "</td><td>" + pct(bins[i][2], 0) + "</td><td>" + money(p) + "</td></tr>";
     }
     html += "<tr><td><b>合计</b></td><td><b>" + money(tot) + "</b></td><td><b>" + pct(1, 2) + "</b></td><td>—</td><td><b>" + money(prov) + "</b></td></tr>";
@@ -4285,7 +4285,7 @@
     var html = "", i;
     for (i = 0; i < rows.length; i++) {
       var v = rows[i][1];
-      html += "<tr" + (v < 0 ? ' style="background:#fff5f5"' : "") + "><td>" + rows[i][0] + "</td><td>" + (v >= 0 ? "" : "-") + money(Math.abs(v)) +
+      html += "<tr" + (v < 0 ? ' class="c-bad"' : "") + "><td>" + rows[i][0] + "</td><td>" + (v >= 0 ? "" : "-") + money(Math.abs(v)) +
         "</td><td>" + rows[i][2] + "</td></tr>";
     }
     $("er-body").innerHTML = html;
@@ -4397,7 +4397,7 @@
     for (i = 0; i < 6; i++) {
       var delta = (isFinite(rates[i]) && isFinite(prev)) ? rates[i] - prev : NaN;
       var dText = isFinite(delta) ? (delta >= 0 ? "+" : "-") + fmt(Math.abs(delta) * 100, 2) + " 个点" : "—";
-      var warn = (isFinite(rates[i]) && isFinite(baseRate) && rates[i] > baseRate + 1e-9) ? ' style="background:#fff8f0"' : "";
+      var warn = (isFinite(rates[i]) && isFinite(baseRate) && rates[i] > baseRate + 1e-9) ? ' class="c-warn"' : "";
       html += "<tr" + warn + "><td>第 " + (i + 1) + " 期</td><td>" + money(revs[i]) + "</td><td>" + money(fees[i]) +
         "</td><td>" + (isFinite(rates[i]) ? pct(rates[i], 2) : "—") + "</td><td>" + dText + "</td></tr>";
       if (isFinite(rates[i])) prev = rates[i];

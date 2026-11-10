@@ -153,3 +153,9 @@ tbody tr:hover{background:var(--soft)}
 .tools .ghost{font-size:12.5px}
 h2.sub{font-size:13px;color:var(--ink3);font-weight:600;margin:16px 0 8px;padding-top:12px;border-top:1px dashed var(--line)}
 @media(max-width:660px){.tools{margin:-2px 0 8px}}
+
+/* 结果表格的行状态色（CSP 禁止内联 style，统一用类） */
+tbody tr.c-bad { background: #fff5f5; }
+tbody tr.c-soft { background: #fdecec; }
+tbody tr.c-warn { background: #fff8f0; }
+tbody tr.c-info { background: #eef2ff; }
