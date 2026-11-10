@@ -98,7 +98,7 @@ button{font:inherit;cursor:pointer}
 }
 .f em{display:block;font-style:normal;font-size:12px;color:var(--ink3);margin-top:5px}
 .row{display:flex;gap:8px}
-.row input{flex:1}
+.row input{flex:1;min-width:0}
 .row select{flex:0 0 92px}
 .chk{display:flex;gap:16px;flex-wrap:wrap;font-size:14px;color:var(--ink2)}
 .chk label{display:flex;align-items:center;gap:6px;cursor:pointer}

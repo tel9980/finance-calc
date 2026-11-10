@@ -2760,6 +2760,230 @@
       + " ③ 别为了置换去碰「以贷养贷」的中介过桥，那类综合成本经常超过 24%，比原来的信用卡还贵。";
   }
 
+  /* ---------------- 信用卡免息期与最优刷卡日 ---------------- */
+  function calcFreePeriod() {
+    var bill = Math.min(28, Math.max(1, Math.round(num($("fp-bill"), 5))));
+    var due = Math.min(28, Math.max(1, Math.round(num($("fp-due"), 25))));
+    var amount = Math.max(0, num($("fp-amount"), 0));
+    var DAY = 86400000;
+    var today = new Date(); today.setHours(0, 0, 0, 0);
+
+    function billFor(d) {
+      var y = d.getFullYear(), m = d.getMonth();
+      return d.getDate() <= bill ? new Date(y, m, bill) : new Date(y, m + 1, bill);
+    }
+    function payFor(bd) {
+      return due > bill ? new Date(bd.getFullYear(), bd.getMonth(), due)
+                        : new Date(bd.getFullYear(), bd.getMonth() + 1, due);
+    }
+    function md(d) { return (d.getMonth() + 1) + "/" + d.getDate(); }
+    function info(d) {
+      var bd = billFor(d), pay = payFor(bd);
+      return { bd: bd, pay: pay, days: Math.max(0, Math.round((pay - d) / DAY)) };
+    }
+
+    var now = info(today);
+    var bestDate = new Date(today.getFullYear(), today.getMonth(), bill + 1);
+    if (bestDate <= today) bestDate = new Date(today.getFullYear(), today.getMonth() + 1, bill + 1);
+    var best = info(bestDate);
+
+    $("fp-days").textContent = now.days;
+    $("fp-billdate").textContent = md(now.bd) + " 出账";
+    $("fp-paydate").textContent = md(now.pay);
+    $("fp-max").textContent = best.days + " 天";
+    $("fp-best").textContent = md(bestDate) + "（账单日 " + md(best.bd) + " → 还款 " + md(best.pay) + "）";
+    $("fp-lost").textContent = Math.max(0, best.days - now.days) + " 天";
+    $("fp-cost").textContent = amount > 0
+      ? yuan(amount * 0.138) + "（按 13.8% 年化借一年的利息）"
+      : "填个金额就能看到";
+
+    var body = $("fp-body");
+    body.innerHTML = "";
+    var list = [1, 5, 6, 10, 15, 20, 25, 28];
+    var y = today.getFullYear(), m = today.getMonth();
+    for (var k = 0; k < list.length; k++) {
+      var d = new Date(y, m, list[k]);
+      var inf = info(d);
+      var tr = document.createElement("tr");
+      tr.innerHTML = "<td>" + md(d) + "</td><td>" + md(inf.bd) + "</td><td>" + md(inf.pay)
+        + "</td><td>" + inf.days + "</td>";
+      body.appendChild(tr);
+    }
+
+    $("fp-note").textContent = "免息期的起点不是刷卡那天，而是「这笔钱被算进哪期账单」——"
+      + "账单日 " + bill + " 号之后刷的，会推到下个月 " + bill + " 号出账，于是白拿更多天。"
+      + " 你这张卡最长免息 " + best.days + " 天，就是刷在 " + md(bestDate) + "（账单日次日）的时候；"
+      + " 今天刷只有 " + now.days + " 天，比最优少 " + Math.max(0, best.days - now.days) + " 天。大额消费挪到账单日次日再刷，等于白拿一个多月的无息贷款。"
+      + " 但要记住三件事：① 免息期只对「全额还款」有效，哪怕差 1 元没还清，全部消费都从记账日起按日息 0.05% 计息（年化 18.25%），免息一天都没有；"
+      + " ② 取现、转账、分期不享受免息，取现当天就开始算利息还有手续费；"
+      + " ③ 所谓「最低还款」只是不逾期，利息照样全额算，所以别把免息期当收入，它只是让现金流顺一点。";
+  }
+
+  /* ---------------- 加班费与请假扣款 ---------------- */
+  function calcOvertime() {
+    var salary = Math.max(0, num($("ot-salary"), 0));
+    var days = Math.max(20, Math.min(31, num($("ot-days"), 21.75)));
+    var wd = Math.max(0, num($("ot-wd"), 0));
+    var rest = Math.max(0, num($("ot-rest"), 0));
+    var hol = Math.max(0, num($("ot-hol"), 0));
+    var leave = Math.max(0, num($("ot-leave"), 0));
+    var sick = Math.max(0, num($("ot-sick"), 0));
+    var sickRate = Math.min(100, Math.max(0, num($("ot-sickrate"), 60))) / 100;
+
+    var dayPay = salary / days;
+    var hourPay = dayPay / 8;
+    var p1 = hourPay * 1.5 * wd;
+    var p2 = hourPay * 2 * 8 * rest;
+    var p3 = hourPay * 3 * 8 * hol;
+    var ot = p1 + p2 + p3;
+    var cutLeave = dayPay * leave;
+    var cutSick = dayPay * sick * (1 - sickRate);
+    var total = salary + ot - cutLeave - cutSick;
+
+    $("ot-total").textContent = money(total);
+    $("ot-hour").textContent = money(dayPay) + " / " + money(hourPay) + " 元";
+    $("ot-p1").textContent = yuan(p1) + "（" + wd + " 小时）";
+    $("ot-p2").textContent = yuan(p2) + "（" + rest + " 天）";
+    $("ot-p3").textContent = yuan(p3) + "（" + hol + " 天）";
+    $("ot-ot").textContent = yuan(ot);
+    $("ot-ded").textContent = yuan(cutLeave) + " / " + yuan(cutSick);
+    $("ot-share").textContent = total > 0 ? pct(ot / total, 1) : "—";
+
+    var body = $("ot-body");
+    body.innerHTML = "";
+    for (var k = 1; k <= 4; k++) {
+      var tr = document.createElement("tr");
+      tr.innerHTML = "<td>" + k + " 小时</td><td>" + money(hourPay * 1.5 * k) + "</td><td>"
+        + money(hourPay * 2 * 8 * k) + "</td><td>" + money(hourPay * 3 * 8 * k) + "</td>";
+      body.appendChild(tr);
+    }
+
+    $("ot-note").textContent = "算法先用「月薪 ÷ " + days + " ÷ 8」折出时薪 " + money(hourPay) + " 元（21.75 是法定的月计薪天数，"
+      + "把 11 个法定节假日算进去了，所以别用 30 天除，那样算出来的时薪偏低、加班费吃亏）。"
+      + " 工作日加班 1.5 倍、休息日 2 倍、法定节假日 3 倍，本例合计加班费 " + money(ot) + " 元，"
+      + " 请假按日薪 " + money(dayPay) + " 元扣，病假按 " + pct(sickRate, 0) + " 发。"
+      + " 三个容易被坑的点：① 节假日加班不能用调休顶替，必须给 3 倍工资（休息日才可以先安排补休）；"
+      + " ② 加班费基数应是「正常工作时间工资」，很多公司按最低工资或基本工资算，属于违法；"
+      + " ③ 每月加班一般不超过 36 小时，超过的部分即使给了钱，也仍然违规。";
+  }
+
+  /* ---------------- 涨租 vs 搬家 ---------------- */
+  function calcRentUp() {
+    var cur = Math.max(0, num($("ru-cur"), 0));
+    var newR = Math.max(0, num($("ru-new"), 0));
+    var cost = Math.max(0, num($("ru-cost"), 0));
+    var alt = Math.max(0, num($("ru-alt"), 0));
+    var years = Math.max(0.5, Math.min(20, num($("ru-years"), 3)));
+
+    var stayYear = Math.max(0, newR - cur) * 12;
+    var stay = Math.max(0, newR - cur) * 12 * years;
+    var move = Math.max(0, alt - cur) * 12 * years + cost;
+    var diff = stay - move;
+    var gap = newR - alt;
+    var be = gap > 0 ? cost / gap : Infinity;
+
+    $("ru-diff").textContent = (diff >= 0 ? "" : "-") + money(Math.abs(diff));
+    $("ru-stayyear").textContent = yuan(stayYear);
+    $("ru-stay").textContent = yuan(stay) + "（" + years + " 年）";
+    $("ru-move").textContent = yuan(move) + "（" + years + " 年）";
+    $("ru-breakeven").textContent = gap > 0
+      ? (be === Infinity ? "—" : be.toFixed(1) + " 个月")
+      : "新房租不比涨后便宜，怎么搬都亏";
+    $("ru-line").textContent = cur > 0 ? pct((newR - cur) / cur, 1) + "（涨到 " + money(newR) + " 元）" : "—";
+
+    var body = $("ru-body");
+    body.innerHTML = "";
+    var list = [1, 2, 3, 5, 8];
+    for (var k = 0; k < list.length; k++) {
+      var y2 = list[k];
+      var s = Math.max(0, newR - cur) * 12 * y2;
+      var mv = Math.max(0, alt - cur) * 12 * y2 + cost;
+      var tr = document.createElement("tr");
+      tr.innerHTML = "<td>" + y2 + " 年</td><td>" + money(s) + "</td><td>" + money(mv) + "</td><td>"
+        + (s > mv ? "搬走省 " + money(s - mv) : "留下省 " + money(mv - s)) + "</td>";
+      body.appendChild(tr);
+    }
+
+    var note = "房东把房租从 " + money(cur) + " 元涨到 " + money(newR) + " 元（涨 " + pct(cur > 0 ? (newR - cur) / cur : 0, 1) + "），"
+      + " 接受的话每年多付 " + money(stayYear) + " 元。搬家在别处租 " + money(alt) + " 元、一次性花 " + money(cost) + " 元，"
+      + " 两条路比到 " + years + " 年：留下多付 " + money(stay) + " 元，搬走多付 " + money(move) + " 元，"
+      + (diff >= 0 ? "所以搬走更省 " + money(diff) + " 元。" : "所以留下更省 " + money(-diff) + " 元，别折腾。");
+    if (gap > 0) {
+      note += " 临界点是住满 " + be.toFixed(1) + " 个月：住得比这更久，搬家的固定成本就摊薄了；住不到就该忍下这次涨价。";
+    }
+    note += " 搬家成本别只算力气钱：中介费通常半个月到一个月房租、押金可能被扣、宽带移机、通勤变远的时间和交通费——"
+      + " 一线城市一次搬家真实成本常在 5,000–10,000 元，很多人为了省 200 元/月搬家，结果一年才勉强回本。"
+      + " 另外议价时可以直接拿「同地段同户型现在租多少」跟房东谈，行情在跌的时候，房东宁可少涨也不愿空置一个月。";
+    $("ru-note").textContent = note;
+  }
+
+  /* ---------------- 油车 vs 电车 ---------------- */
+  function calcEv() {
+    var km = Math.max(0, num($("ev-km"), 0));
+    var oilL = Math.max(0, num($("ev-oil"), 0));
+    var oilP = Math.max(0, num($("ev-price"), 0));
+    var kwh = Math.max(0, num($("ev-kwh"), 0));
+    var eP = Math.max(0, num($("ev-eprice"), 0));
+    var p1 = Math.max(0, num($("ev-p1"), 0));
+    var p2 = Math.max(0, num($("ev-p2"), 0));
+    var yrs = Math.max(1, Math.min(20, Math.round(num($("ev-years"), 8))));
+    var r1 = Math.min(100, Math.max(0, num($("ev-res1"), 30))) / 100;
+    var r2 = Math.min(100, Math.max(0, num($("ev-res2"), 25))) / 100;
+    var m1 = Math.max(0, num($("ev-m1"), 0));
+    var m2 = Math.max(0, num($("ev-m2"), 0));
+    var i1 = Math.max(0, num($("ev-i1"), 0));
+    var i2 = Math.max(0, num($("ev-i2"), 0));
+
+    var oilE = km * oilL / 100 * oilP;
+    var evE = km * kwh / 100 * eP;
+    var oilY = oilE + m1 + i1;
+    var evY = evE + m2 + i2;
+
+    function total(price, yearCost, resid, k) {
+      return price + yearCost * k - price * resid;
+    }
+    var t1 = total(p1, oilY, r1, yrs);
+    var t2 = total(p2, evY, r2, yrs);
+    var diff = t1 - t2;
+
+    var fixedDiff = (m1 - m2) + (i1 - i2);
+    var perKm = (oilL * oilP - kwh * eP) / 100;
+    var priceDiff = (p2 - p1) - (p2 * r2 - p1 * r1);
+    var crit = perKm > 0 ? (priceDiff / yrs - fixedDiff) / perKm : 0;
+
+    $("ev-diff").textContent = (diff >= 0 ? "" : "-") + money(Math.abs(diff));
+    $("ev-energy").textContent = money(oilE) + " / " + money(evE);
+    $("ev-year").textContent = money(oilY) + " / " + money(evY);
+    $("ev-perkm").textContent = money(km > 0 ? oilY / km : 0) + " / " + money(km > 0 ? evY / km : 0) + " 元";
+    $("ev-t1").textContent = yuan(t1);
+    $("ev-t2").textContent = yuan(t2);
+    $("ev-crit").textContent = Math.max(0, Math.round(crit)).toLocaleString("zh-CN") + " 公里/年";
+
+    var body = $("ev-body");
+    body.innerHTML = "";
+    var list = [5000, 10000, 15000, 20000, 30000];
+    for (var k = 0; k < list.length; k++) {
+      var kk = list[k];
+      var oy = kk * oilL / 100 * oilP + m1 + i1;
+      var ey = kk * kwh / 100 * eP + m2 + i2;
+      var a = total(p1, oy, r1, yrs), b = total(p2, ey, r2, yrs);
+      var tr = document.createElement("tr");
+      tr.innerHTML = "<td>" + money(kk) + "</td><td>" + money(a) + "</td><td>" + money(b) + "</td><td>"
+        + (a > b ? "电车省 " + money(a - b) : "油车省 " + money(b - a)) + "</td>";
+      body.appendChild(tr);
+    }
+
+    $("ev-note").textContent = "按一年开 " + money(km) + " 公里（油价 " + oilP + " 元/L、电耗 " + kwh + " 度/100km、电价 " + eP
+      + " 元/度）算：油费 " + money(oilE) + " 元、电费 " + money(evE) + " 元，一年光能源就差 " + money(oilE - evE) + " 元。"
+      + " 加上保养和保险，油车一年 " + money(oilY) + " 元、电车 " + money(evY) + " 元。"
+      + " 把购车差价和 " + yrs + " 年后的残值也算进来，开满 " + yrs + " 年油车总花费 " + money(t1) + " 元、电车 " + money(t2) + " 元，"
+      + (diff >= 0 ? "电车省 " + money(diff) + " 元。" : "电车反而贵 " + money(-diff) + " 元。")
+      + " 关键变量是里程：盈亏平衡点大约在每年 " + Math.max(0, Math.round(crit)).toLocaleString("zh-CN") + " 公里，开得比这多电车才划算。"
+      + " 三个常被忽略的项：① 电车首年折旧很猛（三年掉价常超一半），保值率差的部分我按残值率算了，实际可能更狠；"
+      + " ② 家里能不能装充电桩决定电价，全靠公共快充（1.5 元/度以上）时优势会被吃掉一半；"
+      + " ③ 电池衰减、换电成本、保险逐年上涨都没算进去，长途多的人还要算上补能时间成本。";
+  }
+
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
@@ -2774,20 +2998,21 @@
     cashflow: calcCashflow, zeroloan: calcZeroLoan, riskalloc: calcRiskAlloc, penalty: calcPenalty,
     debtfree: calcDebtFree, fire: calcFire, annualfee: calcAnnualFee, budget: calcBudget,
     zhuan: calcZhuan, medins: calcMedins, childcost: calcChild, ppension: calcPPA,
-    fundlimit: calcFundLimit, emergency: calcEmergency, rule503020: calcRule, debtmerge: calcDebtMerge
+    fundlimit: calcFundLimit, emergency: calcEmergency, rule503020: calcRule, debtmerge: calcDebtMerge,
+    freeperiod: calcFreePeriod, overtime: calcOvertime, rentup: calcRentUp, ev: calcEv
   };
 
   function setCat(cat) {
     var chips = document.querySelectorAll(".cat");
     for (var c = 0; c < chips.length; c++) chips[c].classList.toggle("is-on", chips[c].dataset.cat === cat);
     var tb = document.querySelectorAll(".tab");
-    for (var t = 0; t < tb.length; t++) tb[t].hidden = tb[t].dataset.cat !== cat;
+    for (var t = 0; t < tb.length; t++) tb[t].hidden = tb[t].dataset.cat.split(/\s+/).indexOf(cat) < 0;
     try { localStorage.setItem(CAT_KEY, cat); } catch (e) {}
   }
 
   function activate(name) {
     var self = document.querySelector('.tab[data-tab="' + name + '"]');
-    if (self && self.dataset.cat) setCat(self.dataset.cat);
+    if (self && self.hidden) setCat(self.dataset.cat.split(/\s+/)[0]);
     var tabs = document.querySelectorAll(".tab");
     for (var i = 0; i < tabs.length; i++) tabs[i].classList.toggle("is-on", tabs[i].dataset.tab === name);
     var panels = document.querySelectorAll(".panel");
@@ -2807,7 +3032,7 @@
     var c = e.target.closest(".cat");
     if (!c) return;
     setCat(c.dataset.cat);
-    var first = document.querySelector('.tab[data-cat="' + c.dataset.cat + '"]');
+    var first = document.querySelector('.tab[data-cat~="' + c.dataset.cat + '"]');
     if (first && first.dataset.tab) activate(first.dataset.tab);
   });
 
@@ -2876,9 +3101,14 @@
     "fl-target", "fl-bal", "fl-monthly", "fl-mult", "fl-cap", "fl-rate", "fl-years",
     "em-exp", "em-stab", "em-loan", "em-kid", "em-have", "em-save",
     "rg-inc", "rg-need", "rg-want", "rg-save",
-    "dm-bal", "dm-old", "dm-new", "dm-fee", "dm-pay"
+    "dm-bal", "dm-old", "dm-new", "dm-fee", "dm-pay",
+    "fp-bill", "fp-due", "fp-amount",
+    "ot-salary", "ot-days", "ot-wd", "ot-rest", "ot-hol", "ot-leave", "ot-sick", "ot-sickrate",
+    "ru-cur", "ru-new", "ru-cost", "ru-alt", "ru-years",
+    "ev-km", "ev-oil", "ev-price", "ev-kwh", "ev-eprice", "ev-p1", "ev-p2", "ev-years",
+    "ev-res1", "ev-res2", "ev-m1", "ev-m2", "ev-i1", "ev-i2"
   ];
-  var KEY = "finance-calc-v14";
+  var KEY = "finance-calc-v15";
   var CAT_KEY = "finance-calc-cat";
 
   /* ---------------- 现金流月历 ---------------- */
@@ -3236,9 +3466,13 @@
   restore();
   var chipsAll = document.querySelectorAll(".cat");
   for (var ci = 0; ci < chipsAll.length; ci++) {
-    var cnt = document.querySelectorAll('.tab[data-cat="' + chipsAll[ci].dataset.cat + '"]').length;
+    var cnt = document.querySelectorAll('.tab[data-cat~="' + chipsAll[ci].dataset.cat + '"]').length;
     chipsAll[ci].textContent = chipsAll[ci].textContent + " " + cnt;
   }
+  var savedCat = "hot";
+  try { savedCat = localStorage.getItem(CAT_KEY) || "hot"; } catch (e) {}
+  if (!document.querySelector('.cat[data-cat="' + savedCat + '"]')) savedCat = "hot";
+  setCat(savedCat);
   var start = (location.hash || "").replace("#", "");
   activate(calcMap[start] ? start : "deposit");
   $("ver").textContent = "财务计算器 · 纯前端 · 更新于 " + new Date().toISOString().slice(0, 10);
