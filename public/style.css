@@ -39,6 +39,17 @@ button{font:inherit;cursor:pointer}
 }
 .tab:hover{background:rgba(255,255,255,.22)}
 .tab.is-on{background:var(--bg);color:var(--accent);font-weight:650}
+.tab[hidden]{display:none}
+
+.cats{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px}
+.cat{
+  appearance:none;border:1px solid rgba(255,255,255,.42);background:transparent;color:#e8eefc;
+  padding:5px 13px;border-radius:999px;font-size:13px;white-space:nowrap;cursor:pointer;
+  transition:background .15s,color .15s,border-color .15s;
+}
+.cat:hover{background:rgba(255,255,255,.18)}
+.cat.is-on{background:#e8eefc;border-color:#e8eefc;color:var(--accent);font-weight:650}
+.cats + .tabs{margin-top:9px}
 
 /* 手机上标签平均分布排成多行，全部可见，不用横向滑动 */
 @media (max-width:660px){
@@ -50,6 +61,12 @@ button{font:inherit;cursor:pointer}
   .tabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;gap:6px;padding:8px 0 10px;scroll-snap-type:x proximity}
   .tabs::-webkit-scrollbar{display:none}
   .tab{flex:0 0 auto;white-space:nowrap;padding:7px 12px;font-size:13px;text-align:center;scroll-snap-align:center}
+  .cats{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin-top:11px;gap:6px}
+  .cats::-webkit-scrollbar{display:none}
+  .cat{flex:0 0 auto;padding:5px 11px;font-size:12.5px}
+  /* 页头那串模块名在手机上太占高度，压到两行 */
+  .brand p{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .cats + .tabs{margin-top:7px}
   .wrap{padding-top:16px}
 }
 

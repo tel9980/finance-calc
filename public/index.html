@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>财务计算器 · 存款 贷款 房贷 商转公 医保报销 养娃 个人养老金</title>
-<meta name="description" content="免费的财务计算器（51 个模块）：存款利息、贷款月供与还款计划、组合贷、提前还款省息、复利与定投、攒钱目标、分期真实年化、年化收益、通胀购买力、个税与到手工资、租房还是买房、信用卡循环利息、汇率与单位换算、公积金可贷额度、利率调整后月供、二手房交易税费、AA 分摊、退休金测算、卖房换房、公积金月冲年冲、多币种折算、提前还款 vs 理财、教育金、保险保额、买车 vs 打车、年终奖拆分、专项附加扣除、存单阶梯、租售比、年度汇算退税、家庭资产负债、灵活就业社保、社保少缴核查、三种还法对撞、定投 vs 一次性、保单体检、到期日历、现金流月历、0 利率真实成本、风险测评与资产配置、提前还款违约金临界点、多笔债务先还哪笔、FIRE 财务自由、年缴费用分摊、买房预算反推、商转公、医保报销、养娃成本、个人养老金账户。纯前端计算，不联网、不上传数据。">
+<title>财务计算器 · 存款 贷款 房贷 个税 社保 家庭规划 分 6 类</title>
+<meta name="description" content="免费的财务计算器（55 个模块，按 6 类分组）：存款利息、贷款月供与还款计划、组合贷、提前还款省息、复利与定投、攒钱目标、分期真实年化、年化收益、通胀购买力、个税与到手工资、租房还是买房、信用卡循环利息、汇率与单位换算、公积金可贷额度、利率调整后月供、二手房交易税费、AA 分摊、退休金测算、卖房换房、公积金月冲年冲、多币种折算、提前还款 vs 理财、教育金、保险保额、买车 vs 打车、年终奖拆分、专项附加扣除、存单阶梯、租售比、年度汇算退税、家庭资产负债、灵活就业社保、社保少缴核查、三种还法对撞、定投 vs 一次性、保单体检、到期日历、现金流月历、0 利率真实成本、风险测评与资产配置、提前还款违约金临界点、多笔债务先还哪笔、FIRE 财务自由、年缴费用分摊、买房预算反推、商转公、医保报销、养娃成本、个人养老金账户、公积金缴存额度、应急金、50/30/20 收入分配、债务置换。纯前端计算，不联网、不上传数据。">
 <meta name="theme-color" content="#1e3a8a">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231e3a8a'/%3E%3Ctext x='16' y='23' font-size='17' text-anchor='middle' fill='%23fff' font-family='sans-serif'%3E%C2%A5%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="./style.css">
@@ -17,61 +17,73 @@
       <span class="mark">¥</span>
       <div>
         <h1>财务计算器</h1>
-        <p>存款 · 贷款 · 提前还款 · 复利 · 攒钱 · 分期 · 个税 · 汇算退税 · 年终奖 · 到手工资 · 社保 · 退休金 · 教育金 · 保险 · 租买 · 租售比 · 信用卡 · 公积金 · 换房 · 多币种 · 存单阶梯 · 资产负债 · 还法对撞 · 保单体检 · 到期日历 · 现金流月历 · 风险配置 · 债务优先级 · FIRE · 年缴分摊 · 买房预算 · 商转公 · 医保报销 · 养娃 · 个人养老金</p>
+        <p>存款 · 贷款 · 提前还款 · 复利 · 攒钱 · 分期 · 个税 · 汇算退税 · 年终奖 · 到手工资 · 社保 · 退休金 · 教育金 · 保险 · 租买 · 租售比 · 信用卡 · 公积金 · 换房 · 多币种 · 存单阶梯 · 资产负债 · 还法对撞 · 保单体检 · 到期日历 · 现金流月历 · 风险配置 · 债务优先级 · FIRE · 年缴分摊 · 买房预算 · 商转公 · 医保报销 · 养娃 · 个人养老金 · 公积金额度 · 应急金 · 收入分配 · 债务置换</p>
       </div>
     </div>
+    <nav class="cats" id="cats" role="tablist" aria-label="分类">
+      <button class="cat is-on" data-cat="save" role="tab">存钱理财</button>
+      <button class="cat" data-cat="loan" role="tab">贷款房贷</button>
+      <button class="cat" data-cat="house" role="tab">房子买卖</button>
+      <button class="cat" data-cat="tax" role="tab">工资税费社保</button>
+      <button class="cat" data-cat="family" role="tab">家庭规划</button>
+      <button class="cat" data-cat="life" role="tab">日常消费</button>
+    </nav>
     <nav class="tabs" id="tabs" role="tablist">
-      <button class="tab is-on" data-tab="deposit" role="tab">存款利息</button>
-      <button class="tab" data-tab="loan" role="tab">贷款月供</button>
-      <button class="tab" data-tab="combo" role="tab">组合贷</button>
-      <button class="tab" data-tab="prepay" role="tab">提前还款</button>
-      <button class="tab" data-tab="compound" role="tab">复利/定投</button>
-      <button class="tab" data-tab="goal" role="tab">攒钱目标</button>
-      <button class="tab" data-tab="installment" role="tab">分期利率</button>
-      <button class="tab" data-tab="annual" role="tab">年化换算</button>
-      <button class="tab" data-tab="inflation" role="tab">通胀购买力</button>
-      <button class="tab" data-tab="tax" role="tab">个税测算</button>
-      <button class="tab" data-tab="deal" role="tab">折扣单价</button>
-      <button class="tab" data-tab="salary" role="tab">到手工资</button>
-      <button class="tab" data-tab="rentbuy" role="tab">租房还是买房</button>
-      <button class="tab" data-tab="card" role="tab">信用卡利息</button>
-      <button class="tab" data-tab="fx" role="tab">汇率单位</button>
-      <button class="tab" data-tab="fund" role="tab">公积金额度</button>
-      <button class="tab" data-tab="lpr" role="tab">利率调整月供</button>
-      <button class="tab" data-tab="deed" role="tab">二手房税费</button>
-      <button class="tab" data-tab="split" role="tab">AA 分摊</button>
-      <button class="tab" data-tab="pension" role="tab">退休金测算</button>
-      <button class="tab" data-tab="sell" role="tab">卖房换房</button>
-      <button class="tab" data-tab="offset" role="tab">公积金对冲</button>
-      <button class="tab" data-tab="multi" role="tab">多币种折算</button>
-      <button class="tab" data-tab="repayvs" role="tab">提前还款 vs 理财</button>
-      <button class="tab" data-tab="edu" role="tab">教育金</button>
-      <button class="tab" data-tab="insure" role="tab">保险保额</button>
-      <button class="tab" data-tab="car" role="tab">买车 vs 打车</button>
-      <button class="tab" data-tab="bonus" role="tab">年终奖拆分</button>
-      <button class="tab" data-tab="deduct" role="tab">专项附加扣除</button>
-      <button class="tab" data-tab="ladder" role="tab">存单阶梯</button>
-      <button class="tab" data-tab="rentyield" role="tab">租售比</button>
-      <button class="tab" data-tab="settle" role="tab">年度汇算退税</button>
-      <button class="tab" data-tab="balance" role="tab">家庭资产负债</button>
-      <button class="tab" data-tab="selfins" role="tab">灵活就业社保</button>
-      <button class="tab" data-tab="underpay" role="tab">社保少缴核查</button>
-      <button class="tab" data-tab="loanways" role="tab">三种还法对撞</button>
-      <button class="tab" data-tab="dca" role="tab">定投 vs 一次性</button>
-      <button class="tab" data-tab="checkup" role="tab">保单体检</button>
-      <button class="tab" data-tab="calendar" role="tab">到期日历</button>
-      <button class="tab" data-tab="cashflow" role="tab">现金流月历</button>
-      <button class="tab" data-tab="zeroloan" role="tab">0 利率真实成本</button>
-      <button class="tab" data-tab="riskalloc" role="tab">风险测评配置</button>
-      <button class="tab" data-tab="penalty" role="tab">违约金临界点</button>
-      <button class="tab" data-tab="debtfree" role="tab">债务先还哪笔</button>
-      <button class="tab" data-tab="fire" role="tab">FIRE 自由</button>
-      <button class="tab" data-tab="annualfee" role="tab">年缴费用分摊</button>
-      <button class="tab" data-tab="budget" role="tab">买房预算反推</button>
-      <button class="tab" data-tab="zhuan" role="tab">商转公</button>
-      <button class="tab" data-tab="medins" role="tab">医保报销</button>
-      <button class="tab" data-tab="childcost" role="tab">养娃成本</button>
-      <button class="tab" data-tab="ppension" role="tab">个人养老金</button>
+      <button class="tab is-on" data-tab="deposit" data-cat="save" role="tab">存款利息</button>
+      <button class="tab" data-tab="loan" data-cat="loan" role="tab">贷款月供</button>
+      <button class="tab" data-tab="combo" data-cat="loan" role="tab">组合贷</button>
+      <button class="tab" data-tab="prepay" data-cat="loan" role="tab">提前还款</button>
+      <button class="tab" data-tab="compound" data-cat="save" role="tab">复利/定投</button>
+      <button class="tab" data-tab="goal" data-cat="save" role="tab">攒钱目标</button>
+      <button class="tab" data-tab="installment" data-cat="life" role="tab">分期利率</button>
+      <button class="tab" data-tab="annual" data-cat="save" role="tab">年化换算</button>
+      <button class="tab" data-tab="inflation" data-cat="save" role="tab">通胀购买力</button>
+      <button class="tab" data-tab="tax" data-cat="tax" role="tab">个税测算</button>
+      <button class="tab" data-tab="deal" data-cat="life" role="tab">折扣单价</button>
+      <button class="tab" data-tab="salary" data-cat="tax" role="tab">到手工资</button>
+      <button class="tab" data-tab="rentbuy" data-cat="house" role="tab">租房还是买房</button>
+      <button class="tab" data-tab="card" data-cat="life" role="tab">信用卡利息</button>
+      <button class="tab" data-tab="fx" data-cat="life" role="tab">汇率单位</button>
+      <button class="tab" data-tab="fund" data-cat="loan" role="tab">公积金额度</button>
+      <button class="tab" data-tab="lpr" data-cat="loan" role="tab">利率调整月供</button>
+      <button class="tab" data-tab="deed" data-cat="house" role="tab">二手房税费</button>
+      <button class="tab" data-tab="split" data-cat="life" role="tab">AA 分摊</button>
+      <button class="tab" data-tab="pension" data-cat="tax" role="tab">退休金测算</button>
+      <button class="tab" data-tab="sell" data-cat="house" role="tab">卖房换房</button>
+      <button class="tab" data-tab="offset" data-cat="loan" role="tab">公积金对冲</button>
+      <button class="tab" data-tab="multi" data-cat="life" role="tab">多币种折算</button>
+      <button class="tab" data-tab="repayvs" data-cat="loan" role="tab">提前还款 vs 理财</button>
+      <button class="tab" data-tab="edu" data-cat="family" role="tab">教育金</button>
+      <button class="tab" data-tab="insure" data-cat="family" role="tab">保险保额</button>
+      <button class="tab" data-tab="car" data-cat="life" role="tab">买车 vs 打车</button>
+      <button class="tab" data-tab="bonus" data-cat="tax" role="tab">年终奖拆分</button>
+      <button class="tab" data-tab="deduct" data-cat="tax" role="tab">专项附加扣除</button>
+      <button class="tab" data-tab="ladder" data-cat="save" role="tab">存单阶梯</button>
+      <button class="tab" data-tab="rentyield" data-cat="house" role="tab">租售比</button>
+      <button class="tab" data-tab="settle" data-cat="tax" role="tab">年度汇算退税</button>
+      <button class="tab" data-tab="balance" data-cat="family" role="tab">家庭资产负债</button>
+      <button class="tab" data-tab="selfins" data-cat="tax" role="tab">灵活就业社保</button>
+      <button class="tab" data-tab="underpay" data-cat="tax" role="tab">社保少缴核查</button>
+      <button class="tab" data-tab="loanways" data-cat="loan" role="tab">三种还法对撞</button>
+      <button class="tab" data-tab="dca" data-cat="save" role="tab">定投 vs 一次性</button>
+      <button class="tab" data-tab="checkup" data-cat="family" role="tab">保单体检</button>
+      <button class="tab" data-tab="calendar" data-cat="save" role="tab">到期日历</button>
+      <button class="tab" data-tab="cashflow" data-cat="family" role="tab">现金流月历</button>
+      <button class="tab" data-tab="zeroloan" data-cat="loan" role="tab">0 利率真实成本</button>
+      <button class="tab" data-tab="riskalloc" data-cat="family" role="tab">风险测评配置</button>
+      <button class="tab" data-tab="penalty" data-cat="loan" role="tab">违约金临界点</button>
+      <button class="tab" data-tab="debtfree" data-cat="life" role="tab">债务先还哪笔</button>
+      <button class="tab" data-tab="fire" data-cat="family" role="tab">FIRE 自由</button>
+      <button class="tab" data-tab="annualfee" data-cat="family" role="tab">年缴费用分摊</button>
+      <button class="tab" data-tab="budget" data-cat="house" role="tab">买房预算反推</button>
+      <button class="tab" data-tab="zhuan" data-cat="loan" role="tab">商转公</button>
+      <button class="tab" data-tab="medins" data-cat="tax" role="tab">医保报销</button>
+      <button class="tab" data-tab="childcost" data-cat="family" role="tab">养娃成本</button>
+      <button class="tab" data-tab="ppension" data-cat="tax" role="tab">个人养老金</button>
+      <button class="tab" data-tab="fundlimit" data-cat="loan" role="tab">公积金缴存额度</button>
+      <button class="tab" data-tab="emergency" data-cat="family" role="tab">应急金</button>
+      <button class="tab" data-tab="rule503020" data-cat="family" role="tab">收入分配体检</button>
+      <button class="tab" data-tab="debtmerge" data-cat="life" role="tab">债务置换</button>
     </nav>
   </div>
 </header>
@@ -2750,6 +2762,170 @@
           </table>
         </div>
         <p class="hint" id="pa-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-fundlimit">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f"><span>想贷多少（元）</span>
+          <input id="fl-target" type="number" inputmode="decimal" min="0" step="10000" value="800000"></label>
+        <label class="f"><span>公积金账户现有余额（元）</span>
+          <input id="fl-bal" type="number" inputmode="decimal" min="0" step="1000" value="30000"></label>
+        <label class="f"><span>每月缴存额（个人＋单位，元）</span>
+          <input id="fl-monthly" type="number" inputmode="decimal" min="0" step="100" value="3000"></label>
+        <label class="f"><span>当地余额倍数（可贷 = 余额 × 倍数）</span>
+          <input id="fl-mult" type="number" inputmode="decimal" min="1" max="40" step="1" value="15"></label>
+        <label class="f"><span>当地最高可贷额度（元）</span>
+          <input id="fl-cap" type="number" inputmode="decimal" min="0" step="10000" value="800000"></label>
+        <label class="f"><span>公积金贷款利率（%）</span>
+          <input id="fl-rate" type="number" inputmode="decimal" min="0" step="0.05" value="2.6"></label>
+        <label class="f"><span>打算贷多少年</span>
+          <input id="fl-years" type="number" inputmode="decimal" min="1" max="30" step="1" value="30"></label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">按现在的余额能贷到</span><strong id="fl-can">—</strong><span class="unit">元</span></div>
+        <ul class="kv">
+          <li><span>占目标的比例</span><b id="fl-cover">—</b></li>
+          <li><span>要贷到目标需要多少余额</span><b id="fl-needbal">—</b></li>
+          <li><span>余额还差</span><b id="fl-gap">—</b></li>
+          <li><span>按现在的月缴还差几个月</span><b id="fl-months">—</b></li>
+          <li><span>补足后能贷（含封顶）</span><b id="fl-after">—</b></li>
+          <li><span>对应月供（等额本息）</span><b id="fl-pmt">—</b></li>
+        </ul>
+        <div class="tablebox">
+          <table>
+            <thead><tr><th>月缴存额</th><th>补足缺口要几个月</th><th>那时账户余额</th><th>那时能贷</th></tr></thead>
+            <tbody id="fl-body"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="fl-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-emergency">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f"><span>每月刚性支出（房租/吃饭/还款等，元）</span>
+          <input id="em-exp" type="number" inputmode="decimal" min="0" step="500" value="9000"></label>
+        <label class="f"><span>收入稳定性</span>
+          <select id="em-stab">
+            <option value="steady">稳定（编制/大厂老员工）</option>
+            <option value="normal" selected>一般（普通上班族）</option>
+            <option value="risky">波动（提成/自由职业/创业）</option>
+          </select></label>
+        <label class="f"><span>有没有房贷/车贷</span>
+          <select id="em-loan">
+            <option value="1" selected>有</option>
+            <option value="0">没有</option>
+          </select></label>
+        <label class="f"><span>要不要养娃或赡养老人</span>
+          <select id="em-kid">
+            <option value="1" selected>有</option>
+            <option value="0">没有</option>
+          </select></label>
+        <label class="f"><span>手上已备了多少（元）</span>
+          <input id="em-have" type="number" inputmode="decimal" min="0" step="1000" value="20000"></label>
+        <label class="f"><span>每月还能存多少（元）</span>
+          <input id="em-save" type="number" inputmode="decimal" min="0" step="500" value="3000"></label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">应急金该备到</span><strong id="em-target">—</strong><span class="unit">元</span></div>
+        <ul class="kv">
+          <li><span>备几个月</span><b id="em-months">—</b></li>
+          <li><span>现在还差</span><b id="em-gap">—</b></li>
+          <li><span>现在的钱能撑</span><b id="em-cover">—</b></li>
+          <li><span>按每月存要几个月补上</span><b id="em-need">—</b></li>
+        </ul>
+        <div class="tablebox">
+          <table>
+            <thead><tr><th>若每月存</th><th>补足缺口要几个月</th><th>那时可撑</th></tr></thead>
+            <tbody id="em-body"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="em-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-rule503020">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f"><span>税后月收入（元）</span>
+          <input id="rg-inc" type="number" inputmode="decimal" min="0" step="1000" value="20000"></label>
+        <label class="f"><span>必需支出（房子/吃饭/交通/水电/还债，元）</span>
+          <input id="rg-need" type="number" inputmode="decimal" min="0" step="500" value="12000"></label>
+        <label class="f"><span>可选支出（娱乐/购物/订阅/旅游，元）</span>
+          <input id="rg-want" type="number" inputmode="decimal" min="0" step="500" value="4000"></label>
+        <label class="f"><span>储蓄与投资（含提前还贷，元）</span>
+          <input id="rg-save" type="number" inputmode="decimal" min="0" step="500" value="4000"></label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">储蓄率</span><strong id="rg-saverate">—</strong><span class="unit">%</span></div>
+        <ul class="kv">
+          <li><span>必需支出占比（基准 50%）</span><b id="rg-needp">—</b></li>
+          <li><span>可选支出占比（基准 30%）</span><b id="rg-wantp">—</b></li>
+          <li><span>储蓄占比（基准 20%）</span><b id="rg-savep">—</b></li>
+          <li><span>必需支出超出基准</span><b id="rg-cut">—</b></li>
+          <li><span>按现在的支出结构，收入要到</span><b id="rg-incneed">—</b></li>
+          <li><span>未分配到任何一档的钱</span><b id="rg-left">—</b></li>
+        </ul>
+        <div class="tablebox">
+          <table>
+            <thead><tr><th>分类</th><th>你的金额</th><th>你的占比</th><th>基准</th><th>差</th><th>基准金额</th></tr></thead>
+            <tbody id="rg-body"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="rg-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-debtmerge">
+    <div class="cols">
+      <div class="card">
+        <h2>输入</h2>
+        <label class="f"><span>现在欠多少（高息那边，元）</span>
+          <input id="dm-bal" type="number" inputmode="decimal" min="0" step="1000" value="50000"></label>
+        <label class="f"><span>现在这笔的年利率（%）</span>
+          <input id="dm-old" type="number" inputmode="decimal" min="0" step="0.5" value="18"></label>
+        <label class="f"><span>置换后的年利率（%）</span>
+          <input id="dm-new" type="number" inputmode="decimal" min="0" step="0.5" value="7"></label>
+        <label class="f"><span>置换手续费（按本金 %）</span>
+          <input id="dm-fee" type="number" inputmode="decimal" min="0" step="0.5" value="2"></label>
+        <label class="f"><span>每月能还多少（元）</span>
+          <input id="dm-pay" type="number" inputmode="decimal" min="0" step="100" value="2500"></label>
+      </div>
+
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">置换后能省</span><strong id="dm-save">—</strong><span class="unit">元</span></div>
+        <ul class="kv">
+          <li><span>不置换：还清要</span><b id="dm-m1">—</b></li>
+          <li><span>不置换：付的利息</span><b id="dm-t1">—</b></li>
+          <li><span>置换后：还清要</span><b id="dm-m2">—</b></li>
+          <li><span>置换后：付的利息</span><b id="dm-t2">—</b></li>
+          <li><span>手续费（计入本金）</span><b id="dm-feeamt">—</b></li>
+          <li><span>手续费率高到多少就不划算了</span><b id="dm-breakeven">—</b></li>
+        </ul>
+        <div class="tablebox">
+          <table>
+            <thead><tr><th>手续费率</th><th>手续费</th><th>净省</th><th>结论</th></tr></thead>
+            <tbody id="dm-body"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="dm-note"></p>
       </div>
     </div>
   </section>

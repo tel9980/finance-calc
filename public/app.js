@@ -2502,6 +2502,264 @@
   }
 
 
+  /* ---------------- 公积金缴存与额度 ---------------- */
+  function calcFundLimit() {
+    var target = Math.max(0, num($("fl-target"), 0));
+    var bal = Math.max(0, num($("fl-bal"), 0));
+    var monthly = Math.max(0, num($("fl-monthly"), 0));
+    var mult = Math.max(1, Math.min(40, num($("fl-mult"), 15)));
+    var cap = Math.max(0, num($("fl-cap"), 0));
+    var rate = Math.max(0, num($("fl-rate"), 2.6)) / 100;
+    var yrs = Math.max(1, Math.min(30, Math.round(num($("fl-years"), 30))));
+    var n = yrs * 12;
+
+    function loanOf(b) {
+      var v = b * mult;
+      if (cap > 0) v = Math.min(v, cap);
+      return Math.max(0, v);
+    }
+    function pmtOf(p) { return p > 0 && rate > 0 ? annuityPayment(p, rate / 12, n) : (p > 0 ? p / n : 0); }
+
+    var can = loanOf(bal);
+    var needBal = mult > 0 ? (cap > 0 ? Math.min(target, cap) : target) / mult : 0;
+    var gap = Math.max(0, needBal - bal);
+    var needMonths = gap > 0 ? (monthly > 0 ? Math.ceil(gap / monthly) : Infinity) : 0;
+    var after = loanOf(bal + (needMonths === Infinity ? 0 : needMonths * monthly));
+
+    $("fl-can").textContent = money(can);
+    $("fl-cover").textContent = target > 0 ? pct(can / target, 1) : "—";
+    $("fl-needbal").textContent = yuan(needBal);
+    $("fl-gap").textContent = gap > 0 ? yuan(gap) : "已经够了";
+    $("fl-months").textContent = gap <= 0 ? "0 个月（现在就能贷）"
+      : (needMonths === Infinity ? "按现在的月缴永远补不上（月缴为 0）" : needMonths + " 个月");
+    $("fl-after").textContent = yuan(after) + "（月供 " + money(pmtOf(after)) + "）";
+    $("fl-pmt").textContent = yuan(pmtOf(can)) + " / 月（" + yrs + " 年）";
+
+    var body = $("fl-body");
+    body.innerHTML = "";
+    var list = [2000, 3000, 5000, 8000];
+    for (var k = 0; k < list.length; k++) {
+      var amt = list[k];
+      var m = gap > 0 ? (amt > 0 ? Math.ceil(gap / amt) : Infinity) : 0;
+      var balThen = bal + (m === Infinity ? 0 : m * amt);
+      var lv = loanOf(balThen);
+      var tr = document.createElement("tr");
+      tr.innerHTML = "<td>" + money(amt) + "</td><td>" + (m === Infinity ? "—" : m + " 个月")
+        + "</td><td>" + money(balThen) + "</td><td>" + money(lv) + "</td>";
+      body.appendChild(tr);
+    }
+
+    if (target <= 0 || bal <= 0) {
+      $("fl-note").textContent = "填上想贷的额度、账户余额和月缴存额，就能看到「按余额能贷多少、还差几个月」，以及每个月要缴多少才追得上。";
+      return;
+    }
+    var note = "公积金贷款额度各地口径不一样，最常见的一条是「可贷 = 账户余额 × 倍数」（倍数一般 10–20 倍，本例取 " + mult
+      + "），再叠加一条「个人最高可贷 XX 万」的封顶（本例 " + money(cap) + " 元）。"
+      + " 你现在余额 " + money(bal) + " 元 × " + mult + " 倍 = " + money(bal * mult) + " 元，" + (cap > 0 && bal * mult > cap ? "被封顶压到 " + money(cap) + " 元。" : "没碰到封顶。")
+      + " 要贷满 " + money(target) + " 元，余额得有 " + money(needBal) + " 元";
+    if (gap > 0) {
+      note += "，还差 " + money(gap) + " 元；按每月缴存 " + money(monthly) + " 元算，"
+        + (needMonths === Infinity ? "月缴为 0 就永远补不上，" : needMonths + " 个月后达标，也就是从今天起还要缴 "
+          + needMonths + " 个月，这期间别断缴。")
+        + " 想快一点就把月缴提上去（表格里给了月缴 2000/3000/5000/8000 各自要等多久）。";
+    } else {
+      note += "，你已经够了，可以直接按封顶额度申请。";
+    }
+    note += " 注意三点：① 多数城市还要求「连续缴存满 6 或 12 个月」才能申请，断缴会重算；"
+      + " ② 还要求月供不超过缴存基数的一定比例（常见 50%），所以基数低的时候即使余额够也可能批不下来；"
+      + " ③ 公积金利率 " + pct(rate, 2) + " 是政策利率，比商贷低一大截，能贷满就别浪费额度。";
+    $("fl-note").textContent = note;
+  }
+
+  /* ---------------- 应急金 ---------------- */
+  function calcEmergency() {
+    var exp = Math.max(0, num($("em-exp"), 0));
+    var stab = $("em-stab") ? $("em-stab").value : "normal";
+    var hasLoan = $("em-loan") ? $("em-loan").value === "1" : true;
+    var hasKid = $("em-kid") ? $("em-kid").value === "1" : true;
+    var have = Math.max(0, num($("em-have"), 0));
+    var per = Math.max(0, num($("em-save"), 0));
+
+    var m = 3, why = ["基础 3"];
+    if (stab === "steady") { m -= 1; why.push("收入稳定 −1"); }
+    else if (stab === "risky") { m += 2; why.push("收入波动 +2"); }
+    if (hasLoan) { m += 1; why.push("房贷 +1"); }
+    if (hasKid) { m += 1; why.push("养娃/赡老 +1"); }
+    var raw = m;
+    m = Math.max(2, Math.min(12, m));
+    if (raw !== m) why.push("上下限压到 " + m);
+
+    var target = exp * m;
+    var gap = Math.max(0, target - have);
+    var coverM = exp > 0 ? have / exp : 0;
+    var needM = gap > 0 ? (per > 0 ? Math.ceil(gap / per) : Infinity) : 0;
+
+    $("em-target").textContent = money(target);
+    $("em-months").textContent = m + " 个月（" + why.join(" ＋ ") + "）";
+    $("em-gap").textContent = gap > 0 ? yuan(gap) : "已经够了";
+    $("em-cover").textContent = coverM.toFixed(1) + " 个月";
+    $("em-need").textContent = gap <= 0 ? "0 个月" : (needM === Infinity ? "每月存 0，补不上" : needM + " 个月");
+
+    var body = $("em-body");
+    body.innerHTML = "";
+    var list = [1000, 2000, 3000, 5000];
+    for (var k = 0; k < list.length; k++) {
+      var p = list[k];
+      var mm = gap > 0 ? (p > 0 ? Math.ceil(gap / p) : Infinity) : 0;
+      var tr = document.createElement("tr");
+      tr.innerHTML = "<td>" + money(p) + " 元</td><td>" + (mm === Infinity ? "—" : mm + " 个月")
+        + "</td><td>" + (exp > 0 ? ((have + (mm === Infinity ? 0 : mm * p)) / exp).toFixed(1) + " 个月" : "—") + "</td>";
+      body.appendChild(tr);
+    }
+
+    if (exp <= 0) {
+      $("em-note").textContent = "先填上每月刚性支出（房租/房贷、吃饭、交通、水电这些不花不行的钱），再选收入稳定性和家庭负担，就能算出该备多少。";
+      return;
+    }
+    var note = "应急金算的是「不工作也能活几个月」，所以只按刚性支出算，不含旅游、娱乐。"
+      + " 你这情况建议备 " + m + " 个月 = " + money(target) + " 元（" + why.join("＋") + "）。";
+    if (gap > 0) {
+      note += " 现在有 " + money(have) + " 元，只够撑 " + coverM.toFixed(1) + " 个月，还差 " + money(gap) + " 元；"
+        + (needM === Infinity ? "" : "按每月存 " + money(per) + " 元，还要 " + needM + " 个月。");
+    } else {
+      note += " 现在有 " + money(have) + " 元，已经够撑 " + coverM.toFixed(1) + " 个月，别再往这里多放了，多出来的钱去做长期投资。";
+    }
+    note += " 放哪：只放能当天或次日到账的东西——货币基金、银行 T+0 现金管理、短期存单，别买理财、别买基金、别锁 3 年。"
+      + " 顺序上先应急金、再还高息债、最后才谈投资，反过来做的话一旦急用钱就得刷信用卡，利息立刻吃掉一年收益。"
+      + " 另外这笔钱要单独放一张卡或一个账户，别和日常开销混在一起，否则你会不知不觉花掉它。";
+    $("em-note").textContent = note;
+  }
+
+  /* ---------------- 收入分配体检 50/30/20 ---------------- */
+  function calcRule() {
+    var inc = Math.max(1, num($("rg-inc"), 1));
+    var need = Math.max(0, num($("rg-need"), 0));
+    var want = Math.max(0, num($("rg-want"), 0));
+    var saveV = Math.max(0, num($("rg-save"), 0));
+    var left = inc - need - want - saveV;
+
+    var pN = need / inc, pW = want / inc, pS = saveV / inc;
+    var incNeed = need / 0.5;
+    var cut = need - inc * 0.5;
+
+    $("rg-saverate").textContent = (pS * 100).toFixed(1);
+    function vs(v, base) {
+      var d = v - base;
+      if (Math.abs(d) < 0.0005) return "（与基准持平）";
+      return "（" + (d > 0 ? "超 " : "低 ") + pct(Math.abs(d), 1) + "）";
+    }
+    $("rg-needp").textContent = pct(pN, 1) + vs(pN, 0.5);
+    $("rg-wantp").textContent = pct(pW, 1) + vs(pW, 0.3);
+    $("rg-savep").textContent = pct(pS, 1) + vs(pS, 0.2);
+    $("rg-cut").textContent = cut > 0 ? yuan(cut) + "（要压到 " + money(inc * 0.5) + " 元）" : "没有超（" + money(-cut) + " 元余量）";
+    $("rg-incneed").textContent = yuan(incNeed);
+    $("rg-left").textContent = Math.abs(left) < 0.5 ? "0（三档正好分完）" : (left > 0 ? yuan(left) + "（没安排用途）" : yuan(-left) + "（超出了收入）");
+
+    var body = $("rg-body");
+    body.innerHTML = "";
+    var rows = [
+      ["必需支出", need, pN, 0.5],
+      ["可选支出", want, pW, 0.3],
+      ["储蓄投资", saveV, pS, 0.2]
+    ];
+    for (var k = 0; k < rows.length; k++) {
+      var r = rows[k];
+      var d = r[2] - r[3];
+      var tr = document.createElement("tr");
+      tr.innerHTML = "<td>" + r[0] + "</td><td>" + money(r[1]) + "</td><td>" + pct(r[2], 1)
+        + "</td><td>" + pct(r[3], 0) + "</td><td>" + (d >= 0 ? "+" : "") + pct(d, 1)
+        + "</td><td>" + money(inc * r[3]) + "</td>";
+      body.appendChild(tr);
+    }
+
+    var head = "你的结构是 必需 " + pct(pN, 1) + " / 可选 " + pct(pW, 1) + " / 储蓄 " + pct(pS, 1) + "，";
+    var advice;
+    if (pN > 0.5) {
+      advice = "必需支出偏高 " + pct(pN - 0.5, 1) + "。要么把它压到 " + money(inc * 0.5) + " 元（少花 " + money(cut)
+        + " 元，能压的通常是房租/通勤/保险这几块），要么把收入提到 " + money(incNeed) + " 元。收入不变又不砍支出的话，储蓄率很难起来。";
+    } else if (pS < 0.2) {
+      advice = "必需支出还在 50% 以内，但储蓄只有 " + pct(pS, 1) + "，钱漏在可选支出上（比基准多 " + money(Math.max(0, want - inc * 0.3))
+        + " 元）。先把这部分砍到 " + money(inc * 0.3) + " 元，储蓄率就能补到 20%。";
+    } else {
+      advice = "结构健康：必需支出在 50% 以内、储蓄超过 20%，多出来的钱优先补应急金，再考虑提前还贷或长期定投。";
+    }
+    $("rg-note").textContent = head + advice
+      + " 50/30/20 是「先保生存、再谈享受、最后强制存钱」的粗分配，不是法律。"
+      + " 高房价城市必需支出压不到 50% 很正常，这时候看两件事：储蓄率有没有到 20%、必需支出有没有在下降。"
+      + " 另外「还房贷本金」算储蓄不算支出——它是把钱从左口袋换到右口袋（换成房子权益），别把它塞进必需支出里，否则你的储蓄率会被低估。";
+  }
+
+  /* ---------------- 债务置换 ---------------- */
+  function calcDebtMerge() {
+    var P = Math.max(0, num($("dm-bal"), 0));
+    var oldR = Math.max(0, num($("dm-old"), 0)) / 100;
+    var newR = Math.max(0, num($("dm-new"), 0)) / 100;
+    var feeP = Math.max(0, num($("dm-fee"), 0)) / 100;
+    var pay = Math.max(0, num($("dm-pay"), 0));
+
+    function sim(principal, annual, fee) {
+      var bal = principal * (1 + fee), m = 0, tot = 0, i = annual / 12;
+      if (pay <= bal * i) return null;
+      while (bal > 0.005 && m < 720) {
+        var it = bal * i;
+        tot += it;
+        bal = bal + it - pay;
+        m++;
+      }
+      if (bal > 0.005) return null;
+      return { m: m, tot: tot };
+    }
+
+    var a = sim(P, oldR, 0);
+    var b = sim(P, newR, feeP);
+    var feeAmt = P * feeP;
+    var body = $("dm-body");
+    body.innerHTML = "";
+
+    if (!a || !b) {
+      $("dm-save").textContent = "—";
+      ["dm-m1", "dm-t1", "dm-m2", "dm-t2", "dm-feeamt", "dm-breakeven"].forEach(function (id) { $(id).textContent = "—"; });
+      $("dm-note").textContent = "每月还款额太小（连利息都不够还），本金永远还不完。把「每月能还多少」调大到超过「余额 × 月利率」再算。";
+      return;
+    }
+
+    var saveV = a.tot - b.tot - feeAmt;
+    $("dm-save").textContent = money(saveV);
+    $("dm-m1").textContent = a.m + " 个月";
+    $("dm-t1").textContent = yuan(a.tot);
+    $("dm-m2").textContent = b.m + " 个月";
+    $("dm-t2").textContent = yuan(b.tot);
+    $("dm-feeamt").textContent = yuan(feeAmt) + "（" + pct(feeP, 2) + "）";
+
+    var be = null, lo = 0, hi = 0.6;
+    for (var s = 0; s < 60; s++) {
+      var mid = (lo + hi) / 2, r = sim(P, newR, mid);
+      var sv = r ? a.tot - r.tot - P * mid : -1;
+      if (sv > 0) lo = mid; else hi = mid;
+      if (r && Math.abs(sv) < 0.5) { be = mid; break; }
+    }
+    if (be === null) be = hi;
+    $("dm-breakeven").textContent = pct(be, 2) + "（" + money(P * be) + " 元）";
+
+    var list = [0, 0.01, 0.02, 0.03, 0.05, 0.08];
+    for (var k = 0; k < list.length; k++) {
+      var fr = list[k], rr = sim(P, newR, fr);
+      var sv2 = rr ? a.tot - rr.tot - P * fr : -1;
+      var tr = document.createElement("tr");
+      tr.innerHTML = "<td>" + pct(fr, 0) + "</td><td>" + money(P * fr) + "</td><td>" + (sv2 >= 0 ? "+" : "") + money(sv2)
+        + "</td><td>" + (sv2 > 0 ? "划算" : (sv2 > -50 ? "打平" : "不划算")) + "</td>";
+      body.appendChild(tr);
+    }
+
+    $("dm-note").textContent = "用同样每月还 " + money(pay) + " 元来比：不置换要还 " + a.m + " 个月、付利息 " + money(a.tot)
+      + " 元；换成 " + pct(newR, 2) + " 的新贷（手续费 " + money(feeAmt) + " 元计进本金）只要 " + b.m + " 个月、付利息 " + money(b.tot)
+      + " 元。合计（含手续费）省 " + money(saveV) + " 元，手续费率只要低于 " + pct(be, 2) + " 就还是划算的。"
+      + " 判断标准一句话：新贷的真实年化（利率 + 手续费摊到期限里）低于旧债利率，就值得换。"
+      + " 但置换有三个坑：① 只有「真降息」才划算，很多产品看着利率低，加上手续费、服务费、保证金后真实年化并没降多少；"
+      + " ② 借新还旧本质是把短期高息换成长期低息，如果你还按原来那样慢慢还，总利息反而可能变多——所以这里固定了「每月还多少」来比；"
+      + " ③ 别为了置换去碰「以贷养贷」的中介过桥，那类综合成本经常超过 24%，比原来的信用卡还贵。";
+  }
+
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
@@ -2515,10 +2773,21 @@
     loanways: calcLoanWays, dca: calcDCA, checkup: calcCheckup, calendar: calcCalendar,
     cashflow: calcCashflow, zeroloan: calcZeroLoan, riskalloc: calcRiskAlloc, penalty: calcPenalty,
     debtfree: calcDebtFree, fire: calcFire, annualfee: calcAnnualFee, budget: calcBudget,
-    zhuan: calcZhuan, medins: calcMedins, childcost: calcChild, ppension: calcPPA
+    zhuan: calcZhuan, medins: calcMedins, childcost: calcChild, ppension: calcPPA,
+    fundlimit: calcFundLimit, emergency: calcEmergency, rule503020: calcRule, debtmerge: calcDebtMerge
   };
 
+  function setCat(cat) {
+    var chips = document.querySelectorAll(".cat");
+    for (var c = 0; c < chips.length; c++) chips[c].classList.toggle("is-on", chips[c].dataset.cat === cat);
+    var tb = document.querySelectorAll(".tab");
+    for (var t = 0; t < tb.length; t++) tb[t].hidden = tb[t].dataset.cat !== cat;
+    try { localStorage.setItem(CAT_KEY, cat); } catch (e) {}
+  }
+
   function activate(name) {
+    var self = document.querySelector('.tab[data-tab="' + name + '"]');
+    if (self && self.dataset.cat) setCat(self.dataset.cat);
     var tabs = document.querySelectorAll(".tab");
     for (var i = 0; i < tabs.length; i++) tabs[i].classList.toggle("is-on", tabs[i].dataset.tab === name);
     var panels = document.querySelectorAll(".panel");
@@ -2532,6 +2801,14 @@
   $("tabs").addEventListener("click", function (e) {
     var t = e.target.closest(".tab");
     if (t) activate(t.dataset.tab);
+  });
+
+  $("cats").addEventListener("click", function (e) {
+    var c = e.target.closest(".cat");
+    if (!c) return;
+    setCat(c.dataset.cat);
+    var first = document.querySelector('.tab[data-cat="' + c.dataset.cat + '"]');
+    if (first && first.dataset.tab) activate(first.dataset.tab);
   });
 
   $("ln-toggle").addEventListener("click", function () {
@@ -2595,9 +2872,14 @@
     "zg-balance", "zg-months", "zg-rate", "zg-frate", "zg-quota", "zg-cost",
     "mi-total", "mi-self", "mi-ded", "mi-ratio", "mi-cap", "mi-bigstart", "mi-bigratio",
     "cc-age", "cc-pre", "cc-mid", "cc-uni", "cc-infl", "cc-rate",
-    "pa-pay", "pa-rate", "pa-age", "pa-years", "pa-ret", "pa-taxout"
+    "pa-pay", "pa-rate", "pa-age", "pa-years", "pa-ret", "pa-taxout",
+    "fl-target", "fl-bal", "fl-monthly", "fl-mult", "fl-cap", "fl-rate", "fl-years",
+    "em-exp", "em-stab", "em-loan", "em-kid", "em-have", "em-save",
+    "rg-inc", "rg-need", "rg-want", "rg-save",
+    "dm-bal", "dm-old", "dm-new", "dm-fee", "dm-pay"
   ];
-  var KEY = "finance-calc-v13";
+  var KEY = "finance-calc-v14";
+  var CAT_KEY = "finance-calc-cat";
 
   /* ---------------- 现金流月历 ---------------- */
   function calcCashflow() {
@@ -2952,6 +3234,11 @@
 
   /* ---------------- 启动 ---------------- */
   restore();
+  var chipsAll = document.querySelectorAll(".cat");
+  for (var ci = 0; ci < chipsAll.length; ci++) {
+    var cnt = document.querySelectorAll('.tab[data-cat="' + chipsAll[ci].dataset.cat + '"]').length;
+    chipsAll[ci].textContent = chipsAll[ci].textContent + " " + cnt;
+  }
   var start = (location.hash || "").replace("#", "");
   activate(calcMap[start] ? start : "deposit");
   $("ver").textContent = "财务计算器 · 纯前端 · 更新于 " + new Date().toISOString().slice(0, 10);
