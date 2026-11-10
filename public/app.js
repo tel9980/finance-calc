@@ -6125,6 +6125,211 @@
       + "利润缺口比收入缺口更大——这时候靠打折冲量的做法会让差距进一步扩大。";
   }
 
+  /* ===== 自产还是外购 ===== */
+  function calcMakeOrBuy() {
+    var q = Math.max(0, num($("mob-q"), 0));
+    var vu = Math.max(0, num($("mob-vu"), 0));
+    var avo = Math.max(0, num($("mob-avo"), 0));
+    var price = Math.max(0, num($("mob-price"), 0));
+    var extra = Math.max(0, num($("mob-extra"), 0));
+    var rent = Math.max(0, num($("mob-rent"), 0));
+    var fixAll = Math.max(0, num($("mob-fixall"), 0));
+
+    var selfC = vu * q + avo;
+    var buyC = (price + extra) * q - rent;
+    var diff = selfC - buyC;
+    var unitSelf = q > 0 ? selfC / q : 0;
+    var unitBuy = price + extra;
+    var critPrice = q > 0 ? (selfC + rent) / q - extra : 0;
+    var perUnitGap = unitSelf - unitBuy;
+    var perUnitSave = unitBuy - vu;
+    var qCrit = perUnitSave > 0 ? (avo + rent) / perUnitSave : Infinity;
+
+    $("mob-big").textContent = fmt(Math.abs(diff), 2) + (diff >= 0 ? "（外购更省）" : "（自产更省）");
+    $("mob-self").textContent = yuan(selfC) + "（变动 " + money(vu * q) + " + 可避免固定 " + money(avo) + "）";
+    $("mob-buy").textContent = yuan(buyC) + "（货款 " + money(price * q) + " + 增量 " + money(extra * q) + " − 租金 " + money(rent) + "）";
+    $("mob-unit").textContent = "自产 " + money(unitSelf) + " 元/件 vs 外购 " + money(unitBuy) + " 元/件（差 " + money(Math.abs(perUnitGap)) + "）";
+    $("mob-crit").textContent = money(critPrice) + " 元/件（高于此价自产更划算）";
+    $("mob-qcrit").textContent = (isFinite(qCrit) && qCrit > 0) ? fmt(qCrit, 0) + " 件（低于此量外购更划算）" : "单位差额太小，需求量几乎不改变结论";
+    $("mob-pick").textContent = diff >= 0 ? "转外购：外购总成本更低，但先确认质量、交期、断供风险能兜住" : "维持自产：外购看着单价低，把可避免固定成本和腾出产能的收益算进去并不划算";
+
+    var wrongSelf = vu * q + fixAll;
+    $("mob-wrong").textContent = "自产 " + money(wrongSelf) + " vs 外购 " + money(price * q + extra * q)
+      + " → 会误判成外购省 " + money(wrongSelf - (price + extra) * q);
+
+    var rows = [
+      ["变动成本 / 货款", money(vu * q), money(price * q)],
+      ["增量费用", "—", money(extra * q)],
+      ["可避免固定成本", money(avo), "—"],
+      ["腾出产能收益", "—", "−" + money(rent)],
+      ["决策相关成本合计", money(selfC), money(buyC)],
+      ["单位口径", money(unitSelf) + " 元", money(unitBuy) + " 元"]
+    ];
+    var html = "";
+    for (var i = 0; i < rows.length; i++) {
+      html += "<tr" + (i === 4 ? ' class="c-info"' : "") + "><td class=\"tal\">" + rows[i][0] + "</td><td>" + rows[i][1] + "</td><td>" + rows[i][2] + "</td></tr>";
+    }
+    $("mob-body").innerHTML = html;
+
+    $("mob-note").textContent = "这类决策只比「会变的那部分」：自己生产的变动成本、停产后能省掉的固定成本、外购单价和外购带来的增量费用，"
+      + "再加上腾出厂房设备能赚的钱。折旧、厂房租金、管理人员工资这些停产也照付的，跟决策无关，摊进单位成本就会得出「外购便宜一大截」的错误结论"
+      + "（本例按错误口径会误判成省 " + money(wrongSelf - (price + extra) * q) + "，实际只差 " + money(Math.abs(diff)) + "）。"
+      + "真正要小心的还有隐性成本：质量追责、交期、断供、技术外流。";
+  }
+
+  /* ===== 应收账款预期信用损失 ===== */
+  function calcEcl() {
+    var amt = [num($("ecl-a1"), 0), num($("ecl-a2"), 0), num($("ecl-a3"), 0), num($("ecl-a4"), 0), num($("ecl-a5"), 0)];
+    var rate = [num($("ecl-r1"), 0) / 100, num($("ecl-r2"), 0) / 100, num($("ecl-r3"), 0) / 100,
+      num($("ecl-r4"), 0) / 100, num($("ecl-r5"), 0) / 100];
+    var adj = num($("ecl-adj"), 0) / 100;
+    var prev = num($("ecl-prev"), 0);
+    var names = ["未到期", "逾期 1–90 天", "逾期 91–180 天", "逾期 181–365 天", "逾期 1 年以上"];
+
+    var total = 0, base = 0, html = "", i;
+    for (i = 0; i < 5; i++) {
+      var a = Math.max(0, amt[i]), r = Math.min(1, Math.max(0, rate[i]));
+      var p = a * r;
+      total += a; base += p;
+      html += "<tr" + (i >= 3 ? ' class="c-warn"' : "") + "><td class=\"tal\">" + names[i] + "</td><td>" + money(a) + "</td><td>"
+        + pct(r, 2) + "</td><td>" + money(p) + "</td></tr>";
+    }
+    $("ecl-body").innerHTML = html;
+
+    var adjv = base * (1 + adj);
+    var delta = adjv - prev;
+    $("ecl-big").textContent = money(adjv);
+    $("ecl-total").textContent = money(total);
+    $("ecl-base").textContent = money(base);
+    $("ecl-adjv").textContent = money(adjv) + "（前瞻调整 " + pct(adj, 0) + "）";
+    $("ecl-delta").textContent = (delta >= 0 ? "补提 " : "冲回 ") + money(Math.abs(delta)) + " 元（期初 " + money(prev) + "）";
+    $("ecl-ratio").textContent = total > 0 ? pct(adjv / total, 2) : "—";
+    $("ecl-loss").textContent = "信用减值损失 " + money(Math.max(0, delta)) + " 元，直接冲减当期利润（不影响现金流）";
+    $("ecl-tax").textContent = "会计计提不得税前扣除，汇算时纳税调增；实际发生坏账并留存证据才可扣除";
+
+    $("ecl-note").textContent = "预期信用损失的核心是「分组 + 概率 + 前瞻」：同一账龄组的客户历史违约率乘上金额算出基础准备，"
+      + "再按行业景气、客户集中度、宏观预期做前瞻调整。本例综合计提比例 " + (total > 0 ? pct(adjv / total, 2) : "—")
+      + "，账龄超过 180 天的两档虽然只占 " + (total > 0 ? pct((Math.max(0, amt[3]) + Math.max(0, amt[4])) / total, 2) : "—")
+      + "，却贡献了一半以上的准备——催收资源就该往这里压。注意：会计计提不等于能税前扣，别把「计提了」当成「省税了」。";
+  }
+
+  /* ===== 出口报价换算 ===== */
+  function calcQuoteFx() {
+    var cost = Math.max(0, num($("qf-cost"), 0));
+    var qty = Math.max(1, num($("qf-qty"), 1));
+    var dyn = Math.max(0, num($("qf-dyn"), 0));
+    var port = Math.max(0, num($("qf-port"), 0));
+    var gm = Math.min(0.9, Math.max(0, num($("qf-gm"), 0) / 100));
+    var comm = Math.min(0.2, Math.max(0, num($("qf-comm"), 0) / 100));
+    var fx = Math.max(0.01, num($("qf-fx"), 7));
+    var frtUsd = Math.max(0, num($("qf-frt"), 0));
+    var insR = Math.max(0, num($("qf-ins"), 0) / 100);
+
+    var baseR = (cost * qty + dyn + port) / (1 - gm);
+    var fob = baseR / (1 - comm);
+    var commv = fob * comm;
+    var frtR = frtUsd * fx;
+    var cif = (fob + frtR) / (1 - insR);
+    var insv = cif - fob - frtR;
+    var profit = fob - commv - cost * qty - dyn - port;
+    var unitFob = fob / qty, unitCif = cif / qty;
+
+    $("qf-big").textContent = fmt(unitCif / fx, 2);
+    $("qf-fob").textContent = money(fob) + " 元 / " + money(unitFob) + " 元（" + fmt(unitFob / fx, 2) + " 美元）";
+    $("qf-comv").textContent = money(commv) + "（" + pct(comm, 1) + "）";
+    $("qf-real").textContent = fob > 0 ? pct(profit / fob, 2) : "—";
+    $("qf-frtv").textContent = money(frtR) + "（" + fmt(frtUsd, 0) + " 美元）";
+    $("qf-insv").textContent = money(insv) + "（CIF × " + pct(insR, 2) + " 倒算）";
+    $("qf-cif").textContent = money(cif) + " / " + money(unitCif) + " 元（" + fmt(unitCif / fx, 2) + " 美元）";
+    $("qf-profit").textContent = money(profit / qty) + " 元（扣佣金与国内费用后）";
+    $("qf-fxrisk").textContent = "FOB 收汇减少 " + money(fob / fx * 0.1) + " 元";
+
+    var rows = [
+      ["FOB 报价", money(fob), fmt(fob / fx, 2)],
+      ["减：佣金", "−" + money(commv), fmt(commv / fx, 2)],
+      ["减：工厂成本", "−" + money(cost * qty), fmt(cost * qty / fx, 2)],
+      ["减：国内运费+港杂", "−" + money(dyn + port), fmt((dyn + port) / fx, 2)],
+      ["净利", money(profit), fmt(profit / fx, 2)],
+      ["CFR 报价（含海运费）", money(fob + frtR), fmt((fob + frtR) / fx, 2)],
+      ["CIF 报价（含运保费）", money(cif), fmt(cif / fx, 2)]
+    ];
+    var html = "";
+    for (var i = 0; i < rows.length; i++) {
+      html += "<tr" + (i === 4 || i === 6 ? ' class="c-info"' : "") + "><td class=\"tal\">" + rows[i][0] + "</td><td>" + rows[i][1] + "</td><td>" + rows[i][2] + "</td></tr>";
+    }
+    $("qf-body").innerHTML = html;
+
+    $("qf-note").textContent = "报价是倒推出来的：先算「这批货必须卖多少钱才够目标毛利和覆盖国内费用」，再按条款往上加。"
+      + "FOB 只管到船舷，CFR 加海运费，CIF 再加保险（保险按 CIF 的 " + pct(insR, 2) + " 倒算，不是按 FOB 乘）。"
+      + "两个坑：一是佣金要从报价里倒着加，直接乘会少算；二是目标毛利率是对 FOB 算的，扣掉佣金后实际只有 "
+      + (fob > 0 ? pct(profit / fob, 2) : "—") + "。收汇还要盯汇率，报出去到收款之间每跌 0.1 元，这批货就少收 " + money(fob / fx * 0.1) + " 元。";
+  }
+
+  /* ===== 多工厂产能分配 ===== */
+  function calcCapacity() {
+    var p = Math.max(0, num($("cap-p"), 0));
+    var q = Math.max(0, num($("cap-q"), 0));
+    var va = Math.max(0, num($("cap-va"), 0)), ca = Math.max(0, num($("cap-ca"), 0)), fa = Math.max(0, num($("cap-fa"), 0));
+    var vb = Math.max(0, num($("cap-vb"), 0)), cb = Math.max(0, num($("cap-cb"), 0)), fb = Math.max(0, num($("cap-fb"), 0));
+    var fixa = Math.max(0, num($("cap-fixa"), 0)), fixb = Math.max(0, num($("cap-fixb"), 0));
+    var outP = Math.max(0, num($("cap-out"), 0));
+
+    var cmA = p - va - fa, cmB = p - vb - fb;
+    var firstIsA = cmA >= cmB;
+    var qa = 0, qb = 0;
+    if (firstIsA) { qa = Math.min(ca, q); qb = Math.min(cb, Math.max(0, q - qa)); }
+    else { qb = Math.min(cb, q); qa = Math.min(ca, Math.max(0, q - qb)); }
+    var cm = qa * cmA + qb * cmB;
+    var profit = cm - fixa - fixb;
+
+    var qa2 = Math.min(ca, q), qa3 = 0;
+    var qb2 = Math.min(cb, Math.max(0, q - qa2));
+    var cm2 = qa2 * cmA + qb2 * cmB;
+    var qbW = Math.min(cb, q), qaW = Math.min(ca, Math.max(0, q - qbW));
+    var cmW = qbW * cmB + qaW * cmA;
+
+    $("cap-big").textContent = fmt(profit, 2);
+    $("cap-a").textContent = money(cmA) + " / 台 · " + fmt(qa, 0) + " 台";
+    $("cap-b").textContent = money(cmB) + " / 台 · " + fmt(qb, 0) + " 台";
+    $("cap-cm").textContent = money(cm);
+    $("cap-fix").textContent = money(fixa + fixb);
+    $("cap-wrong").textContent = "少赚 " + money(cm2 - cmW) + "（先填 B 只有 " + money(cmW) + "）";
+    var short = Math.max(0, q - ca - cb);
+    $("cap-gap").textContent = short > 0 ? "还差 " + fmt(short, 0) + " 台：外协、加班或谈交货期"
+      : "产能够（余 " + fmt(Math.max(0, ca + cb - q), 0) + " 台）";
+    if (outP > 0 && short > 0) {
+      var outCm = p - outP;
+      var best = Math.max(cmA, cmB, 0);
+      $("cap-outv").textContent = "外协每台贡献 " + money(outCm) + " 元，" + (outCm > 0
+        ? (outP < vb + fb ? "比 B 厂自产还便宜，优先外协" : "能赚钱但不如自产，只用来补缺口")
+        : "亏钱，别接这个量的单");
+    } else if (outP > 0) {
+      $("cap-outv").textContent = "当前产能够用，暂不需要外协（外协每台贡献 " + money(p - outP) + " 元）";
+    } else {
+      $("cap-outv").textContent = "未填外协价";
+    }
+
+    var rows = [
+      ["按边际贡献排（最优）", fmt(qa, 0), fmt(qb, 0), money(cm), money(profit)],
+      ["先填 A 再填 B", fmt(qa2, 0), fmt(qb2, 0), money(cm2), money(cm2 - fixa - fixb)],
+      ["先填 B 再填 A", fmt(qaW, 0), fmt(qbW, 0), money(cmW), money(cmW - fixa - fixb)],
+      ["A 全部产能单独", fmt(Math.min(ca, q), 0), "0", money(Math.min(ca, q) * cmA), money(Math.min(ca, q) * cmA - fixa - fixb)],
+      ["B 全部产能单独", "0", fmt(Math.min(cb, q), 0), money(Math.min(cb, q) * cmB), money(Math.min(cb, q) * cmB - fixa - fixb)]
+    ];
+    var html = "";
+    for (var i = 0; i < rows.length; i++) {
+      html += "<tr" + (i === 0 ? ' class="c-info"' : "") + "><td class=\"tal\">" + rows[i][0] + "</td><td>" + rows[i][1] + "</td><td>"
+        + rows[i][2] + "</td><td>" + rows[i][3] + "</td><td>" + rows[i][4] + "</td></tr>";
+    }
+    $("cap-body").innerHTML = html;
+
+    $("cap-note").textContent = "排产只看单位边际贡献（售价 − 变动成本 − 运费）：A 厂 " + money(cmA) + "、B 厂 " + money(cmB)
+      + "，所以先填 A。注意两家厂的「单位总成本」算下来可能一模一样（本例各 " + money((va * ca + fixa) / ca + fa) + " 和 "
+      + money((vb * cb + fixb) / cb + fb) + "），因为固定费用被产量摊平了——这正是总成本法不能用来排产的原因："
+      + "它把「不随产量变」的钱算成了每台的成本，产量一变结论就变。只有当订单超过总产能时，才用外协/加班补缺口，"
+      + "判断标准仍是「外协一台能不能带来正的边际贡献」。";
+  }
+
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
@@ -6154,6 +6359,7 @@
     settleway: calcSettleWay, creditline: calcCreditLine, impair: calcImpair, fxgain: calcFxGain,
     taxburden: calcTaxBurden, sens: calcSens, consol: calcConsol, eoq: calcEoq,
     bplan: calcBPlan, refundflow: calcRefundFlow, costalloc: calcCostAlloc, importcost: calcImportCost,
+    makeorbuy: calcMakeOrBuy, ecl: calcEcl, quotefx: calcQuoteFx, capacity: calcCapacity,
     trprice: calcTrPrice, esop: calcEsop, rdexp: calcRdExp, rollfc: calcRollFC,
     commission: calcCommission, capex: calcCapex, pooling: calcPooling, creditlimit: calcCreditLimit
   };
@@ -6311,9 +6517,9 @@
     "im-cost", "im-price", "im-finish", "im-sell", "im-had", "im-up", "im-tax",
     "fxg-usd", "fxg-signed", "fxg-book", "fxg-spot", "fxg-spread", "fxg-fwd",
 "tbr-sales", "tbr-out", "tbr-in", "tbr-begin", "tbr-prev", "tbr-ind", "tbr-surch", "sens-rev", "sens-vr", "sens-fix", "sens-shock", "sens-target", "cons-pm-rev", "cons-sub-rev", "cons-inter", "cons-pm-np", "cons-sub-np", "cons-unreal", "cons-mi", "cons-inv", "cons-sub-net", "cons-rec", "eoq-d", "eoq-k", "eoq-h", "eoq-day", "eoq-sd", "eoq-lt", "eoq-svc", "eoq-moq",
-"cm-sales", "cm-ret", "cm-gm", "cm-sr", "cm-gr", "cm-achv", "cm-cash", "cpx-inv", "cpx-cf", "cpx-years", "cpx-rate", "cpx-rv", "pool-idle", "pool-a", "pool-b", "pool-in", "pool-out", "pool-demand", "pool-rate", "pool-wealth", "pool-equity", "crl-buy", "crl-term", "crl-vat", "crl-gm", "crl-netw", "crl-lev", "crl-late", "crl-cost", "bpl-rev", "bpl-grow", "bpl-gm", "bpl-opex", "bpl-dep", "bpl-tax", "bpl-dso", "bpl-dio", "bpl-dpo", "bpl-cash", "bpl-big", "bpl-rev2", "bpl-gp", "bpl-op", "bpl-margin", "bpl-wc", "bpl-nwc", "bpl-wcgap", "bpl-free", "bpl-body", "bpl-note", "rf-exp", "rf-reb", "rf-rate", "rf-lag", "rf-audit", "rf-cost", "rf-big", "rf-month", "rf-year", "rf-days", "rf-costv", "rf-gap", "rf-ten", "rf-opt", "rf-advice", "rf-body", "rf-note", "cal-oh", "cal-qa", "cal-qb", "cal-qc", "cal-ha", "cal-hb", "cal-hc", "cal-ma", "cal-mb", "cal-mc", "cal-ta", "cal-tb", "cal-tc", "cal-big", "cal-which", "cal-totals", "cal-r1", "cal-r2", "cal-r3", "cal-pick", "cal-price", "cal-body", "cal-note", "ic-fob", "ic-frt", "ic-ins", "ic-fx", "ic-duty", "ic-cons", "ic-vat", "ic-port", "ic-agent", "ic-qty", "ic-big", "ic-cif", "ic-dutyv", "ic-consv", "ic-vatv", "ic-fees", "ic-land", "ic-cash", "ic-ratio", "ic-body", "ic-note", "tp-cost", "tp-price", "tp-inner", "tp-ratea", "tp-rateb", "tp-lo", "tp-hi", "tp-big", "tp-a", "tp-b", "tp-profit", "tp-rate", "tp-low", "tp-high", "tp-save", "tp-per", "tp-body", "tp-note", "es-shares", "es-fair", "es-strike", "es-years", "es-leave", "es-tax", "es-big", "es-per", "es-qty", "es-flat", "es-acc", "es-diff", "es-dta", "es-deduct", "es-advice", "es-body", "es-note", "rd-labor", "rd-mat", "rd-dep", "rd-other", "rd-pct", "rd-tax", "rd-big", "rd-total", "rd-cap", "rd-effect", "rd-base", "rd-save", "rd-eff", "rd-lost", "rd-body", "rd-note", "rl-bud", "rl-passed", "rl-act", "rl-rest", "rl-gmb", "rl-gma", "rl-big", "rl-rate", "rl-gap", "rl-expect", "rl-pace", "rl-need", "rl-delta", "rl-gp", "rl-advice", "rl-body", "rl-note"
+"cm-sales", "cm-ret", "cm-gm", "cm-sr", "cm-gr", "cm-achv", "cm-cash", "cpx-inv", "cpx-cf", "cpx-years", "cpx-rate", "cpx-rv", "pool-idle", "pool-a", "pool-b", "pool-in", "pool-out", "pool-demand", "pool-rate", "pool-wealth", "pool-equity", "crl-buy", "crl-term", "crl-vat", "crl-gm", "crl-netw", "crl-lev", "crl-late", "crl-cost", "bpl-rev", "bpl-grow", "bpl-gm", "bpl-opex", "bpl-dep", "bpl-tax", "bpl-dso", "bpl-dio", "bpl-dpo", "bpl-cash", "bpl-big", "bpl-rev2", "bpl-gp", "bpl-op", "bpl-margin", "bpl-wc", "bpl-nwc", "bpl-wcgap", "bpl-free", "bpl-body", "bpl-note", "rf-exp", "rf-reb", "rf-rate", "rf-lag", "rf-audit", "rf-cost", "rf-big", "rf-month", "rf-year", "rf-days", "rf-costv", "rf-gap", "rf-ten", "rf-opt", "rf-advice", "rf-body", "rf-note", "cal-oh", "cal-qa", "cal-qb", "cal-qc", "cal-ha", "cal-hb", "cal-hc", "cal-ma", "cal-mb", "cal-mc", "cal-ta", "cal-tb", "cal-tc", "cal-big", "cal-which", "cal-totals", "cal-r1", "cal-r2", "cal-r3", "cal-pick", "cal-price", "cal-body", "cal-note", "ic-fob", "ic-frt", "ic-ins", "ic-fx", "ic-duty", "ic-cons", "ic-vat", "ic-port", "ic-agent", "ic-qty", "ic-big", "ic-cif", "ic-dutyv", "ic-consv", "ic-vatv", "ic-fees", "ic-land", "ic-cash", "ic-ratio", "ic-body", "ic-note", "tp-cost", "tp-price", "tp-inner", "tp-ratea", "tp-rateb", "tp-lo", "tp-hi", "tp-big", "tp-a", "tp-b", "tp-profit", "tp-rate", "tp-low", "tp-high", "tp-save", "tp-per", "tp-body", "tp-note", "es-shares", "es-fair", "es-strike", "es-years", "es-leave", "es-tax", "es-big", "es-per", "es-qty", "es-flat", "es-acc", "es-diff", "es-dta", "es-deduct", "es-advice", "es-body", "es-note", "rd-labor", "rd-mat", "rd-dep", "rd-other", "rd-pct", "rd-tax", "rd-big", "rd-total", "rd-cap", "rd-effect", "rd-base", "rd-save", "rd-eff", "rd-lost", "rd-body", "rd-note", "rl-bud", "rl-passed", "rl-act", "rl-rest", "rl-gmb", "rl-gma", "rl-big", "rl-rate", "rl-gap", "rl-expect", "rl-pace", "rl-need", "rl-delta", "rl-gp", "rl-advice", "rl-body", "rl-note", "mob-q", "mob-vu", "mob-avo", "mob-price", "mob-extra", "mob-rent", "mob-fixall", "mob-big", "mob-self", "mob-buy", "mob-unit", "mob-crit", "mob-qcrit", "mob-pick", "mob-wrong", "mob-body", "mob-note", "ecl-a1", "ecl-a2", "ecl-a3", "ecl-a4", "ecl-a5", "ecl-r1", "ecl-r2", "ecl-r3", "ecl-r4", "ecl-r5", "ecl-adj", "ecl-prev", "ecl-big", "ecl-total", "ecl-base", "ecl-adjv", "ecl-delta", "ecl-ratio", "ecl-loss", "ecl-tax", "ecl-body", "ecl-note", "qf-cost", "qf-qty", "qf-dyn", "qf-port", "qf-gm", "qf-comm", "qf-fx", "qf-frt", "qf-ins", "qf-big", "qf-fob", "qf-comv", "qf-real", "qf-frtv", "qf-insv", "qf-cif", "qf-profit", "qf-fxrisk", "qf-body", "qf-note", "cap-q", "cap-p", "cap-va", "cap-ca", "cap-fa", "cap-vb", "cap-cb", "cap-fb", "cap-fixa", "cap-fixb", "cap-out", "cap-big", "cap-a", "cap-b", "cap-cm", "cap-fix", "cap-wrong", "cap-gap", "cap-outv", "cap-body", "cap-note"
 ];
-  var KEY = "finance-calc-v29";
+  var KEY = "finance-calc-v30";
   var CAT_KEY = "finance-calc-cat";
 
   /* ---------------- 现金流月历 ---------------- */
