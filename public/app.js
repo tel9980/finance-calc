@@ -4188,6 +4188,234 @@
       " 交叉验证：间接法下「净利润 + 折旧摊销 − 营运资本增加」应接近经营净额，差太多就说明有非现金项目没调（如资产减值、公允价值变动、投资收益）。";
   }
 
+  /* 存货周转与库龄分析 */
+  function calcInvStock() {
+    var beg = Math.max(0, num($("sk-beg"), 0));
+    var end = Math.max(0, num($("sk-end"), 0));
+    var cogs = Math.max(0, num($("sk-cogs"), 0));
+    var basis = num($("sk-days"), 365) > 0 ? num($("sk-days"), 365) : 365;
+    var a1 = Math.max(0, num($("sk-a1"), 0)), a2 = Math.max(0, num($("sk-a2"), 0));
+    var a3 = Math.max(0, num($("sk-a3"), 0)), a4 = Math.max(0, num($("sk-a4"), 0));
+    var r3 = Math.max(0, Math.min(100, num($("sk-r3"), 0))) / 100;
+    var r4 = Math.max(0, Math.min(100, num($("sk-r4"), 0))) / 100;
+
+    var avg = (beg + end) / 2;
+    var turn = avg > 0 ? cogs / avg : 0;
+    var days = turn > 0 ? basis / turn : 0;
+    var tot = a1 + a2 + a3 + a4;
+    var stale = a3 + a4;
+    var staleRate = tot > 0 ? stale / tot : 0;
+    var prov = a3 * r3 + a4 * r4;
+    var release = cogs > 0 ? cogs / basis * 10 : 0;
+    var cover = cogs > 0 ? end / cogs * basis : 0;
+
+    $("sk-tdays").textContent = days > 0 ? fmt(days, 1) + " 天" : "—";
+    $("sk-turn").textContent = turn > 0 ? fmt(turn, 2) + " 次" : "—";
+    $("sk-avg").textContent = money(avg) + " 元";
+    $("sk-total").textContent = money(tot) + " 元" + (Math.abs(tot - end) > 1 ? "（与期末存货差 " + money(tot - end) + " 元，核对一下）" : "（与期末存货一致）");
+    $("sk-stale").textContent = money(stale) + " 元 / " + pct(staleRate, 2);
+    $("sk-prov").textContent = money(prov) + " 元";
+    $("sk-release").textContent = money(release) + " 元";
+    $("sk-cover").textContent = fmt(cover, 1) + " 天（期末存货 ÷ 日均成本）";
+
+    var bins = [
+      ["0–30 天", a1, 0],
+      ["31–90 天", a2, 0],
+      ["91–180 天", a3, r3],
+      ["180 天以上", a4, r4]
+    ];
+    var html = "", i;
+    for (i = 0; i < bins.length; i++) {
+      var share = tot > 0 ? bins[i][1] / tot : 0;
+      var p = bins[i][1] * bins[i][2];
+      html += "<tr" + (bins[i][2] > 0 ? ' style="background:#fff8f0"' : "") + "><td>" + bins[i][0] + "</td><td>" + money(bins[i][1]) +
+        "</td><td>" + pct(share, 2) + "</td><td>" + pct(bins[i][2], 0) + "</td><td>" + money(p) + "</td></tr>";
+    }
+    html += "<tr><td><b>合计</b></td><td><b>" + money(tot) + "</b></td><td><b>" + pct(1, 2) + "</b></td><td>—</td><td><b>" + money(prov) + "</b></td></tr>";
+    $("sk-body").innerHTML = html;
+
+    $("sk-note").textContent =
+      " 存货周转天数 " + fmt(days, 1) + " 天，意思是仓库里的货平均要 " + fmt(days, 1) + " 天才能变成成本卖掉；这个数字直接吃现金——" + 
+      "周转天数每多 10 天，就多压住 " + money(release) + " 元的现金。" +
+      " 看两个层次：周转（效率）和库龄（质量）。周转快但库龄里有大额 180 天以上的，通常是「新货掩盖旧货」，呆滞没清干净；" +
+      "现在 91 天以上的占 " + pct(staleRate, 2) + "，建议准备 " + money(prov) + " 元。" +
+      " 三个容易混的口径：① 周转天数要用「营业成本」不用「销售收入」；② 平均存货取期初期末简单平均即可，季节性强的企业用月度平均更准；" +
+      "③ 会计上计提跌价准备不等于税务上能扣除——存货跌价准备在汇算时要做纳税调增，实际报废损失还要留好证据（盘点表、报废审批、责任认定）才能税前扣除。" +
+      " 想降周转天数，动的是三件事：接单节奏（别一次压季度量）、采购批量（少批量多次到）、以及砍长库龄 SKU 的订购。";
+  }
+
+  /* 出口退税（生产企业免抵退） */
+  function calcExport() {
+    var exp = Math.max(0, num($("er-exp"), 0));
+    var vat = Math.max(0, num($("er-vat"), 0)) / 100;
+    var reb = Math.max(0, Math.min(100, num($("er-reb"), 0))) / 100;
+    var dom = Math.max(0, num($("er-dom"), 0));
+    var pin = Math.max(0, num($("er-in"), 0));
+    var carry = Math.max(0, num($("er-carry"), 0));
+
+    var non = exp * Math.max(0, vat - reb);
+    var avail = pin - non;
+    var dout = dom * vat;
+    var raw = dout - avail - carry;
+    var due = raw > 0 ? raw : 0;
+    var left = raw < 0 ? -raw : 0;
+    var ec = exp * reb;
+    var refund = Math.min(left, ec);
+    var exempt = ec - refund;
+    var carryLeft = left > ec ? left - ec : 0;
+
+    $("er-refund").textContent = money(refund) + " 元";
+    $("er-ec").textContent = money(ec) + " 元";
+    $("er-non").textContent = "-" + money(non) + " 元（转入成本）";
+    $("er-avail").textContent = money(avail) + " 元";
+    $("er-dout").textContent = money(dout) + " 元";
+    $("er-raw").textContent = (due > 0 ? "应缴 " + money(due) + " 元（没有退税）" : "留抵 " + money(left) + " 元");
+    $("er-exempt").textContent = money(exempt) + " 元";
+    $("er-carryleft").textContent = money(carryLeft) + " 元";
+
+    var rows = [
+      ["① 免抵退税额 = 出口额 × 退税率", ec, "退税的上限，不是实际退到的钱"],
+      ["② 不得免征和抵扣 = 出口额 × (征税率 − 退税率)", -non, "这部分进项不能退，转到成本里"],
+      ["③ 转出后可抵扣进项 = 进项 − ②", avail, "拿去抵内销销项"],
+      ["④ 内销销项 − ③ − 上期留抵", raw, raw > 0 ? "为正：要交税，没有退税" : "为负：形成期末留抵"],
+      ["⑤ 应退税额 = min(④的留抵, ①)", refund, "实际能退到的现金"],
+      ["⑥ 免抵额 = ① − ⑤", exempt, "抵掉内销应交税的部分，不发现金"],
+      ["⑦ 结转下期留抵", carryLeft, "留抵超过免抵退税额的部分留到以后"]
+    ];
+    var html = "", i;
+    for (i = 0; i < rows.length; i++) {
+      var v = rows[i][1];
+      html += "<tr" + (v < 0 ? ' style="background:#fff5f5"' : "") + "><td>" + rows[i][0] + "</td><td>" + (v >= 0 ? "" : "-") + money(Math.abs(v)) +
+        "</td><td>" + rows[i][2] + "</td></tr>";
+    }
+    $("er-body").innerHTML = html;
+
+    $("er-note").textContent =
+      " 免抵退的算法就一句话：先算「不得免征和抵扣」把进项转出一块，剩下的进项去抵内销销项，抵不完的留抵再和「免抵退税额」比，小的那个才是真退给你的钱。" +
+      " 本例退税率比征税率低 " + pct(vat - reb, 0) + "，等于出口额里有 " + money(non) + " 元的进项退不回来，直接变成成本——这就是「退税率差」对毛利的影响，" +
+      "报价时如果按满额退税算成本，会低估 " + money(non) + " 元。" +
+      " 几个实务口径：① 出口额按 FOB 价（离岸价）折算人民币，运费保费由客户承担的 CIF 要剔掉；② 单证要齐（报关单、出口发票、收汇凭证），" +
+      "逾期不申报就视同内销补税；③ 退税率按商品编码（HS）定，不是按行业定，同一张报关单里不同商品可能不一样，要分别算；" +
+      "④ 新办企业有免抵退税审核期，首几笔可能先「免抵」不退，别按满额做现金流预算；⑤ 留抵退税和出口退税是两套政策，别叠加重复算。";
+  }
+
+  /* 往来对账（双向调节） */
+  function calcTieOut() {
+    var a = num($("tie-a"), 0);
+    var b = num($("tie-b"), 0);
+    var c = Math.max(0, num($("tie-c"), 0));
+    var d = Math.max(0, num($("tie-d"), 0));
+    var e = Math.max(0, num($("tie-e"), 0));
+    var f = Math.max(0, num($("tie-f"), 0));
+
+    var mine = a + c + d - e;
+    var theirs = b - f;
+    var diff = mine - theirs;
+    var rawDiff = a - b;
+    var expl = (c + d - e) + f;
+
+    $("tie-raw").textContent = (rawDiff >= 0 ? "+" : "-") + money(Math.abs(rawDiff)) + " 元";
+    $("tie-mine").textContent = money(mine) + " 元";
+    $("tie-theirs").textContent = money(theirs) + " 元";
+    $("tie-diff").textContent = (Math.abs(diff) < 0.005 ? "0.00 元（已平）" : money(diff) + " 元（还有差额，继续查）");
+    $("tie-expl").textContent = money(expl) + " 元";
+
+    var verdict;
+    if (Math.abs(diff) < 0.005) verdict = "已平账：差额 " + money(Math.abs(rawDiff)) + " 元全部由 " + money(expl) + " 元未达/漏记解释，双方盖章确认即可";
+    else verdict = "尚未平：还有 " + money(diff) + " 元没解释，优先查在途资金、未开票、重复记账和串户";
+
+    $("tie-verdict").textContent = verdict;
+
+    var rows = [
+      ["我方漏记（已开票/已发货未入账）", "我方", "+", c],
+      ["对方已付、我方未收到（在途）", "我方", "+", d],
+      ["我方重复记账 / 已收未销账", "我方", "−", e],
+      ["对方未入账（少记）", "对方", "−", f]
+    ];
+    var html = "", i;
+    for (i = 0; i < rows.length; i++) {
+      html += "<tr><td>" + rows[i][0] + "</td><td>" + rows[i][1] + "</td><td>" + rows[i][2] + "</td><td>" + money(rows[i][3]) + "</td></tr>";
+    }
+    html += "<tr><td><b>调节后</b></td><td>我方 / 对方</td><td>=</td><td><b>" + money(mine) + " / " + money(theirs) + "</b></td></tr>";
+    $("tie-body").innerHTML = html;
+
+    $("tie-note").textContent =
+      " 对账不平，九成是这四类原因：① 在途（我付了对方没收到、对方付了我没收到）；② 未开票（货发了票没开，一方挂了账一方没挂）；" +
+      "③ 重复记账或串户（同一笔记两次、记到别的客户名下）；④ 金额口径不一致（含税/不含税、扣了返利或质保金、汇率不同）。" +
+      " 操作顺序：先核总额（原始差额 " + money(Math.abs(rawDiff)) + " 元），再核笔数，再逐笔勾对——先勾大额和最近三个月的，通常 80% 的差额就出来了。" +
+      " 对平之后一定要出「对账确认单」双方盖章，尤其是关联方和长账龄往来：这既是审计底稿，也是日后主张债权、避免诉讼时效过期的证据。" +
+      " 提醒：调节表只是把差异分类，不能替代调账——属于我方漏记的要补凭证，重复记账的要红冲，别只在表上调平。";
+  }
+
+  /* 三费趋势（6 期） */
+  function calcFeeTrend() {
+    var revs = [], fees = [], i;
+    for (i = 1; i <= 6; i++) {
+      revs.push(Math.max(0, num($("tr-r" + i), 0)));
+      fees.push(Math.max(0, num($("tr-f" + i), 0)));
+    }
+    var rates = [], valid = [];
+    for (i = 0; i < 6; i++) {
+      var rr = revs[i] > 0 ? fees[i] / revs[i] : NaN;
+      rates.push(rr);
+      if (isFinite(rr)) valid.push(rr);
+    }
+    var sumR = 0, sumF = 0, lastIdx = -1, firstIdx = -1;
+    for (i = 0; i < 6; i++) {
+      sumR += revs[i]; sumF += fees[i];
+      if (revs[i] > 0) { if (firstIdx < 0) firstIdx = i; lastIdx = i; }
+    }
+    var avgRate = sumR > 0 ? sumF / sumR : NaN;
+    var nowRate = lastIdx >= 0 ? rates[lastIdx] : NaN;
+    var baseRate = firstIdx >= 0 ? rates[firstIdx] : NaN;
+
+    var feeGrow = (firstIdx >= 0 && fees[firstIdx] > 0) ? fees[lastIdx] / fees[firstIdx] - 1 : NaN;
+    var revGrow = (firstIdx >= 0 && revs[firstIdx] > 0) ? revs[lastIdx] / revs[firstIdx] - 1 : NaN;
+    var syncFee = (firstIdx >= 0 && revs[firstIdx] > 0) ? fees[firstIdx] * revs[lastIdx] / revs[firstIdx] : NaN;
+    var over = isFinite(syncFee) ? fees[lastIdx] - syncFee : NaN;
+
+    var cnt = 0;
+    for (i = 0; i < 6; i++) if (isFinite(rates[i]) && isFinite(baseRate) && rates[i] > baseRate + 1e-9) cnt++;
+
+    $("tr-now").textContent = isFinite(nowRate) ? pct(nowRate, 2) : "—";
+    $("tr-avg").textContent = isFinite(avgRate) ? pct(avgRate, 2) : "—";
+    $("tr-sums").textContent = money(sumF) + " / " + money(sumR) + " 元";
+    $("tr-growth").textContent = (isFinite(feeGrow) ? pct(feeGrow, 2) : "—") + " / " + (isFinite(revGrow) ? pct(revGrow, 2) : "—");
+    $("tr-sync").textContent = isFinite(syncFee) ? money(syncFee) + " 元" : "—";
+    $("tr-over").textContent = isFinite(over) ? (over >= 0 ? "+" : "-") + money(Math.abs(over)) + " 元" : "—";
+    $("tr-cnt").textContent = cnt + " / 6 期";
+
+    var verdict;
+    if (!isFinite(feeGrow) || !isFinite(revGrow)) verdict = "数据不足，至少填两期收入";
+    else if (feeGrow > revGrow + 0.02) verdict = "警惕：费用涨得比收入快 " + pct(feeGrow - revGrow, 2) + "，费用率在往上走";
+    else if (feeGrow > revGrow + 0.005) verdict = "略偏快：费用涨得比收入快 " + pct(feeGrow - revGrow, 2) + "，费用率小幅上移，盯住下一期";
+    else if (revGrow > feeGrow + 0.02) verdict = "健康：收入涨得比费用快 " + pct(revGrow - feeGrow, 2) + "，规模效应在显现";
+    else verdict = "基本同步：费用与收入增速接近，费用率稳定";
+    $("tr-verdict").textContent = verdict;
+
+    var html = "", prev = NaN;
+    for (i = 0; i < 6; i++) {
+      var delta = (isFinite(rates[i]) && isFinite(prev)) ? rates[i] - prev : NaN;
+      var dText = isFinite(delta) ? (delta >= 0 ? "+" : "-") + fmt(Math.abs(delta) * 100, 2) + " 个点" : "—";
+      var warn = (isFinite(rates[i]) && isFinite(baseRate) && rates[i] > baseRate + 1e-9) ? ' style="background:#fff8f0"' : "";
+      html += "<tr" + warn + "><td>第 " + (i + 1) + " 期</td><td>" + money(revs[i]) + "</td><td>" + money(fees[i]) +
+        "</td><td>" + (isFinite(rates[i]) ? pct(rates[i], 2) : "—") + "</td><td>" + dText + "</td></tr>";
+      if (isFinite(rates[i])) prev = rates[i];
+    }
+    html += "<tr><td><b>合计 / 平均</b></td><td><b>" + money(sumR) + "</b></td><td><b>" + money(sumF) + "</b></td><td><b>" +
+      (isFinite(avgRate) ? pct(avgRate, 2) : "—") + "</b></td><td>—</td></tr>";
+    $("tr-body").innerHTML = html;
+
+    $("tr-note").textContent =
+      " 看费用只看一个比值：费用率（三费 ÷ 收入）。费用绝对额涨不一定是问题，收入涨得更快就没问题；" +
+      "收入不动费用还涨，才是真问题。本例费用涨 " + pct(feeGrow, 2) + "、收入涨 " + pct(revGrow, 2) +
+      "，按收入增速同步算应该只花 " + money(syncFee) + " 元，实际多花 " + money(Math.abs(over)) + " 元。" +
+      " 拆费用要看结构而不是总额：销售费用涨通常是主动投入（要问「带来了多少新客/订单」），管理费用涨多是刚性（人头、房租、系统），" +
+      "财务费用涨看的是有息负债和利率。哪一类涨得最快，责任人和对策完全不同。" +
+      " 提醒两个口径：① 三费＝销售＋管理＋财务，研发费用如果单列就别重复加；② 比较时期间要一致，月度比月度、累计比累计，" +
+      "季末集中报销和年终奖计提会让单月费用率虚高，最好同时看滚动 12 个月（TTM）费用率。";
+  }
+
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
@@ -4209,7 +4437,8 @@
     expense: calcExpense, aging: calcAging, funding: calcFunding, pricing: calcPricing,
     triplede: calcTripleDe, multimargin: calcMultiMargin, apterms: calcApTerms, assetledger: calcAssetLedger,
     payage: calcPayAge, costcard: calcCostCard, budgetvar: calcBudgetVar, finreport: calcFinReport,
-    invoice: calcInvoice, expbudget: calcExpBudget, efficiency: calcEfficiency, cashstmt: calcCashStmt
+    invoice: calcInvoice, expbudget: calcExpBudget, efficiency: calcEfficiency, cashstmt: calcCashStmt,
+    invstock: calcInvStock, exportrebate: calcExport, tieout: calcTieOut, feetrend: calcFeeTrend
   };
 
   function setCat(cat) {
@@ -4343,9 +4572,13 @@
     "iv-contract", "iv-issued", "iv-received", "iv-rate", "iv-overdue", "iv-days", "iv-penalty",
     "eb-b1", "eb-a1", "eb-b2", "eb-a2", "eb-b3", "eb-a3", "eb-b4", "eb-a4", "eb-b5", "eb-a5",
     "ef-rev", "ef-head", "ef-labor", "ef-opex", "ef-gross", "ef-net",
-    "cs-sale", "cs-othin", "cs-buy", "cs-pay", "cs-tax", "cs-othout", "cs-capex", "cs-invpay", "cs-invback", "cs-borrow", "cs-repay", "cs-div", "cs-begin"
+    "cs-sale", "cs-othin", "cs-buy", "cs-pay", "cs-tax", "cs-othout", "cs-capex", "cs-invpay", "cs-invback", "cs-borrow", "cs-repay", "cs-div", "cs-begin",
+    "sk-beg", "sk-end", "sk-cogs", "sk-a1", "sk-a2", "sk-a3", "sk-a4", "sk-r3", "sk-r4", "sk-days",
+    "er-exp", "er-vat", "er-reb", "er-dom", "er-in", "er-carry",
+    "tie-a", "tie-b", "tie-c", "tie-d", "tie-e", "tie-f",
+    "tr-r1", "tr-f1", "tr-r2", "tr-f2", "tr-r3", "tr-f3", "tr-r4", "tr-f4", "tr-r5", "tr-f5", "tr-r6", "tr-f6"
   ];
-  var KEY = "finance-calc-v20";
+  var KEY = "finance-calc-v21";
   var CAT_KEY = "finance-calc-cat";
 
   /* ---------------- 现金流月历 ---------------- */
