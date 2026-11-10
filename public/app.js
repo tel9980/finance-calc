@@ -5706,6 +5706,234 @@
       + "有条件的话，要求客户提供担保、投保信用险，或者做有追索权保理，把风险先转移出去再谈额度。";
   }
 
+  /* ===== 年度预算联动 ===== */
+  function calcBPlan() {
+    var rev0 = Math.max(0, num($("bpl-rev"), 0));
+    var g = num($("bpl-grow"), 0) / 100;
+    var gm = Math.min(1, Math.max(0, num($("bpl-gm"), 0) / 100));
+    var opexR = Math.max(0, num($("bpl-opex"), 0) / 100);
+    var dep = Math.max(0, num($("bpl-dep"), 0));
+    var taxR = Math.min(1, Math.max(0, num($("bpl-tax"), 0) / 100));
+    var dso = Math.max(0, num($("bpl-dso"), 0));
+    var dio = Math.max(0, num($("bpl-dio"), 0));
+    var dpo = Math.max(0, num($("bpl-dpo"), 0));
+    var cash0 = num($("bpl-cash"), 0);
+
+    var rev = rev0 * (1 + g);
+    var cogs = rev * (1 - gm);
+    var gp = rev * gm;
+    var opexv = rev * opexR;
+    var op = gp - opexv - dep;
+    var taxv = Math.max(0, op * taxR);
+    var np = op - taxv;
+
+    function wc(r, c) {
+      var ar = r / 365 * dso, inv = c / 365 * dio, ap = c / 365 * dpo;
+      return [ar, inv, ap, ar + inv - ap];
+    }
+    var y0 = wc(rev0, rev0 * (1 - gm));
+    var y1 = wc(rev, cogs);
+    var gap = y1[3] - y0[3];
+    var free = np + dep - gap;
+    var cash1 = cash0 + free;
+
+    $("bpl-big").textContent = fmt(np, 2);
+    $("bpl-rev2").textContent = fmt(rev, 2) + " 万元（增长 " + pct(g, 1) + "）";
+    $("bpl-gp").textContent = fmt(gp, 2) + " / " + fmt(opexv, 2) + " 万元";
+    $("bpl-op").textContent = fmt(op, 2) + " / " + fmt(taxv, 2) + " 万元";
+    $("bpl-margin").textContent = rev > 0 ? pct(np / rev, 2) : "—";
+    $("bpl-wc").textContent = fmt(y1[0], 2) + " / " + fmt(y1[1], 2) + " / " + fmt(y1[2], 2) + " 万元";
+    $("bpl-nwc").textContent = fmt(y0[3], 2) + " → " + fmt(y1[3], 2) + " 万元";
+    $("bpl-wcgap").textContent = (gap >= 0 ? "多占用 " : "释放 ") + fmt(Math.abs(gap), 2) + " 万元";
+    $("bpl-free").textContent = fmt(cash1, 2) + " / " + fmt(free, 2) + " 万元";
+
+    var rows = [
+      ["营业收入", rev0, rev],
+      ["营业成本", rev0 * (1 - gm), cogs],
+      ["毛利", rev0 * gm, gp],
+      ["三费", rev0 * opexR, opexv],
+      ["营业利润", rev0 * gm - rev0 * opexR - dep, op],
+      ["净利润", rev0 * gm - rev0 * opexR - dep - Math.max(0, (rev0 * gm - rev0 * opexR - dep) * taxR), np],
+      ["应收账款", y0[0], y1[0]],
+      ["存货", y0[1], y1[1]],
+      ["应付账款", y0[2], y1[2]],
+      ["净营运资金", y0[3], y1[3]]
+    ];
+    var html = "";
+    for (var i = 0; i < rows.length; i++) {
+      var d = rows[i][2] - rows[i][1];
+      var cls = i === 5 ? ' class="c-info"' : (i === 9 && d > 0 ? ' class="c-warn"' : "");
+      html += "<tr" + cls + "><td class=\"tal\">" + rows[i][0] + "</td><td>" + fmt(rows[i][1], 2) + "</td><td>"
+        + fmt(rows[i][2], 2) + "</td><td>" + (d >= 0 ? "+" : "") + fmt(d, 2) + "</td></tr>";
+    }
+    $("bpl-body").innerHTML = html;
+
+    $("bpl-note").textContent = "预算是三张表的联动，不是一张利润表：收入涨 " + pct(g, 0) + "，应收和存货会按天数同比涨，"
+      + "这部分钱要先垫出去，所以利润和现金经常反向。本例净利 " + fmt(np, 2) + " 万元，但要再垫 " + fmt(Math.max(0, gap), 2)
+      + " 万元营运资金，自由现金流 " + fmt(free, 2) + " 万元。要么把 DSO 压下来（催收），要么把 DPO 谈上去（供应商账期），"
+      + "否则增长越快越缺钱。";
+  }
+
+  /* ===== 出口退税资金占用 ===== */
+  function calcRefundFlow() {
+    var exp = Math.max(0, num($("rf-exp"), 0));
+    var reb = Math.max(0, num($("rf-reb"), 0)) / 100;
+    var rate = Math.max(0, num($("rf-rate"), 0)) / 100;
+    var lag = Math.max(0, num($("rf-lag"), 0));
+    var audit = Math.max(0, num($("rf-audit"), 0));
+    var cost = Math.max(0, num($("rf-cost"), 0)) / 100;
+
+    var month = exp * reb;
+    var days = lag + audit;
+    var bal = month * days / 30;
+    var oc = bal * cost;
+    var gap = exp * Math.max(0, rate - reb);
+    var ten = month * 10 / 30 * cost;
+    var optDays = 45;
+    var optBal = month * optDays / 30;
+    var optCost = optBal * cost;
+
+    $("rf-big").textContent = money(bal);
+    $("rf-month").textContent = yuan(month);
+    $("rf-year").textContent = yuan(month * 12);
+    $("rf-days").textContent = fmt(days, 0) + " 天（申报滞后 " + fmt(lag, 0) + " + 审核到账 " + fmt(audit, 0) + "）";
+    $("rf-costv").textContent = yuan(oc) + "（年化 " + pct(cost, 1) + "）";
+    $("rf-gap").textContent = (gap > 0 ? yuan(gap) + "/月，全年 " + money(gap * 12) + " 元" : "无（征退税率相同）");
+    $("rf-ten").textContent = yuan(ten);
+    $("rf-opt").textContent = "在途 " + money(optBal) + " 元，成本 " + money(optCost) + " 元，省 " + money(oc - optCost) + " 元/年";
+    $("rf-advice").textContent = days > 60 ? "压缩申报滞后最划算：单证齐全就报，别攒到月底" : "周期已经不慢，重点转到征退差与进项管理";
+
+    var rows = [
+      ["出口 → 申报", lag, month * lag / 30, month * lag / 30 * cost],
+      ["申报 → 审核 → 到账", audit, month * audit / 30, month * audit / 30 * cost],
+      ["合计", days, bal, oc]
+    ];
+    var html = "";
+    for (var i = 0; i < rows.length; i++) {
+      html += "<tr" + (i === 2 ? ' class="c-info"' : "") + "><td class=\"tal\">" + rows[i][0] + "</td><td>"
+        + fmt(rows[i][1], 0) + " 天</td><td>" + money(rows[i][2]) + "</td><td>" + money(rows[i][3]) + "</td></tr>";
+    }
+    $("rf-body").innerHTML = html;
+
+    $("rf-note").textContent = "退税款不是「国家的钱晚点给」，是你先垫的钱。真正要管的是「平均在途余额 × 资金成本」，"
+      + "所以两个动作最有效：单证齐了马上申报（别等月末凑批）、把出口发票和报关单信息提前对齐减少退回重报。"
+      + "另外征退税率之差（本例 " + pct(Math.max(0, rate - reb), 1) + "）是永久性成本，进项不足时这部分转不回来，"
+      + "报价时就要含进去，别等到年底才发现毛利被吃掉。";
+  }
+
+  /* ===== 制造费用分摊方法对比 ===== */
+  function calcCostAlloc() {
+    var oh = Math.max(0, num($("cal-oh"), 0));
+    var q = [num($("cal-qa"), 0), num($("cal-qb"), 0), num($("cal-qc"), 0)];
+    var h = [num($("cal-ha"), 0), num($("cal-hb"), 0), num($("cal-hc"), 0)];
+    var m = [num($("cal-ma"), 0), num($("cal-mb"), 0), num($("cal-mc"), 0)];
+    var mat = [num($("cal-ta"), 0), num($("cal-tb"), 0), num($("cal-tc"), 0)];
+    var names = ["A", "B", "C"];
+
+    var Tq = 0, Th = 0, Tm = 0, Tmat = 0, i;
+    for (i = 0; i < 3; i++) {
+      Tq += Math.max(0, q[i]);
+      Th += Math.max(0, q[i]) * Math.max(0, h[i]);
+      Tm += Math.max(0, q[i]) * Math.max(0, m[i]);
+      Tmat += Math.max(0, mat[i]);
+    }
+    var rQ = Tq > 0 ? oh / Tq : 0;
+    var rH = Th > 0 ? oh / Th : 0;
+    var rM = Tm > 0 ? oh / Tm : 0;
+    var rMat = Tmat > 0 ? oh / Tmat : 0;
+
+    var unit = [], spread = [], html = "";
+    for (i = 0; i < 3; i++) {
+      var qq = Math.max(1e-9, q[i]);
+      var u1 = oh * Math.max(0, q[i]) / (Tq || 1) / qq;
+      var u2 = oh * Math.max(0, q[i]) * Math.max(0, h[i]) / (Th || 1) / qq;
+      var u3 = oh * Math.max(0, q[i]) * Math.max(0, m[i]) / (Tm || 1) / qq;
+      var u4 = oh * Math.max(0, mat[i]) / (Tmat || 1) / qq;
+      unit.push([u1, u2, u3, u4]);
+      spread.push(Math.max(u1, u2, u3, u4) - Math.min(u1, u2, u3, u4));
+      html += "<tr><td class=\"tal\">产品 " + names[i] + "（" + fmt(q[i], 0) + " 件）</td><td>" + fmt(u1, 2) + "</td><td>"
+        + fmt(u2, 2) + "</td><td>" + fmt(u3, 2) + "</td><td>" + fmt(u4, 2) + "</td><td>" + fmt(spread[i], 2) + "</td></tr>";
+    }
+    $("cal-body").innerHTML = html;
+
+    var maxI = 0;
+    for (i = 1; i < 3; i++) if (spread[i] > spread[maxI]) maxI = i;
+    $("cal-big").textContent = fmt(spread[maxI], 2);
+    $("cal-which").textContent = "产品 " + names[maxI] + "：" + fmt(Math.min.apply(null, unit[maxI]), 2) + " ~ " + fmt(Math.max.apply(null, unit[maxI]), 2) + " 元/件";
+    $("cal-totals").textContent = fmt(Tq, 0) + " 件 / " + fmt(Th, 1) + " 工时 / " + fmt(Tm, 1) + " 机时";
+    $("cal-r1").textContent = fmt(rQ, 2) + " 元/件";
+    $("cal-r2").textContent = fmt(rH, 2) + " 元/工时 / " + fmt(rM, 2) + " 元/机时";
+    $("cal-r3").textContent = pct(rMat, 2) + "（按材料成本比例）";
+
+    var uu = unit[maxI];
+    var pick = (uu[2] >= Math.max(uu[0], uu[3])) ? "按机器工时：自动化/设备密集的产线"
+      : (uu[1] >= uu[0] ? "按工时：人工密集的产线" : "按产量：产品结构单一时够用");
+    $("cal-pick").textContent = pick;
+    $("cal-price").textContent = "产品 " + names[maxI] + " 的单位成本能差 " + fmt(spread[maxI], 2) + " 元，"
+      + "按低价基准定价会亏本卖，按高价基准定价会丢单";
+
+    $("cal-note").textContent = "分摊基准没有「绝对正确」，只有「和费用发生的原因最接近」。制造费用里折旧、电费、维修费主要是被机器消耗的，"
+      + "所以按机时最贴近因果；人工密集的工序按工时；只有产品结构很单一时按产量才不至于失真；"
+      + "按材料成本分摊最省事，但会让「材料贵、加工少」的产品替全厂背费用，报价一算就虚高。"
+      + "作业成本法（ABC）思路一样，只是把「一个基准」拆成「多个动因」。";
+  }
+
+  /* ===== 进口到岸成本 ===== */
+  function calcImportCost() {
+    var fob = Math.max(0, num($("ic-fob"), 0));
+    var frt = Math.max(0, num($("ic-frt"), 0));
+    var ins = Math.max(0, num($("ic-ins"), 0));
+    var fx = Math.max(0, num($("ic-fx"), 1));
+    var dutyR = Math.max(0, num($("ic-duty"), 0)) / 100;
+    var consR = Math.min(0.99, Math.max(0, num($("ic-cons"), 0) / 100));
+    var vatR = Math.max(0, num($("ic-vat"), 0)) / 100;
+    var port = Math.max(0, num($("ic-port"), 0));
+    var agent = Math.max(0, num($("ic-agent"), 0));
+    var qty = Math.max(1, num($("ic-qty"), 1));
+
+    var cif = (fob + frt + ins) * fx;
+    var duty = cif * dutyR;
+    var cons = (cif + duty) / (1 - consR) * consR;
+    var vat = (cif + duty + cons) * vatR;
+    var fees = port + agent;
+    var land = cif + duty + cons + fees;
+    var cash = land + vat;
+    var unitLand = land / qty;
+    var unitCash = cash / qty;
+    var ratio = cif > 0 ? (duty + cons + vat) / cif : 0;
+
+    $("ic-big").textContent = fmt(unitLand, 2);
+    $("ic-cif").textContent = yuan(cif) + "（" + fmt(fob + frt + ins, 0) + " 美元）";
+    $("ic-dutyv").textContent = yuan(duty) + "（" + pct(dutyR, 1) + "）";
+    $("ic-consv").textContent = yuan(cons) + (consR > 0 ? "（" + pct(consR, 1) + "，价内税，含在完税价里算）" : "（不涉及）");
+    $("ic-vatv").textContent = yuan(vat) + "（拿来抵扣，不进成本）";
+    $("ic-fees").textContent = yuan(fees);
+    $("ic-land").textContent = yuan(land);
+    $("ic-cash").textContent = yuan(cash) + " / " + money(unitCash) + " 元/件";
+    $("ic-ratio").textContent = pct(ratio, 2) + "（其中可抵扣部分 " + pct(cif > 0 ? vat / cif : 0, 2) + "）";
+
+    var rows = [
+      ["CIF 完税价格", money(cif), "（货值＋运费＋保险）× 汇率"],
+      ["关税", money(duty), pct(dutyR, 1) + " × CIF"],
+      ["消费税", money(cons), consR > 0 ? "（CIF＋关税）÷(1−税率)×税率" : "本笔不涉及"],
+      ["进口增值税", money(vat), "（CIF＋关税＋消费税）× " + pct(vatR, 0) + "，可抵扣"],
+      ["港杂 + 代理", money(fees), "国内环节费用"],
+      ["到岸成本（进存货）", money(land), "不含可抵扣增值税"],
+      ["含税现金支出", money(cash), "到岸成本 + 进口增值税"],
+      ["单位到岸成本", money(unitLand) + " 元/件", "到岸成本 ÷ " + fmt(qty, 0) + " 件"]
+    ];
+    var html = "";
+    for (var i = 0; i < rows.length; i++) {
+      html += "<tr" + (i === 5 || i === 7 ? ' class="c-info"' : "") + "><td class=\"tal\">" + rows[i][0] + "</td><td>" + rows[i][1] + "</td><td class=\"tal\">" + rows[i][2] + "</td></tr>";
+    }
+    $("ic-body").innerHTML = html;
+
+    $("ic-note").textContent = "三个容易算错的地方：一是完税价格用 CIF（货值＋运费＋保险），漏了运费关税就少交、被追缴还带滞纳金；"
+      + "二是消费税是价内税，要用「(CIF＋关税)÷(1−消费税率)」倒算，不是直接乘税率；"
+      + "三是进口增值税可以抵扣，它占压的是资金不是成本，报价时算进单价会把价格报高一大截。"
+      + "从付汇到抵扣通常隔一两个月，这段占压资金也要计入真实成本。";
+  }
+
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
@@ -5734,6 +5962,7 @@
     bill: calcBill, loanreal: calcLoanReal, collect: calcCollect, mgmtpack: calcMgmtPack,
     settleway: calcSettleWay, creditline: calcCreditLine, impair: calcImpair, fxgain: calcFxGain,
     taxburden: calcTaxBurden, sens: calcSens, consol: calcConsol, eoq: calcEoq,
+    bplan: calcBPlan, refundflow: calcRefundFlow, costalloc: calcCostAlloc, importcost: calcImportCost,
     commission: calcCommission, capex: calcCapex, pooling: calcPooling, creditlimit: calcCreditLimit
   };
 
@@ -5890,9 +6119,9 @@
     "im-cost", "im-price", "im-finish", "im-sell", "im-had", "im-up", "im-tax",
     "fxg-usd", "fxg-signed", "fxg-book", "fxg-spot", "fxg-spread", "fxg-fwd",
 "tbr-sales", "tbr-out", "tbr-in", "tbr-begin", "tbr-prev", "tbr-ind", "tbr-surch", "sens-rev", "sens-vr", "sens-fix", "sens-shock", "sens-target", "cons-pm-rev", "cons-sub-rev", "cons-inter", "cons-pm-np", "cons-sub-np", "cons-unreal", "cons-mi", "cons-inv", "cons-sub-net", "cons-rec", "eoq-d", "eoq-k", "eoq-h", "eoq-day", "eoq-sd", "eoq-lt", "eoq-svc", "eoq-moq",
-"cm-sales", "cm-ret", "cm-gm", "cm-sr", "cm-gr", "cm-achv", "cm-cash", "cpx-inv", "cpx-cf", "cpx-years", "cpx-rate", "cpx-rv", "pool-idle", "pool-a", "pool-b", "pool-in", "pool-out", "pool-demand", "pool-rate", "pool-wealth", "pool-equity", "crl-buy", "crl-term", "crl-vat", "crl-gm", "crl-netw", "crl-lev", "crl-late", "crl-cost"
+"cm-sales", "cm-ret", "cm-gm", "cm-sr", "cm-gr", "cm-achv", "cm-cash", "cpx-inv", "cpx-cf", "cpx-years", "cpx-rate", "cpx-rv", "pool-idle", "pool-a", "pool-b", "pool-in", "pool-out", "pool-demand", "pool-rate", "pool-wealth", "pool-equity", "crl-buy", "crl-term", "crl-vat", "crl-gm", "crl-netw", "crl-lev", "crl-late", "crl-cost", "bpl-rev", "bpl-grow", "bpl-gm", "bpl-opex", "bpl-dep", "bpl-tax", "bpl-dso", "bpl-dio", "bpl-dpo", "bpl-cash", "bpl-big", "bpl-rev2", "bpl-gp", "bpl-op", "bpl-margin", "bpl-wc", "bpl-nwc", "bpl-wcgap", "bpl-free", "bpl-body", "bpl-note", "rf-exp", "rf-reb", "rf-rate", "rf-lag", "rf-audit", "rf-cost", "rf-big", "rf-month", "rf-year", "rf-days", "rf-costv", "rf-gap", "rf-ten", "rf-opt", "rf-advice", "rf-body", "rf-note", "cal-oh", "cal-qa", "cal-qb", "cal-qc", "cal-ha", "cal-hb", "cal-hc", "cal-ma", "cal-mb", "cal-mc", "cal-ta", "cal-tb", "cal-tc", "cal-big", "cal-which", "cal-totals", "cal-r1", "cal-r2", "cal-r3", "cal-pick", "cal-price", "cal-body", "cal-note", "ic-fob", "ic-frt", "ic-ins", "ic-fx", "ic-duty", "ic-cons", "ic-vat", "ic-port", "ic-agent", "ic-qty", "ic-big", "ic-cif", "ic-dutyv", "ic-consv", "ic-vatv", "ic-fees", "ic-land", "ic-cash", "ic-ratio", "ic-body", "ic-note"
 ];
-  var KEY = "finance-calc-v27";
+  var KEY = "finance-calc-v28";
   var CAT_KEY = "finance-calc-cat";
 
   /* ---------------- 现金流月历 ---------------- */
