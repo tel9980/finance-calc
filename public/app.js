@@ -7951,6 +7951,105 @@
       + "处置当月照提折旧、次月起停止。保本售价 " + money(be) + " 元是含税口径，谈判时别拿净值直接当底价。";
   }
 
+  function calcHeadcount() {
+    var vol = num($("hc-vol"), 0), grow = num($("hc-grow"), 0) / 100;
+    var eff = Math.max(1, num($("hc-eff"), 1)), now = num($("hc-now"), 0);
+    var cost = num($("hc-cost"), 0), turn = num($("hc-turn"), 0) / 100, hire = num($("hc-hire"), 0);
+    var tgt = vol * (1 + grow), need = tgt / eff;
+    var gap = Math.max(0, need - now), churn = need * turn;
+    var hires = gap + churn;
+    var budget = need * cost, inc = (need - now) * cost;
+    var effNeed = tgt / (eff * 1.1);
+    var save = (need - effNeed) * cost;
+    $("hc-big").textContent = fmt(gap, 1);
+    $("hc-need").textContent = fmt(tgt, 0) + " 单 / " + fmt(need, 1) + " 人";
+    $("hc-churn").textContent = fmt(churn, 1) + " 人（编制 " + fmt(need, 1) + " × 离职率 " + pct(turn, 0) + "）";
+    $("hc-hireout").textContent = fmt(hires, 1) + " 人（缺口 " + fmt(gap, 1) + " ＋ 补员 " + fmt(churn, 1) + "）";
+    $("hc-budget").textContent = money(budget) + " 元";
+    $("hc-inc").textContent = money(inc) + " 元（现在 " + money(now * cost) + "）";
+    $("hc-hirecost").textContent = money(hires * hire) + " 元";
+    $("hc-eff10").textContent = money(save) + " 元（" + fmt(effNeed, 1) + " 人即可，少招 " + fmt(need - effNeed, 1) + " 人）";
+    $("hc-note").textContent = "编制不是拍脑袋，是「业务量 ÷ 人均效能」倒推出来的；但人均效能要用近 12 个月的实际数据，"
+      + "别用行业标杆，否则永远算不出缺口。离职率要乘在目标编制上（不是现有编制），"
+      + "因为招进来的人也会走——招聘量 = 净增缺口 + 离职补员，这一步最常被漏掉，"
+      + "所以「招 88 人」其实要招 " + fmt(hires, 1) + " 人。"
+      + "人力预算别只算工资：社保公积金、年终奖、招聘与培训、工位设备都在里面，人均年成本要按全口径。"
+      + "最后算一遍「提效」的杠杆：人均效能提 10% 就能少招 " + fmt(need - effNeed, 1) + " 人，"
+      + "通常比砍人头更容易被接受，也更可持续。";
+  }
+
+  function calcMarkRoi() {
+    var spend = num($("mroi-spend"), 0), newc = Math.max(1, num($("mroi-new"), 1));
+    var aov = num($("mroi-aov"), 0), gm = num($("mroi-gm"), 0) / 100;
+    var rep = num($("mroi-rep"), 0), life = num($("mroi-life"), 0);
+    var cac = spend / newc, fg = aov * gm, ltv = aov * rep * life * gm;
+    var roi = spend > 0 ? (newc * ltv - spend) / spend : 0;
+    $("mroi-big").textContent = fmt(ltv / cac, 2);
+    $("mroi-cac").textContent = money(cac) + " 元/人";
+    $("mroi-fg").textContent = money(fg) + " 元（客单价 " + money(aov) + " × " + pct(gm, 0) + "）";
+    $("mroi-be").textContent = fmt(cac / fg, 3) + " 单" + (cac / fg <= 1 ? "（首单即回本）" : "（首单不够，要等复购）");
+    $("mroi-ltv").textContent = money(ltv) + " 元（" + fmt(rep, 1) + " 次/年 × " + fmt(life, 1) + " 年）";
+    $("mroi-roi").textContent = fmt(roi, 2) + " 倍（毛利额 " + money(newc * ltv) + " ÷ 投入）";
+    $("mroi-line").textContent = money(ltv / 3) + " 元（LTV/CAC ≥ 3 才算健康）";
+    $("mroi-rev").textContent = money(newc * aov * rep * life) + " 元";
+    $("mroi-note").textContent = "LTV/CAC ≥ 3 是经验健康线，低于 1 是每获一个客亏一次，1.5–2 之间要靠融资或复购硬撑。"
+      + "几个口径坑：CAC 要算全口径（渠道费＋投放人力＋代理佣金＋首单补贴），只算广告费会把它算便宜；"
+      + "LTV 用「毛利」不用「收入」，用收入会高估 2–3 倍；生命周期别用「预计」，要用历史留存曲线算出来的实际中位年限。"
+      + "另外投产比高不等于该无限加投——边际 CAC 会随投放规模上升，"
+      + "投放量翻倍前先看新增渠道的转化率是否掉、退货率是否上升。";
+  }
+
+  function calcRdProject() {
+    var bud = num($("rdp-budget"), 0), mat = num($("rdp-mat"), 0), ext = num($("rdp-ext"), 0);
+    var hrs = num($("rdp-hours"), 0), rate = num($("rdp-rate"), 0), oh = num($("rdp-oh"), 0) / 100;
+    var mon = Math.min(12, Math.max(1, num($("rdp-mon"), 1)));
+    var lab = hrs * rate, ohm = lab * oh;
+    var cum = mat + lab + ohm + ext;
+    var use = bud > 0 ? cum / bud : 0;
+    var left = bud - cum;
+    var mrate = cum / mon;
+    var over = mrate * 12 - bud;
+    var cap = left / (12 - mon);
+    $("rdp-big").textContent = money(cum);
+    $("rdp-lab").textContent = money(lab) + " / " + money(ohm) + " 元";
+    $("rdp-use").textContent = pct(use, 2) + "（已执行 " + mon + " 个月）";
+    $("rdp-left").textContent = money(left) + " 元";
+    $("rdp-monrate").textContent = money(mrate) + " 元/月";
+    $("rdp-over").textContent = (over > 0 ? "超 " : "余 ") + money(Math.abs(over)) + " 元（按 " + mon + " 个月外推到 12 个月）";
+    $("rdp-cap").textContent = money(cap) + " 元/月（比现在要压 " + pct(mrate > 0 ? Math.max(0, 1 - cap / mrate) : 0, 1) + "）";
+    $("rdp-note").textContent = "研发项目最容易失控的是工时归集：必须在项目号下按人按天记，"
+      + "事后凭记忆分摊的工时，加计扣除时会被质疑真实性。间接费按直接人工的固定比例分摊（"
+      + pct(oh, 0) + "）要写进立项文件，否则汇算时口径不一致。"
+      + "预算使用率 " + pct(use, 2) + " 而时间只过了 " + fmt(mon / 12 * 100, 0) + "%，"
+      + "说明前松后紧或有大额采购前置；按当前速度全年会" + (over > 0 ? "超支 " + money(over) : "结余 " + money(-over))
+      + " 元，要么追加预算走变更流程，要么把剩余 " + (12 - mon) + " 个月的月度上限压到 " + money(cap) + " 元。"
+      + "另外注意资本化判定是按项目阶段（研究/开发）而不是按项目整体，同一项目里前期费用化、后期资本化很常见。";
+  }
+
+  function calcIntSvc() {
+    var cs = num($("isv-cost"), 0), mark = num($("isv-mark"), 0) / 100;
+    var lo = num($("isv-low"), 0) / 100, hi = num($("isv-high"), 0) / 100;
+    var ta = num($("isv-ta"), 0) / 100, tb = num($("isv-tb"), 0) / 100;
+    var fee = cs * (1 + mark), add = fee - cs;
+    var net = fee * tb - add * ta;
+    var vat = fee * 0.06;
+    var adjBase = Math.max(0, mark - hi) * cs;
+    $("isv-big").textContent = money(net);
+    $("isv-fee").textContent = money(fee) + " 元（成本 " + money(cs) + " ×(1＋" + pct(mark, 1) + ")）";
+    $("isv-add").textContent = money(add) + " 元（留存在 " + pct(ta, 0) + " 税率方）";
+    $("isv-range").textContent = pct(mark, 2) + " vs " + pct(lo, 1) + "–" + pct(hi, 1) + (mark >= lo && mark <= hi ? "（在区间内）" : "（超出区间，有调整风险）");
+    $("isv-vat").textContent = money(vat) + " 元（接收方取得专票可抵，集团内不增负）";
+    $("isv-vatcost").textContent = money(vat) + " 元会变成真实成本";
+    $("isv-adj").textContent = adjBase > 0 ? "加成额调减 " + money(adjBase) + " 元，接收方补税 " + money(adjBase * tb) + " 元" : "无（区间内不调整）";
+    $("isv-note").textContent = "关联方服务费要过三道关：① 受益性测试——接收方真的获得了服务、有实质内容（"
+      + "有合同、有成果、有定价依据），母公司「管理费」笼统摊派不予扣除；② 定价符合独立交易原则，"
+      + "常用成本加成法，加成率落在可比区间 " + pct(lo, 1) + "–" + pct(hi, 1) + " 内；"
+      + "③ 有同期资料（本地文档），金额达到门槛的要准备主体文档与国别报告。"
+      + "节税的原理是把利润从高税率主体挪到低税率主体，本例净省 " + money(net) + " 元，"
+      + "但如果两边税率相同，除了增加合规成本没有任何好处；若接收方是亏损企业，当期省不了税反而更亏。"
+      + "增值税 6% 在现代服务业，接收方不能抵扣（如用于简易计税、免税项目）时，" + money(vat) + " 元就是净成本。";
+  }
+
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
@@ -7992,6 +8091,7 @@
     rebateacc: calcRebateAcc, pledgeloan: calcPledgeLoan, labvar: calcLabVar, rdcap: calcRdCap,
     processcost: calcProcessCost, makeoroutsource: calcMakeOrOutsource, rebatedta: calcRebateDTA, leasebuy: calcLeaseBuy,
     welfare: calcWelfare, inputout: calcInputOut, stampduty: calcStampDuty, assetdisp: calcAssetDisp,
+    headcount: calcHeadcount, markroi: calcMarkRoi, rdproject: calcRdProject, intsvc: calcIntSvc,
     salesallow: calcSalesAllow, lease: calcLease, gpmix: calcGpmix, vatchoose: calcVatChoose,
     datemath: calcDatemath, pct3: calcPct3, xlhelp: calcXlHelp, csvrecon: calcCsvRecon,
     contractperf: calcContractPerf, projrev: calcProjRev, creditpolicy: calcCreditPolicy, rateadj: calcRateAdj
@@ -8247,7 +8347,11 @@
     "wlf-wage", "wlf-wel", "wlf-edu", "wlf-union", "wlf-tax", "wlf-emp", "wlf-dis", "wlf-avg", "wlf-rate",
     "itr-input", "itr-tax", "itr-simple", "itr-free", "itr-welf", "itr-loss",
     "sdt-sale", "sdt-loan", "sdt-lease", "sdt-trans", "sdt-equity", "sdt-capital", "sdt-half",
-    "adsp-orig", "adsp-dep", "adsp-imp", "adsp-price", "adsp-vat", "adsp-fee", "adsp-tax"
+    "adsp-orig", "adsp-dep", "adsp-imp", "adsp-price", "adsp-vat", "adsp-fee", "adsp-tax",
+    "hc-vol", "hc-grow", "hc-eff", "hc-now", "hc-cost", "hc-turn", "hc-hire",
+    "mroi-spend", "mroi-new", "mroi-aov", "mroi-gm", "mroi-rep", "mroi-life",
+    "rdp-budget", "rdp-mat", "rdp-ext", "rdp-hours", "rdp-rate", "rdp-oh", "rdp-mon",
+    "isv-cost", "isv-mark", "isv-low", "isv-high", "isv-ta", "isv-tb"
 ];
   var KEY = "finance-calc-v41";
   var CAT_KEY = "finance-calc-cat";
