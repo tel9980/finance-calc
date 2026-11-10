@@ -5046,6 +5046,246 @@
       "现金周期严格口径还要减应付账款周转天数（DPO），本页没减，所以算是偏保守的上限。";
   }
 
+  function calcSettleWay() {
+    var amt = Math.max(0, num($("sw-amt"), 0));
+    var mon = Math.max(0, num($("sw-mon"), 0));
+    var r = Math.max(0, num($("sw-rate"), 0)) / 100;
+    var disc = Math.min(1, Math.max(0, num($("sw-disc"), 0)) / 100);
+    var bank = Math.max(0, num($("sw-bank"), 0)) / 100;
+    var com = Math.max(0, num($("sw-com"), 0)) / 100;
+    var bd = Math.max(0, num($("sw-bd"), 0)) / 100;
+    var cd = Math.max(0, num($("sw-cd"), 0)) / 100;
+    var f = mon / 12;
+    var df = 1 + r * f;
+
+    function pvEnd(x) { return df > 0 ? x / df : x; }
+    var base = pvEnd(amt);
+    var payDisc = amt * (1 - disc);
+    var payBank = amt * (1 + bank);
+    var payCom = amt * (1 + com);
+
+    var cases = [
+      ["立即付（享 " + pct(disc, 1) + " 折扣）", payDisc, payDisc, 0],
+      ["现汇立即付（无折扣）", amt, amt, 0],
+      ["银行承兑 " + fmt(mon, 0) + " 个月", payBank, pvEnd(payBank), f],
+      ["商业承兑 " + fmt(mon, 0) + " 个月", payCom, pvEnd(payCom), f],
+      ["月结 " + fmt(mon, 0) + " 个月（基准）", amt, base, f]
+    ];
+
+    var best = 0, i;
+    for (i = 0; i < cases.length; i++) if (cases[i][2] < cases[best][2]) best = i;
+
+    var html = "";
+    for (i = 0; i < cases.length; i++) {
+      var chg = cases[i][2] - base;
+      var cls = i === best ? ' class="c-info"' : (chg > 0 ? ' class="c-warn"' : "");
+      html += "<tr" + cls + "><td>" + cases[i][0] + (i === best ? " ◀ 最省" : "") + "</td><td>" +
+        money(cases[i][1]) + "</td><td>" + money(cases[i][2]) + "</td><td>" +
+        (chg === 0 ? "基准" : (chg > 0 ? "+" : "") + money(chg)) + "</td></tr>";
+    }
+    $("sw-body").innerHTML = html;
+
+    var discRate = f > 0 ? disc / (1 - disc) / f : NaN;
+    var gap = payDisc - base;
+
+    $("sw-big").textContent = money(Math.abs(gap));
+    $("sw-discrate").textContent = isFinite(discRate) ? pct(discRate) : "—";
+    $("sw-cost").textContent = pct(r);
+    $("sw-verdict").textContent = !isFinite(discRate) ? "—"
+      : (discRate > r ? "该提前付（折扣收益高于资金成本）" : "别为折扣提前付（折扣收益低于资金成本）");
+    $("sw-base").textContent = yuan(base);
+    $("sw-bankdisc").textContent = yuan(payBank * bd * f);
+    $("sw-comdisc").textContent = yuan(payCom * cd * f);
+    $("sw-bankgap").textContent = yuan(pvEnd(payBank) - base);
+    $("sw-comgap").textContent = yuan(pvEnd(payCom) - base);
+
+    $("sw-note").textContent =
+      " 比法：把每种方式的钱都折算到「现在」这个时点（单利、按 " + fmt(f * 12, 0) + " 个月 / 12 计），再看谁便宜。" +
+      " 现汇折扣这笔：拿到 " + pct(disc, 1) + " 折扣相当于年化 " + (isFinite(discRate) ? pct(discRate) : "—") +
+      "，" + (isFinite(discRate) && discRate > r ? "高于" : "低于") + "你的资金成本 " + pct(r) +
+      "，所以" + (isFinite(discRate) && discRate > r ? "值得提前付" : "不值得为折扣提前付款") +
+      "，月结反而" + (gap >= 0 ? "省 " + yuan(gap) : "多花 " + yuan(-gap)) + "。" +
+      " 票据这头：开票加价只是名义，真正的钱是供应商拿去贴现的利息——银承 " +
+      yuan(payBank * bd * f) + "、商承 " + yuan(payCom * cd * f) +
+      "，商承贴现率高是因为它是企业信用、不是银行信用，供应商往往还要再加价或直接拒收。" +
+      " 口径提醒：贴现一般按 360 天计息；银承还有开票手续费和保证金占用，这部分没算进加价里，实际成本会更高；" +
+      "反过来，如果你自己是收票方，收到的票要贴现，同样按这个成本从毛利里扣。";
+  }
+
+  function calcCreditLine() {
+    var sales = Math.max(0, num($("crd-sales"), 0));
+    var net = Math.max(0, num($("crd-net"), 0));
+    var coll = Math.max(0, num($("crd-coll"), 0));
+    var collRate = Math.min(1, Math.max(0, num($("crd-collrate"), 0)) / 100);
+    var creditRate = Math.max(0, num($("crd-creditrate"), 0)) / 100;
+    var guar = Math.max(0, num($("crd-guar"), 0));
+    var used = Math.max(0, num($("crd-used"), 0));
+    var need = Math.max(0, num($("crd-need"), 0));
+
+    var c1 = coll * collRate;
+    var c2 = sales * creditRate;
+    var total = c1 + c2 + guar;
+    var avail = Math.max(0, total - used);
+    var cover = need > 0 ? avail / need : NaN;
+    var space = Math.max(0, net * 0.7 - used);
+    var extra = collRate > 0 ? Math.max(0, need * 2 - avail) / collRate : NaN;
+    var collShare = total > 0 ? c1 / total : NaN;
+    var flex = !isFinite(collShare) ? "—"
+      : (collShare > 0.6 ? "偏重抵押，想再扩额得先加抵押物" : (collShare < 0.35 ? "信用额度为主，注意银行抽贷" : "抵押与信用较均衡"));
+
+    $("crd-big").textContent = money(avail);
+    $("crd-c1").textContent = yuan(c1);
+    $("crd-c2").textContent = yuan(c2);
+    $("crd-c3").textContent = yuan(guar);
+    $("crd-total").textContent = yuan(total);
+    $("crd-split").textContent = money(used) + " / " + money(avail) + " 元";
+    $("crd-cover").textContent = isFinite(cover) ? fmt(cover, 2) + " 倍" : "—";
+    $("crd-space").textContent = yuan(space);
+    $("crd-extra").textContent = isFinite(extra) ? yuan(extra) : "—";
+    $("crd-flex").textContent = flex;
+
+    var rows = [
+      ["抵押类（房产/土地/设备）", yuan(c1), "评估 " + money(coll) + " × 抵押率 " + pct(collRate, 0)],
+      ["信用类（看流水与报表）", yuan(c2), "销售 " + money(sales) + " × 系数 " + pct(creditRate, 0)],
+      ["保证类（担保公司/股东）", yuan(guar), "按可增额度直接取数"],
+      ["理论总额", yuan(total), "三类相加，实际以银行审批为准"],
+      ["已用授信", yuan(used), total > 0 ? "占总额 " + pct(used / total, 0) : "—"],
+      ["可用余额", yuan(avail), isFinite(cover) ? "可覆盖月均需求 " + fmt(cover, 2) + " 倍" : "—"]
+    ];
+    var html = "", i;
+    for (i = 0; i < rows.length; i++) {
+      var bad = i === 5 && isFinite(cover) && cover < 1;
+      html += "<tr" + (bad ? ' class="c-warn"' : "") + "><td>" + rows[i][0] + "</td><td>" + rows[i][1] + "</td><td>" + rows[i][2] + "</td></tr>";
+    }
+    $("crd-body").innerHTML = html;
+
+    $("crd-note").textContent =
+      " 结论怎么用：理论总额 " + yuan(total) + "、已用 " + yuan(used) + "，手上还有 " + yuan(avail) +
+      (isFinite(cover) ? "，能顶 " + fmt(cover, 2) + " 个月的月均资金需求" : "") + "。" +
+      (isFinite(cover) && cover < 1 ? " 覆盖不到 1 倍，属于偏紧，先把回款节奏和付款周期捋一遍，再谈扩额。" : " 覆盖超过 1 倍，短期不缺，重点转到额度的期限结构和成本上。") +
+      " 注意三点：① 抵押率各行不同，房产常见 50%–70%、厂房土地更低，设备要打折且不好处置；" +
+      "② 信用额度几乎都盯着销售收入和纳税流水，报表一旦下滑银行会缩额甚至抽贷，这是中小企业最常见的断粮方式；" +
+      "③ 净资产 70% 的负债率是常见的内部风控线，本例还能新增 " + yuan(space) +
+      "，超了即使有抵押物也难批。" +
+      " 想覆盖 2 倍需求，按当前抵押率还需再拿出 " + (isFinite(extra) ? yuan(extra) : "—") + " 的抵押物评估值。";
+  }
+
+  function calcImpair() {
+    var cost = Math.max(0, num($("im-cost"), 0));
+    var price = Math.max(0, num($("im-price"), 0));
+    var finish = Math.max(0, num($("im-finish"), 0));
+    var sell = Math.max(0, num($("im-sell"), 0));
+    var had = Math.max(0, num($("im-had"), 0));
+    var up = Math.max(0, num($("im-up"), 0));
+    var taxRate = Math.min(1, Math.max(0, num($("im-tax"), 25)) / 100);
+
+    var nrv = price - finish - sell;
+    var need = Math.max(0, cost - nrv);
+    var delta = need - had;
+    var after = Math.min(cost, Math.max(0, nrv));
+    var rate = cost > 0 ? need / cost : NaN;
+    var dta = need * taxRate;
+    var nrv2 = up - finish - sell;
+    var back = Math.min(need, Math.max(0, nrv2 - nrv));
+
+    $("im-big").textContent = money(Math.max(0, delta)) + (delta < 0 ? "（应转回）" : "");
+    $("im-nrv").textContent = yuan(nrv);
+    $("im-gap").textContent = yuan(cost - nrv);
+    $("im-rate").textContent = pct(rate);
+    $("im-after").textContent = yuan(after);
+    $("im-hadout").textContent = yuan(had) + (delta < 0 ? "（本期转回 " + money(-delta) + "）" : "（本期补提 " + money(delta) + "）");
+    $("im-dta").textContent = yuan(dta);
+    $("im-taxeff").textContent = delta >= 0
+      ? "纳税调增 " + money(delta) + " 元（多交税，不是少交）"
+      : "纳税调减 " + money(-delta) + " 元（转回要交税）";
+    $("im-back").textContent = yuan(back);
+    $("im-cap").textContent = yuan(need) + "（不能超过原计提）";
+
+    var rows = [
+      ["账面成本", yuan(cost), "存货原值"],
+      ["预计售价（不含税）", yuan(price), "以资产负债表日最可靠证据为准"],
+      ["减：至完工尚需投入", yuan(finish), "原材料类通常为 0"],
+      ["减：销售费用及相关税费", yuan(sell), "运费、佣金、消费税等"],
+      ["= 可变现净值", yuan(nrv), "NRV"],
+      ["应有跌价准备余额", yuan(need), "成本高于 NRV 的部分"],
+      ["已计提", yuan(had), "上期已计提的余额"],
+      ["本期补提 /（转回）", (delta >= 0 ? "+" : "") + money(delta), delta >= 0 ? "计入资产减值损失" : "在原计提范围内冲回"]
+    ];
+    var html = "", i;
+    for (i = 0; i < rows.length; i++) {
+      var cls = i === 7 ? (delta > 0 ? ' class="c-warn"' : (delta < 0 ? ' class="c-info"' : "")) : "";
+      html += "<tr" + cls + "><td>" + rows[i][0] + "</td><td>" + rows[i][1] + "</td><td>" + rows[i][2] + "</td></tr>";
+    }
+    $("im-body").innerHTML = html;
+
+    $("im-note").textContent =
+      " 这一笔：可变现净值 " + yuan(nrv) + "，比成本低 " + yuan(cost - nrv) + "，跌价 " + pct(rate) +
+      "，应有准备余额 " + yuan(need) + "，本期" + (delta >= 0 ? "补提 " + yuan(delta) : "转回 " + yuan(-delta)) + "。" +
+      " 三个容易做错的地方：① 计提必须按单个存货项目（或同一类别的合并口径），不能把赚钱的和亏钱的互相抵掉；" +
+      "② 必须有证据（订单价、最近成交价、库龄呆滞评估），拍脑袋提一笔，审计和税务都不认；" +
+      "③ 会计计提和税前扣除是两回事——计提当期要纳税调增，实际处置发生损失时才凭证据扣除，备查资料留好。" +
+      " 按 " + pct(taxRate, 0) + " 税率，这笔计提能确认递延所得税资产 " + yuan(dta) +
+      "，但现在不多缴现金，只是把税推后。" +
+      " 转回：售价回升到 " + money(up) + " 时 NRV 变 " + yuan(nrv2) + "，可转回 " + yuan(back) +
+      "，但累计转回不得超过已计提的 " + yuan(need) + "。";
+  }
+
+  function calcFxGain() {
+    var usd = Math.max(0, num($("fxg-usd"), 0));
+    var rs = Math.max(0, num($("fxg-signed"), 0));
+    var rb = Math.max(0, num($("fxg-book"), 0));
+    var rp = Math.max(0, num($("fxg-spot"), 0));
+    var spread = Math.max(0, num($("fxg-spread"), 0)) / 100;
+    var fwd = Math.max(0, num($("fxg-fwd"), 0));
+
+    var signedOut = usd * rs;
+    var bookOut = usd * rb;
+    var spotOut = usd * rp;
+    var fee = spotOut * spread;
+    var cash = spotOut - fee;
+    var pnl = spotOut - bookOut;
+    var loss = spotOut - signedOut;
+    var fwdOut = usd * fwd;
+    var fwdGain = fwdOut - spotOut;
+    var exp = spotOut * 0.01;
+
+    $("fxg-big").textContent = (pnl >= 0 ? "+" : "−") + money(Math.abs(pnl));
+    $("fxg-signedout").textContent = yuan(signedOut);
+    $("fxg-spotout").textContent = yuan(spotOut);
+    $("fxg-loss").textContent = (loss >= 0 ? "+" : "−") + money(Math.abs(loss)) + " 元";
+    $("fxg-bookout").textContent = yuan(bookOut);
+    $("fxg-fee").textContent = yuan(fee);
+    $("fxg-cash").textContent = yuan(cash);
+    $("fxg-fwdout").textContent = (fwdGain >= 0 ? "+" : "−") + money(Math.abs(fwdGain)) + " 元";
+    $("fxg-exp").textContent = yuan(exp);
+
+    var rows = [
+      ["签约 / 报价汇率", fmt(rs, 4), yuan(signedOut), "—"],
+      ["账面记账汇率", fmt(rb, 4), yuan(bookOut), (bookOut - signedOut >= 0 ? "+" : "−") + money(Math.abs(bookOut - signedOut))],
+      ["收款日即期汇率", fmt(rp, 4), yuan(spotOut), (loss >= 0 ? "+" : "−") + money(Math.abs(loss))],
+      ["远期锁汇价", fmt(fwd, 4), yuan(fwdOut), (fwdOut - signedOut >= 0 ? "+" : "−") + money(Math.abs(fwdOut - signedOut))],
+      ["实际到账（扣点差）", "—", yuan(cash), (cash - signedOut >= 0 ? "+" : "−") + money(Math.abs(cash - signedOut))]
+    ];
+    var html = "", i;
+    for (i = 0; i < rows.length; i++) {
+      var bad = (i === 2 && loss < 0) || (i === 4 && cash < signedOut);
+      html += "<tr" + (bad ? ' class="c-warn"' : "") + "><td>" + rows[i][0] + "</td><td>" + rows[i][1] + "</td><td>" + rows[i][2] + "</td><td>" + rows[i][3] + "</td></tr>";
+    }
+    $("fxg-body").innerHTML = html;
+
+    $("fxg-note").textContent =
+      " 两笔账别混：① 汇兑损益是 " + (pnl >= 0 ? "收益 " : "损失 ") + yuan(Math.abs(pnl)) +
+      "——账面按 " + fmt(rb, 4) + " 记的应收 " + yuan(bookOut) + "，实际按 " + fmt(rp, 4) + " 收，差额进财务费用；" +
+      "② 相对当初报价 " + fmt(rs, 4) + " 少了 " + yuan(Math.abs(loss)) +
+      "，这才是生意层面真正被吃掉的毛利，报价时若按 " + fmt(rs, 4) + " 算利润，这笔等于白干一部分。" +
+      " 结汇点差 " + pct(spread) + " 又吃掉 " + yuan(fee) + "，实际到账 " + yuan(cash) + "。" +
+      " 怎么防：汇率每波动 1%，这笔业务的敞口就是 " + yuan(exp) +
+      "；超过毛利一半的单子就该锁汇。远期按 " + fmt(fwd, 4) + " 锁住能多拿 " + yuan(Math.abs(fwdGain)) +
+      "（本例相当于把不确定性换成确定收益），期权则保留下行保护但要先付权利金。" +
+      " 口径提醒：外币货币性项目期末按即期汇率折算，差额进财务费用—汇兑损益；" +
+      "收到的美元若留在账户上不结汇，汇率变动会继续影响账面，这也是常见的「利润被汇率吃掉」的来源。";
+  }
+
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
@@ -5071,7 +5311,8 @@
     invstock: calcInvStock, exportrebate: calcExport, tieout: calcTieOut, feetrend: calcFeeTrend,
     mpbe: calcMpbe, payroll: calcPayroll, assetdiff: calcAssetDiff, monthclose: calcMonthClose,
     factoring: calcFactoring, deadstock: calcDeadStock, aptalk: calcApTalk, cash13: calcCash13,
-    bill: calcBill, loanreal: calcLoanReal, collect: calcCollect, mgmtpack: calcMgmtPack
+    bill: calcBill, loanreal: calcLoanReal, collect: calcCollect, mgmtpack: calcMgmtPack,
+    settleway: calcSettleWay, creditline: calcCreditLine, impair: calcImpair, fxgain: calcFxGain
   };
 
   function setCat(cat) {
@@ -5221,9 +5462,13 @@
     "fc-amt", "fc-days", "fc-rate", "fc-fee", "fc-margin", "fc-loan",
     "ds-q", "ds-cost", "ds-price", "ds-prob", "ds-store", "ds-cut", "ds-scrap", "ds-val",
     "tn-buy", "tn-now", "tn-target", "tn-rate", "tn-markup",
-    "wk-open", "wk-in", "wk-out", "wk-e1", "wk-w1", "wk-e2", "wk-w2", "wk-safe"
-  ];
-  var KEY = "finance-calc-v24";
+    "wk-open", "wk-in", "wk-out", "wk-e1", "wk-w1", "wk-e2", "wk-w2", "wk-safe",
+    "sw-amt", "sw-mon", "sw-rate", "sw-disc", "sw-bank", "sw-com", "sw-bd", "sw-cd",
+    "crd-sales", "crd-net", "crd-coll", "crd-collrate", "crd-creditrate", "crd-guar", "crd-used", "crd-need",
+    "im-cost", "im-price", "im-finish", "im-sell", "im-had", "im-up", "im-tax",
+    "fxg-usd", "fxg-signed", "fxg-book", "fxg-spot", "fxg-spread", "fxg-fwd"
+];
+  var KEY = "finance-calc-v25";
   var CAT_KEY = "finance-calc-cat";
 
   /* ---------------- 现金流月历 ---------------- */
