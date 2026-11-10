@@ -407,3 +407,12 @@ html[data-theme="dark"] .rpgoal{background:#16212f;color:#c9d6e8}
 html[data-theme="dark"] .palette{background:rgba(0,0,0,.62)}
 html[data-theme="dark"] .pal-list li.is-on{background:#1d2b45}
 @media print{.palette{display:none}}
+
+/* 非法数字标红 */
+.num.bad{border-color:#dc2626;background:#fff5f5}
+html[data-theme="dark"] .num.bad{border-color:#f87171;background:#2a1520}
+
+/* 结果卡底部「下一步常用」 */
+.next{margin:12px 0 0;padding:9px 12px;background:var(--soft);border:1px solid var(--line);border-radius:10px;font-size:13px;color:var(--ink2);line-height:1.9}
+.next a{color:var(--accent);margin:0 3px;white-space:nowrap;font-weight:600}
+.next[hidden]{display:none}

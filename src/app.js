@@ -25,6 +25,17 @@
     return isFinite(v) ? v : (fallback || 0);
   }
 
+  /* 非法数字标红：非空但解析不出有限数字的输入框加 .bad，提醒用户改 */
+  function markBadInputs(root) {
+    var list = (root || document).querySelectorAll(".panel.is-on input.num");
+    for (var i = 0; i < list.length; i++) {
+      var el = list[i];
+      var s = String(el.value || "").replace(/[\s,，_]/g, "");
+      /* 非空但不满足「数字[万/亿/千/k/w]」的严格格式就标红（如 1..2、-、1.2.3） */
+      el.classList.toggle("bad", s !== "" && !/^-?(\d+(\.\d+)?|\.\d+)(万|亿|千|[kKwW])?$/.test(s));
+    }
+  }
+
   /* ---- 数字输入增强：千分位显示、1.5万/2k 简写、上下键步进 ---- */
   function trimNum(n) {
     if (!isFinite(n)) return "";
@@ -457,6 +468,46 @@
       q.push(k + "=" + encodeURIComponent(Math.round(Number(v) * 100) / 100));
     }
     return '<a href="#' + mod + (q.length ? "?" + q.join("&") : "") + '">' + (label || mod) + "</a>";
+  }
+
+  /* 「下一步常用」：算完一个模块，在结果卡底部给出最顺手的后续入口 */
+  var NEXT_OF = {
+    deposit: [["compound", "复利定投"], ["ladder", "存单阶梯"], ["annual", "算实际年化"]],
+    loan: [["prepay", "提前还款"], ["combo", "组合贷"], ["loanways", "三种还法对撞"]],
+    prepay: [["penalty", "违约金临界点"], ["loanways", "还法对撞"]],
+    combo: [["fund", "公积金可贷"], ["loan", "纯商贷对比"]],
+    compound: [["goal", "攒钱目标"], ["fire", "FIRE 自由"]],
+    goal: [["compound", "复利定投"], ["fire", "FIRE 自由"]],
+    installment: [["card", "信用卡分期"], ["zeroloan", "0 利率真实成本"]],
+    annual: [["compound", "复利定投"], ["installment", "分期真实年化"]],
+    tax: [["bonus", "年终奖拆分"], ["settle", "年度汇算"], ["salary", "到手工资"]],
+    salary: [["tax", "个税"], ["bonus", "年终奖拆分"]],
+    settle: [["tax", "个税"], ["bonus", "年终奖拆分"]],
+    bonus: [["tax", "个税"], ["settle", "年度汇算"]],
+    healthcheck: [["report", "一页体检报告"], ["balance", "资产负债"]],
+    report: [["balance", "资产负债"], ["cashflow", "现金流月历"]],
+    balance: [["cashflow", "现金流月历"], ["report", "一页体检报告"]],
+    rentbuy: [["rentyield", "租售比"], ["housecash", "购房一次性支出"]],
+    housecash: [["rentbuy", "租还是买"], ["budget", "买房预算反推"]],
+    emergency: [["report", "一页体检报告"], ["cashflow", "现金流月历"]]
+  };
+  function renderNext(name) {
+    var panel = document.querySelector(".panel.is-on");
+    if (!panel) return;
+    var card = panel.querySelector(".card.res");
+    if (!card) return;
+    var box = card.querySelector(".next");
+    if (!box) {
+      box = document.createElement("div");
+      box.className = "next";
+      card.appendChild(box);
+    }
+    var list = NEXT_OF[name];
+    if (!list || !list.length) { box.hidden = true; box.innerHTML = ""; return; }
+    var html = [];
+    for (var i = 0; i < list.length; i++) html.push('<a href="#' + list[i][0] + '">' + list[i][1] + "</a>");
+    box.hidden = false;
+    box.innerHTML = "下一步常用：" + html.join(" · ");
   }
 
   function taxBy(table, taxable) {
@@ -9706,12 +9757,32 @@
   }
   function applyFilter() {
     var qb = $("q");
-    var q = (qb && qb.value ? qb.value : "").trim().toLowerCase();
+    var raw = qb && qb.value ? qb.value.trim() : "";
+    var q = raw.toLowerCase();
+    /* 「分类:关键词」或「分类名 关键词」前缀：只在该分类里找 */
+    var qcat = "";
+    var CATS = {};
+    var chipsAll = document.querySelectorAll(".cat");
+    for (var c0 = 0; c0 < chipsAll.length; c0++) {
+      var ch = chipsAll[c0];
+      CATS[ch.dataset.cat] = ch.dataset.cat;
+      var dl = (ch.dataset.label || "").trim();
+      if (dl) CATS[dl.toLowerCase()] = ch.dataset.cat;
+    }
+    /* 常用简称，方便「税 折旧」「公司 折旧」这类只言片语 */
+    var AL = { "税": "tax", "税费": "tax", "工资": "tax", "公司": "acct", "会计": "acct", "房": "house", "贷": "loan", "家庭": "family", "生活": "life", "工具": "util", "存钱": "save", "常用": "hot" };
+    for (var al in AL) { if (Object.prototype.hasOwnProperty.call(AL, al)) CATS[al] = AL[al]; }
+    var pm = raw.match(/^(\S+?)[:：\s]\s*(.*)$/);
+    if (pm && CATS[pm[1].toLowerCase()]) { qcat = CATS[pm[1].toLowerCase()]; q = pm[2].toLowerCase(); }
+    else if (raw && CATS[raw.toLowerCase()]) { qcat = CATS[raw.toLowerCase()]; q = ""; }
     var tb = document.querySelectorAll(".tab"), shown = 0;
     for (var t = 0; t < tb.length; t++) {
       var el = tb[t], cat = el.dataset.cat || "", ok;
       if (q) {
         ok = matchQ(el, q);                    /* 一搜索就跨分类找，不用先切分类 */
+        if (ok && qcat) ok = cat.split(/\s+/).indexOf(qcat) >= 0;
+      } else if (qcat) {
+        ok = cat.split(/\s+/).indexOf(qcat) >= 0;
       } else if (curCat === "fav") {
         ok = isFav(el.dataset.tab);
       } else if (curCat === "recent") {
@@ -9773,6 +9844,8 @@
     var fv = $("btn-fav");
     if (fv) { var f = isFav(name); fv.textContent = f ? "★ 已置顶" : "☆ 置顶"; fv.classList.toggle("on", f); }
     try { localStorage.setItem(LAST_KEY, name); } catch (e) {}
+    markBadInputs(document.querySelector(".panel.is-on"));
+    renderNext(name);
   }
 
   $("tabs").addEventListener("click", function (e) {
@@ -9827,6 +9900,7 @@
     if (name === "snaps") return;   // 方案快照面板没有输入，勾选走 change 事件
     if (calcMap[name]) calcMap[name]();
     save();
+    markBadInputs(panel);
   });
 
   /* 记住上次填写（本机 localStorage，不上传） */
