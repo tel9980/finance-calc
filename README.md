@@ -275,3 +275,19 @@ MIT
 - 顶部搜索框支持：中文名、英文 id（如 `vat`）、拼音首字母（如 `gjjd` → 公积金额度、`mll` → 毛利率变动归因）、全拼、常见别名（`fangdai`、`cunqian`）。一输入就跨分类找，右侧显示「命中 N 个」，回车直达第一个命中。
 - 分类里多了「最近」：按使用顺序记住最近 10 个模块，常做的活不用每次翻分类。
 - 方案快照支持备注与改名：存的时候写「名称｜备注」，列表里也能点「改」重命名。
+
+## 自动化测试与 CI
+仓库自带两套无头浏览器回归（Playwright），推送到 `main` 时 GitHub Actions 自动跑：
+
+```bash
+npm install                 # 首次：装 playwright
+npx playwright install chromium
+npm run build               # 切 chunk + 算哈希 + 重建 sw.js
+node test/serve.mjs 8099 &  # 起本地静态服务器（无依赖）
+node test/regress.mjs http://127.0.0.1:8099/    # 180 个模块数值对拍 test/baseline.json
+node test/features.mjs  http://127.0.0.1:8099/  # 搜索 / 最近 / 快照备注 / 深链参数
+```
+
+- `regress.mjs` 会把 180 个模块的主结果与 `test/baseline.json` 逐项对比（`dca` 蒙特卡洛随机不在对拍范围），并检查重复 id、控制台报错、手机端横向溢出。
+- 改了计算逻辑且确认新结果正确时，用 `node test/regress.mjs http://127.0.0.1:8099/ --update` 重写基线，并把 baseline 的改动一起提交。
+- CI 配置在 `.github/workflows/ci.yml`（ubuntu + node 20 + chromium）。

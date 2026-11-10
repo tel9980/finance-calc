@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: 安装依赖
+        run: npm install --no-audit --no-fund
+      - name: 安装 Chromium
+        run: npx playwright install --with-deps chromium
+      - name: 构建
+        run: node scripts/build.mjs
+      - name: 起本地服务器
+        run: |
+          node test/serve.mjs 8099 &
+          sleep 2
+          curl -sf http://127.0.0.1:8099/ > /dev/null && echo server ok
+      - name: 180 模块数值回归
+        run: node test/regress.mjs http://127.0.0.1:8099/
+      - name: 交互回归（搜索/最近/快照/深链）
+        run: node test/features.mjs http://127.0.0.1:8099/

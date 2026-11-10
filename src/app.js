@@ -9666,9 +9666,37 @@
     flash(this, got ? "已读取 " + got + " 项" : "还没填过别的模块");
   });
 
+  /* 有新版本时给一条「点此刷新」，不然用户会在旧页面里填半天 */
+  var updShown = false;
+  function showUpdateBar() {
+    if (updShown) return;
+    updShown = true;
+    var bar = document.createElement("div");
+    bar.className = "updbar";
+    bar.innerHTML = "<span>有新版本了</span><button type=\"button\" class=\"upd-go\">刷新</button><button type=\"button\" class=\"upd-x\" aria-label=\"关闭\">×</button>";
+    bar.querySelector(".upd-go").addEventListener("click", function () { location.reload(); });
+    bar.querySelector(".upd-x").addEventListener("click", function () { bar.parentNode && bar.parentNode.removeChild(bar); });
+    document.body.appendChild(bar);
+  }
   if ("serviceWorker" in navigator && /^(https:|http:\/\/(localhost|127\.0\.0\.1))/.test(location.origin + "/")) {
     window.addEventListener("load", function () {
-      try { navigator.serviceWorker.register("./sw.js").catch(function () {}); } catch (e) {}
+      try {
+        navigator.serviceWorker.register("./sw.js").then(function (reg) {
+          if (reg.waiting) showUpdateBar();
+          reg.addEventListener("updatefound", function () {
+            var nw = reg.installing;
+            if (!nw) return;
+            nw.addEventListener("statechange", function () {
+              if (nw.state === "installed" && navigator.serviceWorker.controller) showUpdateBar();
+            });
+          });
+        }).catch(function () {});
+        var once = false;
+        navigator.serviceWorker.addEventListener("controllerchange", function () {
+          if (once) return; once = true;
+          if (navigator.serviceWorker.controller) showUpdateBar();
+        });
+      } catch (e) {}
     });
   }
 
@@ -9853,7 +9881,21 @@
     g.fillText("财务计算器 · 方案对比", pad, 44);
     g.fillStyle = "#64748b"; g.font = "13px -apple-system,'PingFang SC','Microsoft YaHei',sans-serif";
     g.fillText("生成时间 " + new Date().toLocaleString("zh-CN") + "　·　" + location.host, pad, 68);
+    if (hs.length > 1) {
+      var legend = "";
+      for (var li = 1; li < hs.length; li++) legend += (li > 1 ? "　|　" : "") + String.fromCharCode(64 + li) + ". " + hs[li];
+      g.fillStyle = "#475569"; g.font = "12.5px -apple-system,'PingFang SC','Microsoft YaHei',sans-serif";
+      g.fillText(clipRaw(legend, w - pad * 2), pad, 86);
+    }
     var cw = (w - pad * 2) / cols;
+    function clipRaw(txt, max) {
+      var f = g.font;
+      if (g.measureText(String(txt)).width <= max) return String(txt);
+      var s = String(txt);
+      while (s.length > 1 && g.measureText(s + "…").width > max) s = s.slice(0, -1);
+      g.font = f;
+      return s + "…";
+    }
     function clip(txt, max) {
       var t = String(txt);
       if (g.measureText(t).width <= max) return t;

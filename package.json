@@ -1,0 +1,18 @@
+{
+  "name": "finance-calc",
+  "version": "1.0.0",
+  "private": true,
+  "description": "财务计算器 · 纯前端个人理财 + 公司财务计算工具",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "serve": "node test/serve.mjs 8099",
+    "test": "npm run build && node test/serve.mjs 8099 & sleep 1; node test/regress.mjs http://127.0.0.1:8099/ && node test/features.mjs http://127.0.0.1:8099/",
+    "test:regress": "node test/regress.mjs",
+    "test:features": "node test/features.mjs",
+    "baseline": "node test/regress.mjs http://127.0.0.1:8099/ --update"
+  },
+  "devDependencies": {
+    "playwright": "^1.47.0"
+  }
+}
