@@ -49,13 +49,17 @@ await page.evaluate(() => localStorage.removeItem('finance-calc-snaps'));
 
 /* 深链参数：面板还没下载时也要能落上 */
 await page.goto(BASE + '#housecash?hcx-price=3000000', { waitUntil: 'load' });
-await page.waitForTimeout(1200);
-const deep = await page.evaluate(() => {
-  const pn = document.getElementById('panel-housecash');
-  const inp = document.getElementById('hcx-price');
-  const bb = pn && pn.querySelector('.big strong');
-  return { val: inp && inp.value, big: bb && bb.textContent.trim() };
-});
+let deep = { val: null, big: null };
+for (let i = 0; i < 40; i++) {           // 线上 house chunk 冷启动可能要几秒
+  deep = await page.evaluate(() => {
+    const pn = document.getElementById('panel-housecash');
+    const inp = document.getElementById('hcx-price');
+    const bb = pn && pn.querySelector('.big strong');
+    return { val: inp && inp.value, big: bb && bb.textContent.trim() };
+  });
+  if (String(deep.val) === '3000000' && deep.big && deep.big !== '—' && deep.big !== '载入中…') break;
+  await page.waitForTimeout(300);
+}
 ok(String(deep.val) === '3000000', '深链参数没填进去（' + deep.val + '）');
 ok(!!deep.big && deep.big !== '—', '深链参数没触发计算');
 
