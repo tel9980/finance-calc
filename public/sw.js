@@ -1,7 +1,7 @@
 /* 自动生成，勿手改 */
-const VERSION = "fc-796ee74cce";
-const SHELL = ["/","./assets/app.f70a022759.js","./assets/style.55c3af4118.css","./manifest.webmanifest","./icon-192.png"];
-const RUNTIME = "fc-rt-796ee74cce";
+const VERSION = "fc-3f159cb4f1";
+const SHELL = ["/","./assets/app.cb6c9e5d2c.js","./assets/style.55c3af4118.css","./manifest.webmanifest","./icon-192.png"];
+const RUNTIME = "fc-rt-3f159cb4f1";
 /* 财务计算器 service worker 主体（VERSION / SHELL 由 scripts/build.mjs 注入） */
 self.addEventListener("install", function (e) {
   e.waitUntil(

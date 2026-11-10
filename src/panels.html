@@ -213,6 +213,7 @@
           <button class="ghost" type="button" id="snap-export">导出快照 JSON</button>
           <button class="ghost" type="button" id="snap-import">导入快照</button>
           <button class="ghost" type="button" id="snap-backup">整站备份</button>
+          <button class="ghost" type="button" id="snap-csv">导出全部参数 CSV</button>
           <button class="ghost" type="button" id="snap-restore">恢复备份</button>
           <button class="ghost" type="button" id="snap-png">导出对比图 PNG</button>
           <button class="ghost" type="button" id="snap-del-sel">删除选中</button>
@@ -8213,6 +8214,8 @@
           </table>
         </div>
         <p class="hint" id="mt-cat-note"></p>
+        <h2 class="sub">按月的支出结构（按各月支出占比摊算）</h2>
+        <canvas id="mt-stack-chart" width="720" height="210" aria-label="每月支出结构堆叠图"></canvas>
         <div class="tablebox">
           <table>
             <thead><tr><th class="tal">月份</th><th>支出</th><th>当月结余</th><th>累计结余</th></tr></thead>
@@ -8265,6 +8268,7 @@
           <li><span>哪一项最该管</span><b id="yc-focus">—</b></li>
         </ul>
         <canvas id="yc-chart" width="720" height="200" aria-label="收入支出资产趋势图"></canvas>
+        <p class="hint" id="yc-forecast"></p>
         <div class="tablebox">
           <table>
             <thead><tr><th class="tal">年份</th><th>收入</th><th>支出</th><th>结余</th><th>储蓄率</th><th>资产</th></tr></thead>
@@ -8287,6 +8291,10 @@
         <label class="f"><span>手上的现金（活期＋货基）</span><input id="yrp-cash" type="number" inputmode="decimal" min="0" step="10000" value="60000"></label>
         <label class="f"><span>负债余额（房贷＋其他）</span><input id="yrp-debt" type="number" inputmode="decimal" min="0" step="10000" value="800000"></label>
         <label class="f"><span>自住房市值（没有填 0）</span><input id="yrp-house" type="number" inputmode="decimal" min="0" step="50000" value="1800000"></label>
+        <h2 class="sub">想和上一年比？填这三个（不填就跳过）</h2>
+        <label class="f"><span>上一年收入</span><input id="yrp-pinc" type="number" inputmode="decimal" min="0" step="1000" value="0"></label>
+        <label class="f"><span>上一年支出</span><input id="yrp-pout" type="number" inputmode="decimal" min="0" step="1000" value="0"></label>
+        <label class="f"><span>上一年年末金融资产</span><input id="yrp-pa1" type="number" inputmode="decimal" min="0" step="10000" value="0"></label>
         <p class="btnrow"><button class="ghost" type="button" id="yrp-print">打印 / 存成 PDF</button></p>
         <em>一页纸年报，拿去给家里人看的版本。数据全部来自你自己填的四个数，不联网、不上传。</em>
       </div>
@@ -8300,6 +8308,7 @@
           <li><span>负债率（含自住房）</span><b id="yrp-lev">—</b></li>
           <li><span>现金能撑几个月</span><b id="yrp-emg">—</b></li>
           <li><span>综合评级</span><b id="yrp-grade">—</b></li>
+          <li><span>和上一年比</span><b id="yrp-cmp">—</b></li>
         </ul>
         <h2 class="sub">年报正文</h2>
         <div id="yrp-text" class="yrptext"></div>
