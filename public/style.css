@@ -332,3 +332,9 @@ html[data-theme="dark"] .tag{background:#1d2b45;color:#c7d2fe}
 .yrptext p:last-child{margin-bottom:0}
 html[data-theme="dark"] .yrptext p{color:#d7dce6}
 @media print{.yrptext p{font-size:12.5px;line-height:1.6}}
+details.mtg{margin:10px 0 6px}
+details.mtg summary{cursor:pointer;font-size:13px;color:var(--accent);padding:6px 0;font-weight:600}
+details.mtg table.grid td{padding:3px 4px}
+details.mtg table.grid input{width:100%;min-width:52px;padding:5px 6px;font-size:12.5px;text-align:right}
+html[data-theme="dark"] details.mtg summary{color:#93b4f7}
+@media(max-width:660px){details.mtg table.grid input{min-width:44px;font-size:12px}}

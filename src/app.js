@@ -8803,38 +8803,70 @@
   var MONTH_CATS = [["住（房贷/房租/物业）", "mt-c1", "#1e3a8a"], ["吃（餐饮/日用/超市）", "mt-c2", "#2563eb"],
     ["教育（学费/培训）", "mt-c3", "#7c3aed"], ["保险", "mt-c4", "#0891b2"], ["交通（车/打车/油）", "mt-c5", "#f97316"], ["其他（医疗/人情/娱乐）", "mt-c6", "#64748b"]];
 
+  function readMonthGrid() {
+    var mat = [], total = 0, filled = 0;
+    for (var m = 1; m <= 12; m++) {
+      var row = [], rowSum = 0;
+      for (var k = 1; k <= 6; k++) {
+        var v = Math.max(0, num($("mtg-" + m + "-" + k), 0));
+        row.push(v); rowSum += v;
+      }
+      if (rowSum > 0) filled++;
+      total += rowSum;
+      mat.push(row);
+    }
+    return { mat: mat, total: total, filled: filled };
+  }
+
   function drawMonthStack(arr, sum, outTotal) {
     var cv = $("mt-stack-chart");
     if (!cv || !cv.getContext) return;
+    var grid = readMonthGrid();
+    if ($("mtg-note")) {
+      $("mtg-note").textContent = grid.total <= 0
+        ? "这里不填也能用（上面的结构图会按各月支出占比摊算）。想更准，就把每月 6 类分别填上。"
+        : "逐月分类合计 " + money(grid.total) + " 元，" + (Math.abs(grid.total - outTotal) < 1 ? "和全年支出对得上。" : "和全年支出（" + money(outTotal) + " 元）差 " + money(Math.abs(grid.total - outTotal)) + " 元。")
+          + " 已填 " + grid.filled + "/12 个月" + (grid.filled < 12 ? "，没填的月份不参与画图。" : "。");
+    }
     var dpr = Math.min(2, window.devicePixelRatio || 1), w = 720, hgt = 210;
     cv.width = w * dpr; cv.height = hgt * dpr;
     cv.style.width = "100%"; cv.style.height = "210px";
     var g = cv.getContext("2d");
     g.setTransform(1, 0, 0, 1, 0, 0); g.scale(dpr, dpr);
     g.clearRect(0, 0, w, hgt);
-    var i, outs = [];
+    var i, k, outs = [];
     for (i = 1; i <= 12; i++) outs.push(Math.max(0, num($("mt-m" + i), 0)));
-    if (sum <= 0 || outTotal <= 0) {
+    var real = grid.total > 0;
+    if (!real && (sum <= 0 || outTotal <= 0)) {
       g.fillStyle = "#94a3b8"; g.font = "11px -apple-system,'PingFang SC','Microsoft YaHei',sans-serif";
       g.textAlign = "center"; g.fillText("先填上面的分类金额", w / 2, hgt / 2);
       return;
     }
-    var pad = 24, base = hgt - 22, max = 0;
-    for (i = 0; i < 12; i++) max = Math.max(max, outs[i]);
+    var pad = 24, base = hgt - 22, max = 0, monthTotals = [];
+    for (i = 0; i < 12; i++) {
+      var mt = 0;
+      if (real) { for (k = 0; k < 6; k++) mt += grid.mat[i][k]; }
+      else { mt = outs[i] / outTotal * sum; }
+      monthTotals.push(mt);
+      max = Math.max(max, mt);
+    }
     if (max <= 0) max = 1;
     var bw = (w - pad * 2) / 12 - 6;
     for (i = 0; i < 12; i++) {
-      var monthTotal = outs[i] / outTotal * sum;
       var y = base, x = pad + i * (bw + 6);
-      for (var k = 0; k < arr.length; k++) {
-        var part = monthTotal * (arr[k].v / sum);
+      for (k = 0; k < 6; k++) {
+        var part = real ? grid.mat[i][k] : monthTotals[i] * (arr[k].v / sum);
+        if (part <= 0) continue;
         var ph = (part / max) * (base - 18);
         y -= ph;
-        g.fillStyle = arr[k].color; g.fillRect(x, y, bw, Math.max(0, ph));
+        g.fillStyle = MONTH_CATS[k][2]; g.fillRect(x, y, bw, Math.max(0, ph));
       }
       g.fillStyle = "#94a3b8"; g.font = "10px -apple-system,'PingFang SC','Microsoft YaHei',sans-serif";
       g.textAlign = "center"; g.fillText(String(i + 1), x + bw / 2, hgt - 8);
     }
+    g.fillStyle = "#64748b"; g.font = "10px -apple-system,'PingFang SC','Microsoft YaHei',sans-serif";
+    g.textAlign = "left";
+    g.fillText(real ? "（逐月实填）" : "（按占比摊算，仅供参考）", pad, 12);
   }
 
   function drawMonthCats(outTotal) {
@@ -9010,13 +9042,13 @@
     }
   }
 
-  function drawnYearChart(ys, fc) {
-    var cv = $("yc-chart");
+  function drawnYearChart(ys, fc, cid, hpx) {
+    var cv = $(cid || "yc-chart");
     if (!cv || !cv.getContext || !ys.length) return;
     var dpr = Math.min(2, window.devicePixelRatio || 1);
-    var w = 720, hgt = 200;
+    var w = 720, hgt = hpx || 200;
     cv.width = w * dpr; cv.height = hgt * dpr;
-    cv.style.width = "100%"; cv.style.height = "200px";
+    cv.style.width = "100%"; cv.style.height = hgt + "px";
     var g = cv.getContext("2d");
     g.setTransform(1, 0, 0, 1, 0, 0); g.scale(dpr, dpr);
     g.clearRect(0, 0, w, hgt);
@@ -9070,6 +9102,72 @@
   }
 
   /* ---------------- 一页纸年度报告 ---------------- */
+  /* 年报里的小图：从已存数据回放 */
+  function drawReportCharts() {
+    var doc = {};
+    try { doc = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) { doc = {}; }
+    function g(k, d) {
+      var el = $(k);
+      if (el && el.value !== undefined && el.value !== "") return Math.max(0, Number(el.value) || 0);
+      var v = doc[k];
+      return v === undefined || v === null || v === "" ? d : Number(v) || 0;
+    }
+    var ys = [], i;
+    for (i = 1; i <= 5; i++) {
+      var inc = Math.max(0, g("yc-inc" + i, 0)), out = Math.max(0, g("yc-out" + i, 0)), ast = Math.max(0, g("yc-asset" + i, 0));
+      if (inc <= 0 && out <= 0 && ast <= 0) continue;
+      ys.push({ n: i, inc: inc, out: out, asset: ast, left: inc - out, rate: inc > 0 ? (inc - out) / inc * 100 : 0 });
+    }
+    if (ys.length >= 2 && $("yrp-chart1")) drawnYearChart(ys, null, "yrp-chart1", 180);
+    else if ($("yrp-chart1")) {
+      var c1 = $("yrp-chart1").getContext("2d");
+      c1.clearRect(0, 0, 720, 180);
+      c1.fillStyle = "#94a3b8"; c1.font = "11px -apple-system,'PingFang SC','Microsoft YaHei',sans-serif";
+      c1.textAlign = "center"; c1.fillText("到「年度对比」填上几年的数，这里会出现趋势线", 360, 92);
+    }
+    var cats = [], sum = 0, k;
+    for (k = 1; k <= 6; k++) {
+      var v = Math.max(0, g("mt-c" + k, 0));
+      cats.push({ name: ["住", "吃", "教育", "保险", "交通", "其他"][k - 1], v: v, color: MONTH_CATS[k - 1][2] });
+      sum += v;
+    }
+    var cv = $("yrp-chart2");
+    if (cv && cv.getContext) {
+      var dpr = Math.min(2, window.devicePixelRatio || 1), w = 720, hgt = 110;
+      cv.width = w * dpr; cv.height = hgt * dpr;
+      cv.style.width = "100%"; cv.style.height = "110px";
+      var g2 = cv.getContext("2d");
+      g2.setTransform(1, 0, 0, 1, 0, 0); g2.scale(dpr, dpr);
+      g2.clearRect(0, 0, w, hgt);
+      if (sum <= 0) {
+        g2.fillStyle = "#94a3b8"; g2.font = "11px -apple-system,'PingFang SC','Microsoft YaHei',sans-serif";
+        g2.textAlign = "center"; g2.fillText("到「12 个月小结」填一下分类金额", w / 2, 58);
+      } else {
+        var x = 12, bwid = w - 24, y0 = 26, bh = 24;
+        for (k = 0; k < cats.length; k++) {
+          var piece = bwid * cats[k].v / sum;
+          g2.fillStyle = cats[k].color; g2.fillRect(x, y0, Math.max(0, piece), bh);
+          if (piece > 44) {
+            g2.fillStyle = "#fff"; g2.font = "11px -apple-system,'PingFang SC','Microsoft YaHei',sans-serif";
+            g2.textAlign = "left"; g2.fillText(fmt(cats[k].v / sum * 100) + "%", x + 6, y0 + 16);
+          }
+          x += piece;
+        }
+        var lx = 12;
+        g2.font = "10.5px -apple-system,'PingFang SC','Microsoft YaHei',sans-serif"; g2.textAlign = "left";
+        for (k = 0; k < cats.length; k++) {
+          g2.fillStyle = cats[k].color; g2.fillRect(lx, y0 + bh + 12, 8, 8);
+          g2.fillStyle = "#475569"; g2.fillText(cats[k].name, lx + 12, y0 + bh + 20);
+          lx += g2.measureText(cats[k].name).width + 32;
+        }
+      }
+    }
+    if ($("yrp-charts-note")) $("yrp-charts-note").textContent =
+      (ys.length >= 2 ? "趋势图用的是「年度对比」里的 " + ys.length + " 年数据；" : "趋势图还没有数据；")
+      + (sum > 0 ? "结构图用的是「12 个月小结」的分类金额。" : "结构图还没有数据。")
+      + " 想改就先回那两个模块改，再回来看这份报告——打印/存 PDF 时会连图一起带走。";
+  }
+
   function calcYearReport() {
     var inc = Math.max(0, num($("yrp-inc"), 0)), out = Math.max(0, num($("yrp-out"), 0));
     var a0 = Math.max(0, num($("yrp-a0"), 0)), a1 = Math.max(0, num($("yrp-a1"), 0));
@@ -9120,6 +9218,7 @@
     if (cmpTxt) lines.splice(1, 0, cmpTxt);
     lines.push("净资产（含自住房）" + money(net) + " 元。综合评级 " + grade + "。" + next);
     if ($("yrp-text")) $("yrp-text").innerHTML = lines.map(function (t) { return "<p>" + t + "</p>"; }).join("");
+    drawReportCharts();
     if ($("yrp-note")) $("yrp-note").textContent = "储蓄率 " + (rate >= 20 ? "≥20% 算及格" : "低于 20%，偏紧")
       + "；应急金 6 个月是常用安全线；负债率 50% 是多数家庭的警戒线。自住房计入净资产但不变现，所以别把它当现金流。";
   }
@@ -9494,9 +9593,10 @@
     "yc-inc3", "yc-out3", "yc-asset3", "yc-inc4", "yc-out4", "yc-asset4", "yc-inc5", "yc-out5", "yc-asset5", "bxsp-inc2", "mt-c1", "mt-c2", "mt-c3", "mt-c4", "mt-c5", "mt-c6",
     "yrp-inc", "yrp-out", "yrp-a0", "yrp-a1", "yrp-cash", "yrp-debt", "yrp-house",
     "yrp-pinc", "yrp-pout", "yrp-pa1",
-    "yc-target", "yc-years"
+    "yc-target", "yc-years",
+    "mtg-1-1", "mtg-1-2", "mtg-1-3", "mtg-1-4", "mtg-1-5", "mtg-1-6", "mtg-2-1", "mtg-2-2", "mtg-2-3", "mtg-2-4", "mtg-2-5", "mtg-2-6", "mtg-3-1", "mtg-3-2", "mtg-3-3", "mtg-3-4", "mtg-3-5", "mtg-3-6", "mtg-4-1", "mtg-4-2", "mtg-4-3", "mtg-4-4", "mtg-4-5", "mtg-4-6", "mtg-5-1", "mtg-5-2", "mtg-5-3", "mtg-5-4", "mtg-5-5", "mtg-5-6", "mtg-6-1", "mtg-6-2", "mtg-6-3", "mtg-6-4", "mtg-6-5", "mtg-6-6", "mtg-7-1", "mtg-7-2", "mtg-7-3", "mtg-7-4", "mtg-7-5", "mtg-7-6", "mtg-8-1", "mtg-8-2", "mtg-8-3", "mtg-8-4", "mtg-8-5", "mtg-8-6", "mtg-9-1", "mtg-9-2", "mtg-9-3", "mtg-9-4", "mtg-9-5", "mtg-9-6", "mtg-10-1", "mtg-10-2", "mtg-10-3", "mtg-10-4", "mtg-10-5", "mtg-10-6", "mtg-11-1", "mtg-11-2", "mtg-11-3", "mtg-11-4", "mtg-11-5", "mtg-11-6", "mtg-12-1", "mtg-12-2", "mtg-12-3", "mtg-12-4", "mtg-12-5", "mtg-12-6"
 ];
-  var KEY = "finance-calc-v52";
+  var KEY = "finance-calc-v53";
   var CAT_KEY = "finance-calc-cat";
 
   /* ---------------- 现金流月历 ---------------- */
