@@ -5934,6 +5934,197 @@
       + "从付汇到抵扣通常隔一两个月，这段占压资金也要计入真实成本。";
   }
 
+  /* ===== 关联方转移定价 ===== */
+  function calcTrPrice() {
+    var cost = Math.max(0, num($("tp-cost"), 0));
+    var price = Math.max(0, num($("tp-price"), 0));
+    var inner = Math.max(0, num($("tp-inner"), 0));
+    var ra = Math.min(1, Math.max(0, num($("tp-ratea"), 0) / 100));
+    var rb = Math.min(1, Math.max(0, num($("tp-rateb"), 0) / 100));
+    var lo = Math.max(0, num($("tp-lo"), 0) / 100);
+    var hi = Math.max(0, num($("tp-hi"), 0) / 100);
+
+    function part(x) {
+      var pa = x - cost, pb = price - x;
+      return { pa: pa, pb: pb, ta: pa * ra, tb: pb * rb, tt: pa * ra + pb * rb };
+    }
+    var now = part(inner);
+    var lowP = cost * (1 + lo), highP = cost * (1 + hi);
+    var atLow = part(lowP), atHigh = part(highP);
+    var best = Math.min(atLow.tt, atHigh.tt);
+    var save = now.tt - best;
+    var per = 100 * (ra - rb);
+
+    $("tp-big").textContent = fmt(now.tt, 2);
+    $("tp-a").textContent = fmt(now.pa, 2) + " / " + fmt(now.ta, 2) + " 万元";
+    $("tp-b").textContent = fmt(now.pb, 2) + " / " + fmt(now.tb, 2) + " 万元";
+    $("tp-profit").textContent = fmt(price - cost, 2) + " 万元（定价怎么变都不变）";
+    $("tp-rate").textContent = price > cost ? pct(now.tt / (price - cost), 2) : "—";
+    $("tp-low").textContent = fmt(lowP, 2) + " 万元（税负 " + fmt(atLow.tt, 2) + "）";
+    $("tp-high").textContent = fmt(highP, 2) + " 万元（税负 " + fmt(atHigh.tt, 2) + "）";
+    $("tp-save").textContent = save > 0 ? "省 " + fmt(save, 2) + " 万元" : "当前定价已在区间内较优点";
+    $("tp-per").textContent = (per >= 0 ? "省 " : "多交 ") + fmt(Math.abs(per), 2) + " 万元（税率差 " + pct(Math.abs(ra - rb), 0) + "）";
+
+    var rows = [], pts = [lowP, inner, highP, price];
+    for (var i = 0; i < pts.length; i++) {
+      var q = part(pts[i]);
+      rows.push([fmt(pts[i], 2), q.ta, q.tb, q.tt]);
+    }
+    var html = "";
+    for (var j = 0; j < rows.length; j++) {
+      html += "<tr" + (j === 1 ? ' class="c-info"' : (j === 0 ? ' class="c-soft"' : "")) + "><td>" + rows[j][0] + "</td><td>"
+        + fmt(rows[j][1], 2) + "</td><td>" + fmt(rows[j][2], 2) + "</td><td>" + fmt(rows[j][3], 2) + "</td></tr>";
+    }
+    $("tp-body").innerHTML = html;
+
+    $("tp-note").textContent = "集团赚的总额是 " + fmt(price - cost, 2) + " 万元，一分不会变；能被「安排」的只有这些利润在哪个税率下交税。"
+      + "把利润往低税率一方挪，每挪 100 万元省 " + fmt(Math.abs(per), 2) + " 万元（等于两边税率差）。"
+      + "但定价必须有支持：成本加成法要能说明加成率的可比性，否则税务机关有权按合理方法核定，补税还加利息；"
+      + "跨境还要叠加关税、预提所得税（股息 10%、利息/特许权 10% 或协定优惠）和同期资料准备义务，别只盯企业所得税。";
+  }
+
+  /* ===== 股权激励费用摊销 ===== */
+  function calcEsop() {
+    var sh = Math.max(0, num($("es-shares"), 0));
+    var fair = Math.max(0, num($("es-fair"), 0));
+    var strike = Math.max(0, num($("es-strike"), 0));
+    var yrs = Math.max(1, Math.round(num($("es-years"), 1)));
+    var leave = Math.min(1, Math.max(0, num($("es-leave"), 0) / 100));
+    var taxR = Math.min(1, Math.max(0, num($("es-tax"), 0) / 100));
+
+    var per = Math.max(0, fair - strike) * 10000;
+    var qty = sh * (1 - leave);
+    var total = per * qty / 10000;
+    var flat = total / yrs;
+    var accW = [0.4, 0.3, 0.2, 0.1];
+    var rows = [], html = "", dtaAcc = 0, firstAcc = 0;
+    for (var i = 1; i <= yrs; i++) {
+      var flatV = flat;
+      var accV = i <= 4 ? total * accW[i - 1] : 0;
+      if (yrs > 4 && i > 4) accV = 0;
+      if (i === 1) firstAcc = accV;
+      var deduct = i === yrs ? total : 0;
+      dtaAcc += flatV * taxR;
+      html += "<tr" + (i === yrs ? ' class="c-info"' : "") + "><td>第 " + i + " 年</td><td>" + fmt(flatV, 2)
+        + "</td><td>" + fmt(accV, 2) + "</td><td>" + (deduct > 0 ? fmt(deduct, 2) : "—") + "</td></tr>";
+    }
+    $("es-body").innerHTML = html;
+
+    $("es-big").textContent = fmt(total, 2);
+    $("es-per").textContent = fmt(Math.max(0, fair - strike), 2) + " 元/股（公允 " + fmt(fair, 2) + " − 行权 " + fmt(strike, 2) + "）";
+    $("es-qty").textContent = fmt(qty, 2) + " 万股（扣 " + pct(leave, 0) + " 离职率）";
+    $("es-flat").textContent = fmt(flat, 2) + " 万元（" + yrs + " 年匀速）";
+    $("es-acc").textContent = fmt(firstAcc, 2) + " 万元";
+    $("es-diff").textContent = "会计每年确认 " + fmt(flat, 2) + " 万元，税务上归属前不扣除 → 前期纳税调增";
+    $("es-dta").textContent = fmt(dtaAcc, 2) + " 万元（" + pct(taxR, 0) + "）";
+    $("es-deduct").textContent = fmt(total, 2) + " 万元（按工资薪金扣除）";
+    $("es-advice").textContent = yrs > 4 ? "等待期越长，每年摊销越轻，但激励感也越弱" : "常见 3–4 年匀速归属，加速归属首年费用更重";
+
+    $("es-note").textContent = "股份支付费用是「不花钱的成本」：不影响现金流，但直接压净利润，还会拉低每股收益。"
+      + "总额只跟授予日公允价值、行权价、数量和预计离职率有关，跟以后股价涨跌无关（后续公允价值变动不再调整）。"
+      + "关键差异在时点：会计在等待期内分期确认，税务要等归属/解禁、按「公允价值 − 行权价」作为工资薪金才能扣，"
+      + "所以前几年会计费用多、税上不让扣（调增并确认递延所得税资产），归属那年一次性大额扣除。"
+      + "另外注意：激励对象个税按「工资薪金」单独计税的优惠政策、以及集团内跨主体授予还要考虑费用由谁承担。";
+  }
+
+  /* ===== 研发费用加计扣除 ===== */
+  function calcRdExp() {
+    var labor = Math.max(0, num($("rd-labor"), 0));
+    var mat = Math.max(0, num($("rd-mat"), 0));
+    var dep = Math.max(0, num($("rd-dep"), 0));
+    var other = Math.max(0, num($("rd-other"), 0));
+    var pctR = Math.max(0, num($("rd-pct"), 0)) / 100;
+    var taxR = Math.min(1, Math.max(0, num($("rd-tax"), 0) / 100));
+
+    var core = labor + mat + dep;
+    var cap = core / 9 * 0.1 * 1.0;
+    cap = core / (1 - 0.1) * 0.1;
+    var eff = Math.min(other, cap);
+    var base = core + eff;
+    var add = base * pctR;
+    var save = add * taxR;
+    var totalAll = labor + mat + dep + other;
+    var lost = Math.max(0, other - eff);
+    var effRate = totalAll > 0 ? 1 - save / totalAll : 0;
+
+    $("rd-big").textContent = fmt(add, 2);
+    $("rd-total").textContent = fmt(totalAll, 2) + " 万元";
+    $("rd-cap").textContent = fmt(cap, 2) + " 万元（前三项 ÷ 9 × 1）";
+    $("rd-effect").textContent = fmt(eff, 2) + " 万元" + (lost > 0 ? "（超限 " + fmt(lost, 2) + " 不能加计）" : "（未超限，全额计入）");
+    $("rd-base").textContent = fmt(base, 2) + " 万元";
+    $("rd-save").textContent = pct(pctR, 0) + " 加计 / 少缴 " + fmt(save, 2) + " 万元";
+    $("rd-eff").textContent = "实际负担 " + pct(effRate, 2) + "（相当于每 100 万研发只花 " + fmt(effRate * 100, 2) + " 万）";
+    $("rd-lost").textContent = lost > 0 ? fmt(lost, 2) + " 万元" : "无";
+
+    var rows = [
+      ["人员人工费用", labor, "可以"],
+      ["直接投入费用", mat, "可以"],
+      ["折旧 / 摊销", dep, "可以"],
+      ["其他相关费用", other, eff >= other ? "可以" : "部分可以（" + fmt(eff, 2) + "）"]
+    ];
+    var html = "";
+    for (var i = 0; i < rows.length; i++) {
+      html += "<tr" + (i === 3 && lost > 0 ? ' class="c-warn"' : "") + "><td class=\"tal\">" + rows[i][0] + "</td><td>" + fmt(rows[i][1], 2) + "</td><td class=\"tal\">" + rows[i][2] + "</td></tr>";
+    }
+    $("rd-body").innerHTML = html;
+
+    $("rd-note").textContent = "加计扣除等于国家替你分担一部分研发成本：按 " + pct(pctR, 0) + " 加计、税率 " + pct(taxR, 0)
+      + "，就是研发支出的 " + pct(pctR * taxR, 0) + " 能少缴税，本例 " + fmt(save, 2) + " 万元。"
+      + "三个容易踩的点：其他相关费用有 10% 限额（算法是前三项 ÷ 9 × 1，不是简单乘 10%）；"
+      + "失败的研发活动、常规性升级、产品直接相关的外观设计不算；形成无形资产的按资本化金额的 200% 摊销，不能既费用化又资本化。"
+      + "另外要留存立项决议、研发人员名单、工时与费用归集表，抽查时拿不出就是全额剔除。";
+  }
+
+  /* ===== 滚动预测 ===== */
+  function calcRollFC() {
+    var bud = Math.max(0, num($("rl-bud"), 0));
+    var passed = Math.min(11, Math.max(0, Math.round(num($("rl-passed"), 0))));
+    var act = Math.max(0, num($("rl-act"), 0));
+    var rest = Math.max(0, num($("rl-rest"), 0));
+    var gmb = num($("rl-gmb"), 0) / 100;
+    var gma = num($("rl-gma"), 0) / 100;
+    var left = 12 - passed;
+
+    var fc = act + rest * left;
+    var rate = bud > 0 ? fc / bud : 0;
+    var gap = fc - bud;
+    var expect = bud * passed / 12;
+    var pace = expect > 0 ? act / expect : 0;
+    var need = left > 0 ? (bud - act) / left : 0;
+    var gpB = bud * gmb, gpF = fc * gma;
+
+    $("rl-big").textContent = fmt(fc, 2);
+    $("rl-rate").textContent = pct(rate, 2);
+    $("rl-gap").textContent = (gap >= 0 ? "超出 " : "缺口 ") + fmt(Math.abs(gap), 2) + " 万元";
+    $("rl-expect").textContent = fmt(expect, 2) + " 万元（" + fmt(passed, 0) + "/12）";
+    $("rl-pace").textContent = pct(pace, 1) + (pace >= 1 ? "（略超进度）" : "（落后进度）");
+    $("rl-need").textContent = fmt(need, 2) + " 万元/月";
+    $("rl-delta").textContent = (need > rest ? "每月再加 " + fmt(need - rest, 2) : "无需加，可下调 " + fmt(rest - need, 2)) + " 万元";
+    $("rl-gp").textContent = fmt(gpB, 2) + " → " + fmt(gpF, 2) + " 万元（" + (gpF >= gpB ? "+" : "") + fmt(gpF - gpB, 2) + "）";
+    $("rl-advice").textContent = rate >= 1 ? "预算可达成，重点转向毛利质量" : (rate >= 0.95 ? "缺口在 5% 内，靠一两个大单可补" : "建议下调全年预算并同步削减费用投放");
+
+    var rows = [
+      ["收入", bud, fc],
+      ["毛利", gpB, gpF],
+      ["毛利率", gmb * 100, gma * 100]
+    ];
+    var html = "";
+    for (var i = 0; i < rows.length; i++) {
+      var f = i === 2 ? fmt(rows[i][1], 2) + "%" : fmt(rows[i][1], 2);
+      var t = i === 2 ? fmt(rows[i][2], 2) + "%" : fmt(rows[i][2], 2);
+      var d = rows[i][2] - rows[i][1];
+      html += "<tr><td class=\"tal\">" + rows[i][0] + "</td><td>" + f + "</td><td>" + t + "</td><td>" + (d >= 0 ? "+" : "") + fmt(d, 2) + (i === 2 ? " 点" : "") + "</td></tr>";
+    }
+    $("rl-body").innerHTML = html;
+
+    $("rl-note").textContent = "滚动预测的用法：已实现的收入是硬的，剩下的月份按最新判断重估，而不是把预算按月份摊完。"
+      + "本例时间进度 " + fmt(passed, 0) + "/12 应有 " + fmt(expect, 2) + " 万元，实际 " + fmt(act, 2)
+      + " 万元（" + pct(pace, 1) + "），靠剩余 " + fmt(left, 0) + " 个月每月 " + fmt(rest, 2) + " 万元只能到 "
+      + fmt(fc, 2) + " 万元。注意毛利率同时在掉（" + pct(gmb, 0) + " → " + pct(gma, 0) + "），"
+      + "收入差 " + fmt(Math.abs(gap), 2) + " 万元、毛利差 " + fmt(Math.abs(gpF - gpB), 2) + " 万元，"
+      + "利润缺口比收入缺口更大——这时候靠打折冲量的做法会让差距进一步扩大。";
+  }
+
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
@@ -5963,6 +6154,7 @@
     settleway: calcSettleWay, creditline: calcCreditLine, impair: calcImpair, fxgain: calcFxGain,
     taxburden: calcTaxBurden, sens: calcSens, consol: calcConsol, eoq: calcEoq,
     bplan: calcBPlan, refundflow: calcRefundFlow, costalloc: calcCostAlloc, importcost: calcImportCost,
+    trprice: calcTrPrice, esop: calcEsop, rdexp: calcRdExp, rollfc: calcRollFC,
     commission: calcCommission, capex: calcCapex, pooling: calcPooling, creditlimit: calcCreditLimit
   };
 
@@ -6119,9 +6311,9 @@
     "im-cost", "im-price", "im-finish", "im-sell", "im-had", "im-up", "im-tax",
     "fxg-usd", "fxg-signed", "fxg-book", "fxg-spot", "fxg-spread", "fxg-fwd",
 "tbr-sales", "tbr-out", "tbr-in", "tbr-begin", "tbr-prev", "tbr-ind", "tbr-surch", "sens-rev", "sens-vr", "sens-fix", "sens-shock", "sens-target", "cons-pm-rev", "cons-sub-rev", "cons-inter", "cons-pm-np", "cons-sub-np", "cons-unreal", "cons-mi", "cons-inv", "cons-sub-net", "cons-rec", "eoq-d", "eoq-k", "eoq-h", "eoq-day", "eoq-sd", "eoq-lt", "eoq-svc", "eoq-moq",
-"cm-sales", "cm-ret", "cm-gm", "cm-sr", "cm-gr", "cm-achv", "cm-cash", "cpx-inv", "cpx-cf", "cpx-years", "cpx-rate", "cpx-rv", "pool-idle", "pool-a", "pool-b", "pool-in", "pool-out", "pool-demand", "pool-rate", "pool-wealth", "pool-equity", "crl-buy", "crl-term", "crl-vat", "crl-gm", "crl-netw", "crl-lev", "crl-late", "crl-cost", "bpl-rev", "bpl-grow", "bpl-gm", "bpl-opex", "bpl-dep", "bpl-tax", "bpl-dso", "bpl-dio", "bpl-dpo", "bpl-cash", "bpl-big", "bpl-rev2", "bpl-gp", "bpl-op", "bpl-margin", "bpl-wc", "bpl-nwc", "bpl-wcgap", "bpl-free", "bpl-body", "bpl-note", "rf-exp", "rf-reb", "rf-rate", "rf-lag", "rf-audit", "rf-cost", "rf-big", "rf-month", "rf-year", "rf-days", "rf-costv", "rf-gap", "rf-ten", "rf-opt", "rf-advice", "rf-body", "rf-note", "cal-oh", "cal-qa", "cal-qb", "cal-qc", "cal-ha", "cal-hb", "cal-hc", "cal-ma", "cal-mb", "cal-mc", "cal-ta", "cal-tb", "cal-tc", "cal-big", "cal-which", "cal-totals", "cal-r1", "cal-r2", "cal-r3", "cal-pick", "cal-price", "cal-body", "cal-note", "ic-fob", "ic-frt", "ic-ins", "ic-fx", "ic-duty", "ic-cons", "ic-vat", "ic-port", "ic-agent", "ic-qty", "ic-big", "ic-cif", "ic-dutyv", "ic-consv", "ic-vatv", "ic-fees", "ic-land", "ic-cash", "ic-ratio", "ic-body", "ic-note"
+"cm-sales", "cm-ret", "cm-gm", "cm-sr", "cm-gr", "cm-achv", "cm-cash", "cpx-inv", "cpx-cf", "cpx-years", "cpx-rate", "cpx-rv", "pool-idle", "pool-a", "pool-b", "pool-in", "pool-out", "pool-demand", "pool-rate", "pool-wealth", "pool-equity", "crl-buy", "crl-term", "crl-vat", "crl-gm", "crl-netw", "crl-lev", "crl-late", "crl-cost", "bpl-rev", "bpl-grow", "bpl-gm", "bpl-opex", "bpl-dep", "bpl-tax", "bpl-dso", "bpl-dio", "bpl-dpo", "bpl-cash", "bpl-big", "bpl-rev2", "bpl-gp", "bpl-op", "bpl-margin", "bpl-wc", "bpl-nwc", "bpl-wcgap", "bpl-free", "bpl-body", "bpl-note", "rf-exp", "rf-reb", "rf-rate", "rf-lag", "rf-audit", "rf-cost", "rf-big", "rf-month", "rf-year", "rf-days", "rf-costv", "rf-gap", "rf-ten", "rf-opt", "rf-advice", "rf-body", "rf-note", "cal-oh", "cal-qa", "cal-qb", "cal-qc", "cal-ha", "cal-hb", "cal-hc", "cal-ma", "cal-mb", "cal-mc", "cal-ta", "cal-tb", "cal-tc", "cal-big", "cal-which", "cal-totals", "cal-r1", "cal-r2", "cal-r3", "cal-pick", "cal-price", "cal-body", "cal-note", "ic-fob", "ic-frt", "ic-ins", "ic-fx", "ic-duty", "ic-cons", "ic-vat", "ic-port", "ic-agent", "ic-qty", "ic-big", "ic-cif", "ic-dutyv", "ic-consv", "ic-vatv", "ic-fees", "ic-land", "ic-cash", "ic-ratio", "ic-body", "ic-note", "tp-cost", "tp-price", "tp-inner", "tp-ratea", "tp-rateb", "tp-lo", "tp-hi", "tp-big", "tp-a", "tp-b", "tp-profit", "tp-rate", "tp-low", "tp-high", "tp-save", "tp-per", "tp-body", "tp-note", "es-shares", "es-fair", "es-strike", "es-years", "es-leave", "es-tax", "es-big", "es-per", "es-qty", "es-flat", "es-acc", "es-diff", "es-dta", "es-deduct", "es-advice", "es-body", "es-note", "rd-labor", "rd-mat", "rd-dep", "rd-other", "rd-pct", "rd-tax", "rd-big", "rd-total", "rd-cap", "rd-effect", "rd-base", "rd-save", "rd-eff", "rd-lost", "rd-body", "rd-note", "rl-bud", "rl-passed", "rl-act", "rl-rest", "rl-gmb", "rl-gma", "rl-big", "rl-rate", "rl-gap", "rl-expect", "rl-pace", "rl-need", "rl-delta", "rl-gp", "rl-advice", "rl-body", "rl-note"
 ];
-  var KEY = "finance-calc-v28";
+  var KEY = "finance-calc-v29";
   var CAT_KEY = "finance-calc-cat";
 
   /* ---------------- 现金流月历 ---------------- */
