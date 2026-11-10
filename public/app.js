@@ -5286,6 +5286,220 @@
       "收到的美元若留在账户上不结汇，汇率变动会继续影响账面，这也是常见的「利润被汇率吃掉」的来源。";
   }
 
+  /* ===== 增值税税负率监控 ===== */
+  function calcTaxBurden() {
+    var sales = Math.max(0, num($("tbr-sales"), 0));
+    var outVat = Math.max(0, num($("tbr-out"), 0));
+    var inVat = Math.max(0, num($("tbr-in"), 0));
+    var begin = Math.max(0, num($("tbr-begin"), 0));
+    var prev = num($("tbr-prev"), 0);
+    var ind = num($("tbr-ind"), 0);
+    var surchRate = Math.max(0, num($("tbr-surch"), 0)) / 100;
+
+    var pay = outVat - inVat - begin;
+    var carry = pay < 0 ? -pay : 0;
+    if (pay < 0) pay = 0;
+    var burden = sales > 0 ? pay / sales * 100 : 0;
+    var surch = pay * surchRate;
+    var buy = outVat > 0 ? inVat / (outVat / sales) : 0;
+    var gross = sales > 0 ? (sales - buy) / sales : 0;
+    var bandLo = ind * 0.7, bandHi = ind * 1.3;
+    var ok = burden >= bandLo && burden <= bandHi;
+
+    var verdict = !isFinite(burden) || sales === 0 ? "先填销售额"
+      : pay === 0 ? "本月无应交（留抵或免税）"
+      : burden > bandHi ? "偏高：" + (inVat <= 0 ? "缺进项，确认是否漏抵" : "进项不足，看采购节奏")
+      : burden < bandLo ? "偏低：留意被约谈，准备好毛利与进项说明"
+      : "在参考区间内";
+
+    $("tbr-big").textContent = fmt(burden, 2);
+    $("tbr-pay").textContent = yuan(pay) + (carry > 0 ? "（期末留抵 " + money(carry) + "）" : "");
+    $("tbr-surcharge").textContent = yuan(surch) + "（" + pct(surchRate, 0) + "）";
+    $("tbr-mom").textContent = (burden - prev >= 0 ? "+" : "") + fmt(burden - prev, 2) + " 个百分点（上期 " + fmt(prev, 2) + "%）";
+    $("tbr-gap").textContent = (burden - ind >= 0 ? "+" : "") + fmt(burden - ind, 2) + " 个百分点（行业 " + fmt(ind, 2) + "%）";
+    $("tbr-buy").textContent = yuan(buy);
+    $("tbr-gr").textContent = pct(gross, 2) + "（按进项倒推）";
+    $("tbr-band").textContent = fmt(bandLo, 2) + "% ~ " + fmt(bandHi, 2) + "%";
+    $("tbr-verdict").textContent = verdict;
+
+    var rows = [
+      ["销项税额", yuan(outVat), "按开票销售额计"],
+      ["本月进项税额", yuan(inVat), "已认证抵扣部分"],
+      ["期初留抵", yuan(begin), begin > 0 ? "本期已抵减" : "无"],
+      ["应交增值税", yuan(pay), "销项 − 进项 − 留抵"],
+      ["城建税及附加", yuan(surch), pct(surchRate, 0) + " 合计率"],
+      ["增值税税负率", fmt(burden, 2) + "%", "应交增值税 ÷ 不含税销售额"]
+    ];
+    var html = "";
+    for (var i = 0; i < rows.length; i++) {
+      html += "<tr" + (i === 3 || i === 5 ? ' class="c-info"' : "") + "><td class=\"tal\">" + rows[i][0] + "</td><td>" + rows[i][1] + "</td><td class=\"tal\">" + rows[i][2] + "</td></tr>";
+    }
+    $("tbr-body").innerHTML = html;
+
+    $("tbr-note").textContent = "税负率是个比值，不是税。偏低通常三条路：进项多（备货、设备集中采购）、享受优惠（免税/即征即退）、或者收入没开票——"
+      + "前两条解释得清，第三条解释不清。偏高多半是「有销项没进项」，常见于客户要票、供应商不给票。"
+      + "留存好进销项台账和合同，被问到时能当场对上，比事后找发票有用。";
+  }
+
+  /* ===== 利润敏感性 ===== */
+  function calcSens() {
+    var rev = Math.max(0, num($("sens-rev"), 0));
+    var vr = Math.min(1, Math.max(0, num($("sens-vr"), 0) / 100));
+    var fix = Math.max(0, num($("sens-fix"), 0));
+    var shock = Math.abs(num($("sens-shock"), 5)) / 100;
+    var target = Math.abs(num($("sens-target"), 20)) / 100;
+
+    function npOf(r, v, f) { return r * (1 - v) - f; }
+    var np0 = npOf(rev, vr, fix);
+    var be = (1 - vr) > 0 ? fix / (1 - vr) : 0;
+    var mos = rev > 0 ? (rev - be) / rev : 0;
+    var cm = rev * (1 - vr);
+    var lev = np0 !== 0 ? cm / np0 : 0;
+
+    var ePrice = (npOf(rev * 1.01, vr, fix) - np0) / (np0 !== 0 ? np0 : 1) / 0.01;
+    var eVc = (npOf(rev, vr * 1.01, fix) - np0) / (np0 !== 0 ? np0 : 1) / 0.01;
+    var eFix = (npOf(rev, vr, fix * 1.01) - np0) / (np0 !== 0 ? np0 : 1) / 0.01;
+
+    var targetNP = np0 * (1 + target);
+    var needRev = (1 - vr) > 0 ? (targetNP + fix) / (1 - vr) : 0;
+    var needVr = rev > 0 ? 1 - (targetNP + fix) / rev : 0;
+
+    $("sens-big").textContent = money(np0);
+    $("sens-be").textContent = yuan(be) + "（占当前 " + pct(rev > 0 ? be / rev : 0, 1) + "）";
+    $("sens-mos").textContent = pct(mos, 2) + (mos < 0.2 ? "（薄，收入再掉两成见红）" : "（有缓冲）");
+    $("sens-lev").textContent = fmt(lev, 2) + " 倍（收入跌 1%，净利跌 " + fmt(lev, 1) + "%）";
+    $("sens-e-price").textContent = fmt(ePrice, 2) + " 倍";
+    $("sens-e-vc").textContent = fmt(eVc, 2) + " 倍";
+    $("sens-e-fix").textContent = fmt(eFix, 2) + " 倍";
+    $("sens-need-rev").textContent = rev > 0 ? "+" + pct(needRev / rev - 1, 2) + "（到 " + money(needRev) + " 元）" : "—";
+    $("sens-need-vr").textContent = needVr >= 0 ? pct(needVr, 2) + "（现为 " + pct(vr, 2) + "）" : "只降本做不到，收入也得涨";
+
+    var cases = [
+      ["售价 −" + pct(shock, 0), rev * (1 - shock), vr, fix],
+      ["售价 +" + pct(shock, 0), rev * (1 + shock), vr, fix],
+      ["销量 +" + pct(shock, 0), rev * (1 + shock), vr, fix],
+      ["销量 −" + pct(shock, 0), rev * (1 - shock), vr, fix],
+      ["变动成本率 +" + pct(shock, 0), rev, Math.min(1, vr * (1 + shock)), fix],
+      ["固定成本 +" + pct(shock, 0), rev, vr, fix * (1 + shock)]
+    ];
+    var html = "";
+    for (var i = 0; i < cases.length; i++) {
+      var npv = npOf(cases[i][1], cases[i][2], cases[i][3]);
+      var d = np0 !== 0 ? (npv - np0) / Math.abs(np0) : 0;
+      var cls = d < 0 ? ' class="c-warn"' : "";
+      html += "<tr" + cls + "><td class=\"tal\">" + cases[i][0] + "</td><td>" + (i < 2 ? "价格" : i < 4 ? "数量" : "成本") + "</td><td>"
+        + money(npv) + "</td><td>" + (d >= 0 ? "+" : "") + pct(d, 2) + "</td></tr>";
+    }
+    $("sens-body").innerHTML = html;
+
+    $("sens-note").textContent = "同样的 5%，落在不同变量上差别能到两三倍：售价和销量各 1% 对净利的影响一样（都是边际贡献率的倒数），"
+      + "但降价还能换量、滞销只能靠降价，所以先动价格要看需求弹性。变动成本率最狠——它每 1 个点吃的是收入的 1%，不是成本的 1%。"
+      + "固定成本看起来温和，但它决定了保本点，收入一掉就立刻放大亏损。";
+  }
+
+  /* ===== 合并抵销 ===== */
+  function calcConsol() {
+    var pmRev = Math.max(0, num($("cons-pm-rev"), 0));
+    var subRev = Math.max(0, num($("cons-sub-rev"), 0));
+    var inter = Math.max(0, num($("cons-inter"), 0));
+    var pmNp = num($("cons-pm-np"), 0);
+    var subNp = num($("cons-sub-np"), 0);
+    var unreal = Math.max(0, num($("cons-unreal"), 0));
+    var miR = Math.min(1, Math.max(0, num($("cons-mi"), 0) / 100));
+    var inv = Math.max(0, num($("cons-inv"), 0));
+    var subNet = Math.max(0, num($("cons-sub-net"), 0));
+    var rec = Math.max(0, num($("cons-rec"), 0));
+
+    var consRev = pmRev + subRev - inter;
+    var consNp = pmNp + subNp - unreal;
+    var miNp = subNp * miR;
+    var parentNp = consNp - miNp;
+    var miEq = subNet * miR;
+    var gw = inv - subNet * (1 - miR);
+    var margin = consRev > 0 ? consNp / consRev : 0;
+
+    $("cons-big").textContent = money(consRev);
+    $("cons-cut").textContent = "−" + money(inter) + "（占母公司收入 " + pct(pmRev > 0 ? inter / pmRev : 0, 1) + "）";
+    $("cons-np").textContent = yuan(consNp);
+    $("cons-mi-np").textContent = yuan(miNp) + "（" + pct(miR, 0) + "）";
+    $("cons-parent-np").textContent = yuan(parentNp);
+    $("cons-mi-eq").textContent = yuan(miEq);
+    $("cons-gw").textContent = (gw >= 0 ? "商誉 " : "负商誉（计入当期损益）") + money(Math.abs(gw)) + " 元"
+      + "（投资 " + money(inv) + " vs 享有净资产 " + money(subNet * (1 - miR)) + "）";
+    $("cons-rec-out").textContent = "−" + money(rec);
+    $("cons-margin").textContent = pct(margin, 2);
+
+    var rows = [
+      ["营业收入", money(pmRev), money(subRev), "−" + money(inter), money(consRev)],
+      ["净利润", money(pmNp), money(subNp), "−" + money(unreal), money(consNp)],
+      ["其中：归属母公司", money(pmNp), "—", "—", money(parentNp)],
+      ["少数股东损益", "—", money(miNp), "—", money(miNp)],
+      ["内部应收（资产）", money(rec), money(rec), "−" + money(rec), "0.00"],
+      ["长期股权投资", money(inv), "—", "−" + money(inv), "0.00"],
+      ["子公司净资产", "—", money(subNet), "—", money(subNet)]
+    ];
+    var html = "";
+    for (var i = 0; i < rows.length; i++) {
+      html += "<tr" + (i === 0 ? ' class="c-info"' : "") + "><td class=\"tal\">" + rows[i][0] + "</td><td>" + rows[i][1] + "</td><td>"
+        + rows[i][2] + "</td><td>" + rows[i][3] + "</td><td>" + rows[i][4] + "</td></tr>";
+    }
+    $("cons-body").innerHTML = html;
+
+    $("cons-note").textContent = "合并报表不是把两张表加起来，是先把「自己跟自己做」的交易全部抹掉：内部销售、内部应收应付、内部投资与权益。"
+      + "没卖出去的存货里那部分内部利润也要抵掉，否则等于把左口袋的钱算成利润。"
+      + "长投抵销后如果不是零，差额就是商誉（买贵了）或负商誉（买便宜了）；差额算不平，八成是持股比例或子公司净资产口径对不上。";
+  }
+
+  /* ===== 订货批量与安全库存 ===== */
+  function calcEoq() {
+    var D = Math.max(1, num($("eoq-d"), 1));
+    var K = Math.max(0, num($("eoq-k"), 0));
+    var H = Math.max(0.01, num($("eoq-h"), 1));
+    var day = Math.max(0, num($("eoq-day"), 0));
+    var sd = Math.max(0, num($("eoq-sd"), 0));
+    var lt = Math.max(0, num($("eoq-lt"), 0));
+    var svc = num($("eoq-svc"), 95);
+    var moq = Math.max(0, num($("eoq-moq"), 0));
+
+    var eoq = Math.sqrt(2 * D * K / H);
+    var times = eoq > 0 ? D / eoq : 0;
+    var gap = times > 0 ? 365 / times : 0;
+    var total = Math.sqrt(2 * D * K * H);
+    var z = svc <= 90 ? 1.28 : svc <= 95 ? 1.65 : svc <= 99 ? 2.33 : 2.58;
+    var ss = z * sd * Math.sqrt(lt);
+    var rop = day * lt + ss;
+    var avg = eoq / 2 + ss;
+    var moqCost = moq > 0 ? D / moq * K + moq / 2 * H : 0;
+
+    $("eoq-big").textContent = fmt(eoq, 0);
+    $("eoq-times").textContent = fmt(times, 1) + " 次/年";
+    $("eoq-gap").textContent = "约 " + fmt(gap, 1) + " 天";
+    $("eoq-total").textContent = yuan(total);
+    $("eoq-split").textContent = money(times * K) + " / " + money(eoq / 2 * H) + " 元（各占一半是最优点）";
+    $("eoq-ss").textContent = fmt(ss, 1) + " 件（z=" + fmt(z, 2) + "，" + fmt(svc, 0) + "% 服务水平）";
+    $("eoq-rop").textContent = fmt(rop, 1) + " 件（提前期用掉 " + fmt(day * lt, 0) + " 件）";
+    $("eoq-avg").textContent = fmt(avg, 1) + " 件，年持有成本 " + money(avg * H) + " 元";
+    $("eoq-moqgap").textContent = moq > 0 ? (moqCost - total >= 0 ? "多花 " : "少花 ") + money(Math.abs(moqCost - total)) + " 元（起订 " + fmt(moq, 0) + " 件）" : "—";
+
+    var lots = [0.5, 0.75, 1, 1.5, 2, moq > 0 ? moq / eoq : 0];
+    var seen = {}, html = "";
+    for (var i = 0; i < lots.length; i++) {
+      if (!(lots[i] > 0)) continue;
+      var q = Math.round(eoq * lots[i]);
+      if (q <= 0 || seen[q]) continue;
+      seen[q] = 1;
+      var oc = D / q * K, hc = q / 2 * H, sum = oc + hc;
+      var cls = q === Math.round(eoq) ? ' class="c-info"' : (sum > total * 1.02 ? ' class="c-warn"' : "");
+      html += "<tr" + cls + "><td>" + fmt(q, 0) + " 件" + (q === Math.round(eoq) ? "（最优）" : "") + "</td><td>"
+        + fmt(D / q, 1) + "</td><td>" + money(oc) + "</td><td>" + money(hc) + "</td><td>" + money(sum) + "</td></tr>";
+    }
+    $("eoq-body").innerHTML = html;
+
+    $("eoq-note").textContent = "经济批量的道理很朴素：订得多，持有成本涨；订得少，订货成本涨，两者相等时最省。"
+      + "所以与其纠结「哪个批量最便宜」，不如先把每次订货成本压下来（合并订单、电子对账），最优批量会自动变大、次数变少。"
+      + "安全库存只覆盖提前期内的需求波动，供应商交期不稳、涨价囤货、旺季备货都要另外算；服务水平从 95% 提到 99%，安全库存要涨四成。";
+  }
+
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
@@ -5312,7 +5526,8 @@
     mpbe: calcMpbe, payroll: calcPayroll, assetdiff: calcAssetDiff, monthclose: calcMonthClose,
     factoring: calcFactoring, deadstock: calcDeadStock, aptalk: calcApTalk, cash13: calcCash13,
     bill: calcBill, loanreal: calcLoanReal, collect: calcCollect, mgmtpack: calcMgmtPack,
-    settleway: calcSettleWay, creditline: calcCreditLine, impair: calcImpair, fxgain: calcFxGain
+    settleway: calcSettleWay, creditline: calcCreditLine, impair: calcImpair, fxgain: calcFxGain,
+    taxburden: calcTaxBurden, sens: calcSens, consol: calcConsol, eoq: calcEoq
   };
 
   function setCat(cat) {
@@ -5466,9 +5681,10 @@
     "sw-amt", "sw-mon", "sw-rate", "sw-disc", "sw-bank", "sw-com", "sw-bd", "sw-cd",
     "crd-sales", "crd-net", "crd-coll", "crd-collrate", "crd-creditrate", "crd-guar", "crd-used", "crd-need",
     "im-cost", "im-price", "im-finish", "im-sell", "im-had", "im-up", "im-tax",
-    "fxg-usd", "fxg-signed", "fxg-book", "fxg-spot", "fxg-spread", "fxg-fwd"
+    "fxg-usd", "fxg-signed", "fxg-book", "fxg-spot", "fxg-spread", "fxg-fwd",
+"tbr-sales", "tbr-out", "tbr-in", "tbr-begin", "tbr-prev", "tbr-ind", "tbr-surch", "sens-rev", "sens-vr", "sens-fix", "sens-shock", "sens-target", "cons-pm-rev", "cons-sub-rev", "cons-inter", "cons-pm-np", "cons-sub-np", "cons-unreal", "cons-mi", "cons-inv", "cons-sub-net", "cons-rec", "eoq-d", "eoq-k", "eoq-h", "eoq-day", "eoq-sd", "eoq-lt", "eoq-svc", "eoq-moq"
 ];
-  var KEY = "finance-calc-v25";
+  var KEY = "finance-calc-v26";
   var CAT_KEY = "finance-calc-cat";
 
   /* ---------------- 现金流月历 ---------------- */
