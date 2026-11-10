@@ -7399,6 +7399,102 @@
       + " 已结算小于已确认收入的部分是合同资产，不是应收，别混在应收账款里做坏账计提。";
   }
 
+  function calcInvFund() {
+    var cogs = num($("ifw-cogs"), 0);
+    var d1 = num($("ifw-d1"), 90), d2 = num($("ifw-d2"), 60);
+    var cr = num($("ifw-cost"), 0) / 100, hr = num($("ifw-hold"), 0) / 100;
+    var now = cogs / 360 * d1, tgt = cogs / 360 * d2, rel = now - tgt;
+    var s1 = rel * cr, s2 = rel * hr, sum = s1 + s2;
+    $("ifw-big").textContent = money(rel);
+    $("ifw-now").textContent = money(now) + " 元 / " + (d1 > 0 ? (360 / d1).toFixed(2) : "—") + " 次";
+    $("ifw-tgt").textContent = money(tgt) + " 元 / " + (d2 > 0 ? (360 / d2).toFixed(2) : "—") + " 次";
+    $("ifw-s1").textContent = money(s1) + " 元 / 年";
+    $("ifw-s2").textContent = money(s2) + " 元 / 年";
+    $("ifw-sum").textContent = money(sum) + " 元 / 年";
+    $("ifw-rel").textContent = cogs > 0 ? pct(sum / cogs, 2) : "—";
+    $("ifw-note").textContent = (rel >= 0
+      ? "压缩 " + fmt(d1 - d2, 0) + " 天，等于把 " + money(rel) + " 元现金从仓库里拿回来，而且不用付利息。"
+      : "目标天数比现在还长，会多占用 " + money(-rel) + " 元，这不是优化。")
+      + " 周转天数按 360 天口径；存货金额是平均值（期初期末除以二），用期末数会高估波动。"
+      + " 真要降库存，先减压最贵的那几类：单价高、专用性强、有保质期的；通用件反而适合多备。"
+      + " 注意压库存可能牺牲交付率，缺货损失没算在这笔账里。";
+  }
+
+  function calcMachRate() {
+    var fixed = num($("mhr-fixed"), 0), cap = num($("mhr-cap"), 0);
+    var act = num($("mhr-act"), 0), qty = num($("mhr-qty"), 0);
+    var use = cap > 0 ? act / cap : 0;
+    var norm = cap > 0 ? fixed / cap : 0;
+    var real = act > 0 ? fixed / act : 0;
+    var idle = fixed * Math.max(0, 1 - use);
+    var gap = real - norm;
+    var unitReal = qty > 0 ? fixed / qty : 0;
+    var unitNorm = qty > 0 ? fixed * Math.min(1, use) / qty : 0;
+    $("mhr-big").textContent = fmt(real, 2);
+    $("mhr-use").textContent = pct(use, 1);
+    $("mhr-norm").textContent = fmt(norm, 2) + " 元/小时";
+    $("mhr-idle").textContent = money(idle) + " 元 / 月（年 " + money(idle * 12) + "）";
+    $("mhr-gap").textContent = fmt(gap, 2) + " 元/小时（" + pct(norm > 0 ? gap / norm : 0, 1) + "）";
+    $("mhr-unit").textContent = fmt(unitReal - unitNorm, 2) + " 元/件（" + fmt(unitNorm, 2) + " → " + fmt(unitReal, 2) + "）";
+    $("mhr-be").textContent = pct(1 - use, 1) + " 的固定费用没人吸收";
+    $("mhr-note").textContent = "按实际工时摊固定费用，产量越少每件越贵——这就是「越闲越亏」的机械原因。"
+      + " 正常产能费率（" + fmt(norm, 2) + " 元/小时）才该用来报价和做自制/外购比较，"
+      + " 用实际费率报价会越忙越亏（忙的时候费率看着低，报价跟着压低）。"
+      + " 闲置成本 " + money(idle) + "/月 到底该不该进产品成本，看管理口径：对外报告按正常产能分摊，"
+      + " 闲置部分计入当期损益；内部定价要用正常产能费率。可用工时要扣掉计划检修和法定休息。";
+  }
+
+  function calcGovGrant() {
+    var amt = num($("ggr-amt"), 0), years = Math.max(1, Math.round(num($("ggr-years"), 1)));
+    var tr = num($("ggr-tax"), 25) / 100, dr = num($("ggr-rate"), 5) / 100;
+    var isAsset = $("ggr-type").value !== "income";
+    var n = isAsset ? years : 1;
+    var annual = amt / n, monthly = annual / 12;
+    var af = dr > 0 ? (1 - Math.pow(1 + dr, -n)) / dr : n;
+    var pvDed = annual * tr * af;
+    var pvTaxable = amt * tr - pvDed;
+    var pvExempt = pvDed;
+    var better = pvTaxable <= pvExempt;
+    $("ggr-big").textContent = isAsset ? money(monthly) : money(amt);
+    $("ggr-year").textContent = money(annual) + " 元（" + n + " 年摊完）";
+    $("ggr-taxnow").textContent = money(amt * tr) + " 元";
+    $("ggr-pvded").textContent = money(pvDed) + " 元";
+    $("ggr-pv1").textContent = money(pvTaxable) + " 元";
+    $("ggr-pv2").textContent = money(pvExempt) + " 元";
+    $("ggr-pick").textContent = better
+      ? "作应税收入更划算，现值省 " + money(pvExempt - pvTaxable) + " 元"
+      : "作不征税收入更划算，现值省 " + money(pvTaxable - pvExempt) + " 元";
+    $("ggr-note").textContent = "「不征税收入」不是免税：拿了它，对应的支出（折旧、费用）就不能税前扣除，"
+      + "一免一扣互相抵消，只剩资金时间价值。所以对亏损或低税率企业，放弃不征税、按应税处理往往更划算"
+      + "（当年交税但折旧能抵、亏损还能弥补）。要享受不征税，得满足专项用途、专款专用、单独核算、"
+      + "有资金拨付文件这几个条件，而且 5 年（60 个月）内没花完要退回。"
+      + " 会计上：与资产相关的先记递延收益、按资产使用寿命分期进其他收益；与收益相关的补已发生费用直接进当期，"
+      + "补以后期间的费用先记递延收益。与日常活动无关的补助才进营业外收入。";
+  }
+
+  function calcFxTranslate() {
+    var asset = num($("fxt-asset"), 0), liab = num($("fxt-liab"), 0);
+    var cap = num($("fxt-cap"), 0), ret0 = num($("fxt-ret0"), 0), np = num($("fxt-np"), 0);
+    var close = num($("fxt-close"), 0), avg = num($("fxt-avg"), 0);
+    var his = num($("fxt-his"), 0), open = num($("fxt-open"), 0);
+    var A = asset * close, L = liab * close, C = cap * his, N = np * avg, R0 = ret0 * open;
+    var R1 = R0 + N;
+    var equity = C + R1;
+    var diff = (A - L) - equity;
+    $("fxt-big").textContent = money(diff);
+    $("fxt-a").textContent = money(A) + " 万元（@" + close + "）";
+    $("fxt-l").textContent = money(L) + " 万元（@" + close + "）";
+    $("fxt-c").textContent = money(C) + " 万元（@" + his + "）";
+    $("fxt-r").textContent = money(R1) + " 万元（期初 " + money(R0) + " ＋ 净利 " + money(N) + "）";
+    $("fxt-n").textContent = money(N) + " 万元（@" + avg + "）";
+    $("fxt-rel").textContent = equity !== 0 ? pct(diff / Math.abs(equity), 2) : "—";
+    $("fxt-note").textContent = (diff >= 0 ? "差额为正，计入其他综合收益（权益增加）" : "差额为负，计入其他综合收益（权益减少）")
+      + "，不进当期利润。汇率规则：资产和负债用期末汇率，实收资本用出资当天历史汇率（以后不再变），"
+      + "利润表项目用平均汇率或交易日汇率，挤不平的差额就是「外币报表折算差额」。"
+      + " 这套是境外经营的折算；如果是境内企业自己持有外币货币性项目，汇兑差额走当期损益（财务费用），不是其他综合收益。"
+      + " 处置这家境外子公司时，累计的折算差额要全部转入当期损益。";
+  }
+
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
@@ -7435,6 +7531,8 @@
     numwords: calcNumWords, duedate: calcDueDate, workday: calcWorkDay, cagr: calcCagr, apportion: calcApportion, grossup: calcGrossUp,
     trprice: calcTrPrice, esop: calcEsop, rdexp: calcRdExp, rollfc: calcRollFC,
     commission: calcCommission, capex: calcCapex, pooling: calcPooling, creditlimit: calcCreditLimit,
+    contractperf: calcContractPerf, projrev: calcProjRev, creditpolicy: calcCreditPolicy, rateadj: calcRateAdj,
+    invfund: calcInvFund, machrate: calcMachRate, govgrant: calcGovGrant, fxtranslate: calcFxTranslate,
     datemath: calcDatemath, pct3: calcPct3, xlhelp: calcXlHelp, csvrecon: calcCsvRecon,
     contractperf: calcContractPerf, projrev: calcProjRev, creditpolicy: calcCreditPolicy, rateadj: calcRateAdj
   };
@@ -7669,9 +7767,13 @@
     "cfe-price", "cfe-cost", "cfe-actual", "cfe-billed", "cfe-cash",
     "sbr-wage", "sbr-old", "sbr-new", "sbr-pr", "sbr-cr", "sbr-months",
     "cpl-sales", "cpl-vc", "cpl-d1", "cpl-b1", "cpl-d2", "cpl-b2", "cpl-disc", "cpl-dd", "cpl-take", "cpl-cost",
-    "prj-rev", "prj-cost", "prj-actual", "prj-billed", "prj-prior", "prj-pcost"
+    "prj-rev", "prj-cost", "prj-actual", "prj-billed", "prj-prior", "prj-pcost",
+    "ifw-cogs", "ifw-d1", "ifw-d2", "ifw-cost", "ifw-hold",
+    "mhr-fixed", "mhr-cap", "mhr-act", "mhr-qty",
+    "ggr-amt", "ggr-type", "ggr-years", "ggr-tax", "ggr-rate",
+    "fxt-asset", "fxt-liab", "fxt-cap", "fxt-ret0", "fxt-np", "fxt-close", "fxt-avg", "fxt-his", "fxt-open",
 ];
-  var KEY = "finance-calc-v36";
+  var KEY = "finance-calc-v37";
   var CAT_KEY = "finance-calc-cat";
 
   /* ---------------- 现金流月历 ---------------- */
