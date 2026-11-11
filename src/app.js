@@ -3039,13 +3039,18 @@
 
     var body = $("fp-body");
     body.innerHTML = "";
-    var list = [1, 5, 6, 10, 15, 20, 25, 28];
-    var y = today.getFullYear(), m = today.getMonth();
-    for (var k = 0; k < list.length; k++) {
-      var d = new Date(y, m, list[k]);
+    // 消费日跟着「账单日」走：今天 → 本期出账日 → 出账次日（最优）→ 出账后若干天，改账单日会同步刷新
+    var bd0 = billFor(today);
+    var dates = [today, bd0, new Date(bd0.getFullYear(), bd0.getMonth(), bd0.getDate() + 1)];
+    [3, 7, 14, 20, 25].forEach(function (off) {
+      dates.push(new Date(bd0.getFullYear(), bd0.getMonth(), bd0.getDate() + off));
+    });
+    for (var k = 0; k < dates.length; k++) {
+      var d = dates[k];
       var inf = info(d);
+      var label = d.getTime() === today.getTime() ? md(d) + "（今天）" : md(d);
       var tr = document.createElement("tr");
-      tr.innerHTML = "<td>" + md(d) + "</td><td>" + md(inf.bd) + "</td><td>" + md(inf.pay)
+      tr.innerHTML = "<td>" + label + "</td><td>" + md(inf.bd) + "</td><td>" + md(inf.pay)
         + "</td><td>" + inf.days + "</td>";
       body.appendChild(tr);
     }
@@ -3053,7 +3058,7 @@
     $("fp-note").textContent = "免息期的起点不是刷卡那天，而是「这笔钱被算进哪期账单」——"
       + "账单日 " + bill + " 号之后刷的，会推到下个月 " + bill + " 号出账，于是白拿更多天。"
       + " 你这张卡最长免息 " + best.days + " 天，就是刷在 " + md(bestDate) + "（账单日次日）的时候；"
-      + " 今天刷只有 " + now.days + " 天，比最优少 " + Math.max(0, best.days - now.days) + " 天。大额消费挪到账单日次日再刷，等于白拿一个多月的无息贷款。"
+      + " 今天刷只有 " + now.days + " 天，比最优少 " + Math.max(0, best.days - now.days) + " 天。大额消费挪到账单日次日再刷，等于白拿一个多月的无息贷款。下方表格的消费日会跟着账单日自动重算：第一行是今天，其后是出账日、出账次日（最优）和出账后几个关键日子；改账单日/还款日，全表同步刷新。"
       + " 但要记住三件事：① 免息期只对「全额还款」有效，哪怕差 1 元没还清，全部消费都从记账日起按日息 0.05% 计息（年化 18.25%），免息一天都没有；"
       + " ② 取现、转账、分期不享受免息，取现当天就开始算利息还有手续费；"
       + " ③ 所谓「最低还款」只是不逾期，利息照样全额算，所以别把免息期当收入，它只是让现金流顺一点。";
