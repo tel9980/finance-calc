@@ -10343,6 +10343,126 @@
     $("fai-k6").textContent = money(-add * (1 - tax));
     $("fai-note").textContent = add > 0 ? ("可收回金额 " + money(rec) + " 低于账面 " + money(bv) + "，补提减值 " + money(add) + "。固定资产减值一经计提不得转回；会计减值当期纳税调增 " + money(add) + "，税后净利减少 " + money(add * (1 - tax)) + "。") : "未发生减值（可收回金额 ≥ 账面价值），无需计提。";
   }
+  function calcCostbehav() {
+    var qty = num($("cbh-qty"), 10000);
+    var cm = num($("cbh-cm"), 600000);
+    var names = ["房租物业", "水电能源", "销售佣金", "物流仓储"];
+    var rows = [], f = 0, v = 0;
+    for (var i = 1; i <= 4; i++) {
+      var fi = num($("cbh-f" + i), 0), vi = num($("cbh-v" + i), 0);
+      var vt = vi * qty;
+      rows.push({ name: names[i - 1], f: fi, v: vi, vt: vt, tot: fi + vt });
+      f += fi; v += vi;
+    }
+    var vt = v * qty, tot = f + vt, per = qty > 0 ? tot / qty : 0;
+    var fshare = tot > 0 ? f / tot * 100 : 0;
+    var op = cm - f, dol = op > 0 ? cm / op : 0;
+    $("cbh-fshare").textContent = fmt(fshare);
+    $("cbh-f").textContent = money(f);
+    $("cbh-v").textContent = fmt(v) + " 元/件";
+    $("cbh-vt").textContent = money(vt);
+    $("cbh-tot").textContent = money(tot);
+    $("cbh-per").textContent = money(per) + " /件";
+    $("cbh-dol").textContent = fmt(dol) + " 倍";
+    $("cbh-op").textContent = money(op);
+    var tb = $("cbh-body");
+    tb.innerHTML = "";
+    rows.forEach(function (r) {
+      var tr = document.createElement("tr");
+      tr.innerHTML = "<td>" + r.name + "</td><td>" + money(r.f) + "</td><td>" + fmt(r.v) + "</td><td>" + money(r.vt) + "</td><td>" + money(r.tot) + "</td>";
+      tb.appendChild(tr);
+    });
+    $("cbh-note").textContent = "固定占比越高，业务量下滑时利润跌得越快（DOL=" + fmt(dol) + " 倍）。固定部分（房租、基本水电、保底物流）短期砍不动；变动部分（佣金、计件物流）会随业务量自动增减。想降本：先压单位变动费率，再谈固定费用的包干或按量阶梯计价。"
+      + " 营业利润 = 边际贡献 " + money(cm) + " − 固定 " + money(f) + " = " + money(op) + "。";
+  }
+  function calcProfitcenter() {
+    var c = [];
+    for (var i = 1; i <= 2; i++) {
+      var rev = num($("prc-a" + i), 0), vc = num($("prc-b" + i), 0), cf = num($("prc-c" + i), 0), uf = num($("prc-d" + i), 0);
+      var cm = rev - vc, ctrl = cm - cf, cen = ctrl - uf;
+      c.push({ rev: rev, cm: cm, ctrl: ctrl, cen: cen, cr: rev > 0 ? ctrl / rev * 100 : 0, cmr: rev > 0 ? cm / rev * 100 : 0 });
+    }
+    var rev = c[0].rev + c[1].rev, cm = c[0].cm + c[1].cm, ctrl = c[0].ctrl + c[1].ctrl, cen = c[0].cen + c[1].cen;
+    var best = c[0].cr >= c[1].cr ? "中心 A（可控利润率 " + fmt(c[0].cr) + "%）" : "中心 B（可控利润率 " + fmt(c[1].cr) + "%）";
+    var focus = c[0].cr <= c[1].cr ? "中心 A（可控利润率 " + fmt(c[0].cr) + "%）" : "中心 B（可控利润率 " + fmt(c[1].cr) + "%）";
+    $("prc-ctrl").textContent = money(ctrl);
+    $("prc-rev").textContent = money(rev);
+    $("prc-cm").textContent = money(cm);
+    $("prc-cen").textContent = money(cen);
+    $("prc-best").textContent = best;
+    $("prc-focus").textContent = focus;
+    var tb = $("prc-body");
+    tb.innerHTML = "";
+    c.forEach(function (r, idx) {
+      var tr = document.createElement("tr");
+      tr.innerHTML = "<td>" + (idx === 0 ? "A" : "B") + "</td><td>" + money(r.rev) + "</td><td>" + money(r.cm) + "</td><td>" + money(r.ctrl) + "</td><td>" + money(r.cen) + "</td><td>" + fmt(r.cr) + "%</td>";
+      tb.appendChild(tr);
+    });
+    $("prc-note").textContent = "可控利润 = 收入 − 变动成本 − 该中心自己说了算的固定费用；总部分摊下来的（房租、总部费用）只列示、不考核，否则会冤枉把中心做好的负责人。"
+      + " 两家边际贡献率都是 " + fmt(c[0].cmr) + "%（A）/" + fmt(c[1].cmr) + "%（B），但 B 可控固定重，可控利润率被压到 " + fmt(c[1].cr) + "%。先管可控固定费用最高的那家。";
+  }
+  function calcInvorder() {
+    var demand = num($("ivo-demand"), 35000), safety = num($("ivo-safety"), 5000), price = num($("ivo-price"), 80);
+    var names = ["90 天以内", "91–180 天", "181 天以上"];
+    var rows = [], usable = 0, bad = 0, total = 0;
+    for (var i = 1; i <= 3; i++) {
+      var s = num($("ivo-s" + i), 0), p = num($("ivo-p" + i), 0) / 100;
+      var u = s * p;
+      rows.push({ name: names[i - 1], s: s, p: p * 100, u: u, share: 0 });
+      usable += u; bad += s * (1 - p); total += s;
+    }
+    rows.forEach(function (r) { r.share = total > 0 ? r.s / total * 100 : 0; });
+    var need = demand + safety;
+    var order = Math.max(0, need - usable);
+    $("ivo-order").textContent = fmt(order);
+    $("ivo-usable").textContent = fmt(usable) + " 件";
+    $("ivo-amt").textContent = money(order * price);
+    $("ivo-bad").textContent = fmt(bad) + " 件";
+    $("ivo-loss").textContent = money(bad * price);
+    $("ivo-s3share").textContent = fmt(rows[2].share) + "%";
+    $("ivo-s23share").textContent = fmt((rows[1].s + rows[2].s) / total * 100) + "%";
+    $("ivo-advice").textContent = order > 0 ? ("先耗 181 天以上库存，再订 " + fmt(order) + " 件") : "库存够用，不用订货";
+    var tb = $("ivo-body");
+    tb.innerHTML = "";
+    rows.forEach(function (r) {
+      var tr = document.createElement("tr");
+      tr.innerHTML = "<td>" + r.name + "</td><td>" + fmt(r.s) + "</td><td>" + fmt(r.p) + "%</td><td>" + fmt(r.u) + "</td><td>" + fmt(r.share) + "%</td>";
+      tb.appendChild(tr);
+    });
+    $("ivo-note").textContent = "现有库存 " + fmt(total) + " 件里能出良品 " + fmt(usable) + " 件；需求 + 安全库存 = " + fmt(need) + " 件，所以只需再订 " + fmt(order) + " 件（金额 " + money(order * price) + "）。"
+      + " 181 天以上库存良品率最低（" + fmt(rows[2].p) + "%），" + fmt(rows[2].s) + " 件里有 " + fmt(rows[2].s * (1 - rows[2].p / 100)) + " 件会报废。老库存优先发出去，能把潜在报废损失从账面拉回现实。"
+      + " 注意：良品率是估计值，实际以质检为准。";
+  }
+  function calcCreditterm() {
+    var sales = num($("ct-sales"), 10000000), vc = num($("ct-vc"), 60) / 100, rate = num($("ct-rate"), 6) / 100;
+    var bad30 = num($("ct-bad30"), 1) / 100, bad60 = num($("ct-bad60"), 2.5) / 100;
+    var cm = sales * (1 - vc);
+    function row(d, bad) {
+      var occ = sales * vc * d / 365, cost = occ * rate, bl = sales * bad, ni = cm - cost - bl;
+      return { d: d, occ: occ, cost: cost, bad: bl, ni: ni };
+    }
+    var r0 = row(0, 0), r30 = row(30, bad30), r60 = row(60, bad60);
+    var best = r0.ni >= r30.ni && r0.ni >= r60.ni ? r0 : (r30.ni >= r60.ni ? r30 : r60);
+    $("ct-best").textContent = money(best.ni);
+    $("ct-ni0").textContent = money(r0.ni);
+    $("ct-ni30").textContent = money(r30.ni);
+    $("ct-ni60").textContent = money(r60.ni);
+    $("ct-occ30").textContent = money(r30.occ);
+    $("ct-occ60").textContent = money(r60.occ);
+    $("ct-diff").textContent = money(r0.ni - r30.ni);
+    $("ct-pick").textContent = (best === r0 ? "现款（0 天）" : (best === r30 ? "30 天账期" : "60 天账期"));
+    var tb = $("ct-body");
+    tb.innerHTML = "";
+    [r0, r30, r60].forEach(function (r) {
+      var tr = document.createElement("tr");
+      tr.innerHTML = "<td>" + (r.d === 0 ? "现款" : r.d + " 天账期") + "</td><td>" + money(r.occ) + "</td><td>" + money(r.cost) + "</td><td>" + money(r.bad) + "</td><td>" + money(r.ni) + "</td>";
+      tb.appendChild(tr);
+    });
+    $("ct-note").textContent = "账期每拉长 30 天：占用资金按「销售额 × 变动成本率 × 天数 / 365」算，资金成本 = 占用 × 资金成本率；坏账 = 销售额 × 坏账率。"
+      + " 本例 30 天比现款少赚 " + money(r0.ni - r30.ni) + "（资金成本 " + money(r30.cost) + " + 坏账 " + money(r30.bad) + "），60 天再少赚 " + money(r30.ni - r60.ni) + "。"
+      + " 结论只在「账期长短不影响销量」的假设下成立；靠放账期换订单时，要把多卖的边际贡献一起算进去。";
+  }
+
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
@@ -10397,7 +10517,8 @@
     rollbudget: calcRollBudget, csladv: calcCslAdv, taxwarn: calcTaxWarn, loanledger: calcLoanLedger,
     expcheck: calcExpCheck, dtax: calcDTax, invimpair: calcInvImpair, budgetalert: calcBudgetAlert,
     cashcycle: calcCashCycle, saleexp: calcSaleExp, deptcost: calcDeptCost, invvar: calcInvVar,
-    aroverdue: calcAroverdue, payterms: calcPayterms, fxar: calcFxar, faimpair: calcFaimpair
+    aroverdue: calcAroverdue, payterms: calcPayterms, fxar: calcFxar, faimpair: calcFaimpair,
+    costbehav: calcCostbehav, profitcenter: calcProfitcenter, invorder: calcInvorder, creditterm: calcCreditterm
   };
 
   var curCat = "hot", curSub = "";
@@ -10860,7 +10981,11 @@
     "arv-a1", "arv-c1", "arv-d1", "arv-a2", "arv-c2", "arv-d2", "arv-a3", "arv-c3", "arv-d3", "arv-a4", "arv-c4", "arv-d4", "arv-rate",
     "ppt-amount", "ppt-terms", "ppt-discount", "ppt-discterms", "ppt-extend", "ppt-rate",
     "fxr-a1", "fxr-r1", "fxr-e1", "fxr-a2", "fxr-r2", "fxr-e2", "fxr-a3", "fxr-r3", "fxr-e3", "fxr-a4", "fxr-r4", "fxr-e4",
-    "fai-cost", "fai-dep", "fai-recover", "fai-had", "fai-years", "fai-tax"
+    "fai-cost", "fai-dep", "fai-recover", "fai-had", "fai-years", "fai-tax",
+    "cbh-qty","cbh-cm","cbh-f1","cbh-v1","cbh-f2","cbh-v2","cbh-f3","cbh-v3","cbh-f4","cbh-v4",
+    "pc-a1","pc-b1","pc-c1","pc-d1","pc-a2","pc-b2","pc-c2","pc-d2",
+    "ivo-demand","ivo-safety","ivo-price","ivo-s1","ivo-p1","ivo-s2","ivo-p2","ivo-s3","ivo-p3",
+    "ct-sales","ct-vc","ct-rate","ct-bad30","ct-bad60"
 ];
   var KEY = "finance-calc-v58";
   var CAT_KEY = "finance-calc-cat";

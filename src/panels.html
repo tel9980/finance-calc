@@ -9065,3 +9065,148 @@
       </div>
     </div>
   </section>
+  <section class="panel" id="panel-costbehav">
+    <div class="cols">
+      <div class="card">
+        <h2>期间费用性态分解</h2>
+        <label class="f"><span>业务量（件）</span><input id="cbh-qty" type="number" inputmode="decimal" min="0" step="1000" value="10000" class="num"></label>
+        <label class="f"><span>边际贡献（元）</span><input id="cbh-cm" type="number" inputmode="decimal" min="0" step="10000" value="600000" class="num"></label>
+        <div class="tablebox">
+          <table>
+            <thead><tr><th>费用项目</th><th>固定部分（元）</th><th>单位变动（元/件）</th></tr></thead>
+            <tbody>
+              <tr><td>房租物业</td><td><input id="cbh-f1" type="number" inputmode="decimal" min="0" step="1000" value="120000" class="num"></td><td><input id="cbh-v1" type="number" inputmode="decimal" min="0" step="0.1" value="0" class="num"></td></tr>
+              <tr><td>水电能源</td><td><input id="cbh-f2" type="number" inputmode="decimal" min="0" step="1000" value="30000" class="num"></td><td><input id="cbh-v2" type="number" inputmode="decimal" min="0" step="0.1" value="2.5" class="num"></td></tr>
+              <tr><td>销售佣金</td><td><input id="cbh-f3" type="number" inputmode="decimal" min="0" step="1000" value="0" class="num"></td><td><input id="cbh-v3" type="number" inputmode="decimal" min="0" step="0.1" value="8" class="num"></td></tr>
+              <tr><td>物流仓储</td><td><input id="cbh-f4" type="number" inputmode="decimal" min="0" step="1000" value="20000" class="num"></td><td><input id="cbh-v4" type="number" inputmode="decimal" min="0" step="0.1" value="3.2" class="num"></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <em>把每项费用拆成「不随业务量变」和「随业务量变」两部分，看整体刚性有多强。</em>
+      </div>
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">固定费用占比</span><strong id="cbh-fshare">—</strong><span class="unit">%</span></div>
+        <ul class="kv">
+          <li><span>固定费用合计</span><b id="cbh-f">—</b></li>
+          <li><span>单位变动合计</span><b id="cbh-v">—</b></li>
+          <li><span>变动费用总额</span><b id="cbh-vt">—</b></li>
+          <li><span>费用总额</span><b id="cbh-tot">—</b></li>
+          <li><span>每件期间费用</span><b id="cbh-per">—</b></li>
+          <li><span>经营杠杆系数 DOL</span><b id="cbh-dol">—</b></li>
+          <li><span>营业利润（边际贡献−固定）</span><b id="cbh-op">—</b></li>
+        </ul>
+        <div class="tablebox">
+          <table>
+            <thead><tr><th>费用项目</th><th>固定</th><th>单位变动</th><th>变动总额</th><th>合计</th></tr></thead>
+            <tbody id="cbh-body"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="cbh-note"></p>
+      </div>
+    </div>
+  </section>
+  <section class="panel" id="panel-profitcenter">
+    <div class="cols">
+      <div class="card">
+        <h2>利润中心责任报告</h2>
+        <label class="f"><span>中心 A 收入</span><input id="prc-a1" type="number" inputmode="decimal" min="0" step="10000" value="2000000" class="num"></label>
+        <span class="row"><label class="f"><span>A 变动成本</span><input id="prc-b1" type="number" inputmode="decimal" min="0" step="10000" value="1200000" class="num"></label><label class="f"><span>A 可控固定</span><input id="prc-c1" type="number" inputmode="decimal" min="0" step="10000" value="300000" class="num"></label></span>
+        <label class="f"><span>A 不可控固定（总部分摊）</span><input id="prc-d1" type="number" inputmode="decimal" min="0" step="10000" value="200000" class="num"></label>
+        <label class="f"><span>中心 B 收入</span><input id="prc-a2" type="number" inputmode="decimal" min="0" step="10000" value="1500000" class="num"></label>
+        <span class="row"><label class="f"><span>B 变动成本</span><input id="prc-b2" type="number" inputmode="decimal" min="0" step="10000" value="900000" class="num"></label><label class="f"><span>B 可控固定</span><input id="prc-c2" type="number" inputmode="decimal" min="0" step="10000" value="400000" class="num"></label></span>
+        <label class="f"><span>B 不可控固定（总部分摊）</span><input id="prc-d2" type="number" inputmode="decimal" min="0" step="10000" value="150000" class="num"></label>
+        <em>考核只看「可控利润」，总部摊下来的费用列示但不考核。</em>
+      </div>
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">可控利润合计</span><strong id="prc-ctrl">—</strong><span class="unit">元</span></div>
+        <ul class="kv">
+          <li><span>收入合计</span><b id="prc-rev">—</b></li>
+          <li><span>边际贡献合计</span><b id="prc-cm">—</b></li>
+          <li><span>中心利润合计（减分摊后）</span><b id="prc-cen">—</b></li>
+          <li><span>按可控利润率考核</span><b id="prc-best">—</b></li>
+          <li><span>最该先管</span><b id="prc-focus">—</b></li>
+        </ul>
+        <div class="tablebox">
+          <table>
+            <thead><tr><th>中心</th><th>收入</th><th>边际贡献</th><th>可控利润</th><th>中心利润</th><th>可控利润率</th></tr></thead>
+            <tbody id="prc-body"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="prc-note"></p>
+      </div>
+    </div>
+  </section>
+  <section class="panel" id="panel-invorder">
+    <div class="cols">
+      <div class="card">
+        <h2>存货库龄与订货联动</h2>
+        <label class="f"><span>未来需求（件）</span><input id="ivo-demand" type="number" inputmode="decimal" min="0" step="1000" value="35000" class="num"></label>
+        <span class="row"><label class="f"><span>安全库存（件）</span><input id="ivo-safety" type="number" inputmode="decimal" min="0" step="1000" value="5000" class="num"></label><label class="f"><span>单价（元/件）</span><input id="ivo-price" type="number" inputmode="decimal" min="0" step="1" value="80" class="num"></label></span>
+        <div class="tablebox">
+          <table>
+            <thead><tr><th>库龄段</th><th>现有数量（件）</th><th>良品率（%）</th></tr></thead>
+            <tbody>
+              <tr><td>90 天以内</td><td><input id="ivo-s1" type="number" inputmode="decimal" min="0" step="1000" value="25000" class="num"></td><td><input id="ivo-p1" type="number" inputmode="decimal" min="0" max="100" step="1" value="100" class="num"></td></tr>
+              <tr><td>91–180 天</td><td><input id="ivo-s2" type="number" inputmode="decimal" min="0" step="1000" value="10000" class="num"></td><td><input id="ivo-p2" type="number" inputmode="decimal" min="0" max="100" step="1" value="95" class="num"></td></tr>
+              <tr><td>181 天以上</td><td><input id="ivo-s3" type="number" inputmode="decimal" min="0" step="1000" value="5000" class="num"></td><td><input id="ivo-p3" type="number" inputmode="decimal" min="0" max="100" step="1" value="70" class="num"></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <em>先算「现有库存能出多少良品」，再决定还要订多少。</em>
+      </div>
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">建议订货量</span><strong id="ivo-order">—</strong><span class="unit">件</span></div>
+        <ul class="kv">
+          <li><span>现有库存可用良品</span><b id="ivo-usable">—</b></li>
+          <li><span>订货金额</span><b id="ivo-amt">—</b></li>
+          <li><span>不良品数量</span><b id="ivo-bad">—</b></li>
+          <li><span>不良品潜在损失</span><b id="ivo-loss">—</b></li>
+          <li><span>181 天以上占比</span><b id="ivo-s3share">—</b></li>
+          <li><span>91 天以上占比</span><b id="ivo-s23share">—</b></li>
+          <li><span>耗用顺序建议</span><b id="ivo-advice">—</b></li>
+        </ul>
+        <div class="tablebox">
+          <table>
+            <thead><tr><th>库龄段</th><th>数量</th><th>良品率</th><th>可用良品</th><th>占比</th></tr></thead>
+            <tbody id="ivo-body"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="ivo-note"></p>
+      </div>
+    </div>
+  </section>
+  <section class="panel" id="panel-creditterm">
+    <div class="cols">
+      <div class="card">
+        <h2>销售回款账期政策对比</h2>
+        <label class="f"><span>年销售额（元）</span><input id="ct-sales" type="number" inputmode="decimal" min="0" step="100000" value="10000000" class="num"></label>
+        <label class="f"><span>变动成本率（%）</span><input id="ct-vc" type="number" inputmode="decimal" min="0" max="100" step="1" value="60" class="num"></label>
+        <label class="f"><span>资金成本（%）</span><input id="ct-rate" type="number" inputmode="decimal" min="0" step="0.1" value="6" class="num"></label>
+        <span class="row"><label class="f"><span>30 天账期坏账率（%）</span><input id="ct-bad30" type="number" inputmode="decimal" min="0" max="100" step="0.1" value="1" class="num"></label><label class="f"><span>60 天账期坏账率（%）</span><input id="ct-bad60" type="number" inputmode="decimal" min="0" max="100" step="0.1" value="2.5" class="num"></label></span>
+        <em>假设账期越长销量不变，只比较账期占用资金成本与坏账损失。</em>
+      </div>
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">最优方案净利</span><strong id="ct-best">—</strong><span class="unit">元</span></div>
+        <ul class="kv">
+          <li><span>现款净利</span><b id="ct-ni0">—</b></li>
+          <li><span>30 天账期净利</span><b id="ct-ni30">—</b></li>
+          <li><span>60 天账期净利</span><b id="ct-ni60">—</b></li>
+          <li><span>30 天占用资金</span><b id="ct-occ30">—</b></li>
+          <li><span>60 天占用资金</span><b id="ct-occ60">—</b></li>
+          <li><span>30 天比现款少赚</span><b id="ct-diff">—</b></li>
+          <li><span>最优选择</span><b id="ct-pick">—</b></li>
+        </ul>
+        <div class="tablebox">
+          <table>
+            <thead><tr><th>方案</th><th>资金占用</th><th>资金成本</th><th>坏账</th><th>净利</th></tr></thead>
+            <tbody id="ct-body"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="ct-note"></p>
+      </div>
+    </div>
+  </section>
