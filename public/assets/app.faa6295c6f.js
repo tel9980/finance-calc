@@ -105,7 +105,7 @@
     var el = e.target;
     if (!el || !el.classList || !el.classList.contains("num")) return;
     var v = parseNum(el.value);
-    if (!isFinite(v)) { el.value = ""; return; }
+    if (!isFinite(v)) { el.value = ""; toast("这个格子不是有效数字，已清空，请重新填"); return; }
     /* 简写先还原成数字，再过千分位显示；小数位按原值保留 */
     el.value = Math.abs(v) >= 1000 ? v.toLocaleString("zh-CN", { maximumFractionDigits: 6 }) : trimNum(v);
   }
@@ -1917,6 +1917,8 @@ undefined
     for (var c = 0; c < chips.length; c++) chips[c].classList.toggle("is-on", chips[c].dataset.cat === cat);
     var sb = document.querySelectorAll(".sub");
     for (var s = 0; s < sb.length; s++) sb[s].classList.toggle("is-on", sb[s].dataset.grp === "");
+    var rc = $("btn-recent-clear");
+    if (rc) rc.hidden = cat !== "recent";
     applyFilter();
     try { localStorage.setItem(CAT_KEY, cat); } catch (e) {}
   }
@@ -2345,6 +2347,8 @@ undefined
     var snap = snapshot(), lines = ["【财务计算器】" + snap.name];
     snap.rows.forEach(function (r) { lines.push(r[0] + "：" + r[1]); });
     if (snap.note) lines.push("说明：" + snap.note);
+    lines.push("用这个链接打开就是同样参数：");
+    lines.push(buildShare());
     lines.push("（" + new Date().toLocaleString("zh-CN") + " 计算）");
     var btn = this, old = btn.textContent;
     copyText(lines.join("\n")).then(function () {
@@ -2534,6 +2538,16 @@ undefined
     runCalc(name);
     save();
     flash(btn, "已恢复默认示例");
+  });
+
+  if ($("btn-recent-clear")) $("btn-recent-clear").addEventListener("click", function () {
+    var btn = this;
+    recentList = [];
+    try { localStorage.removeItem(RECENT_KEY); } catch (e) {}
+    refreshCounts();
+    applyFilter();
+    flash(btn, "已清空");
+    toast("最近使用已清空");
   });
 
   if ($("btn-md")) $("btn-md").addEventListener("click", function () {
@@ -3463,6 +3477,18 @@ undefined
     var v = (t.textContent || "").trim();
     if (!v || v === "—" || v === "载入中…") return;
     copyText(v).then(function () { toast("已复制：" + v); }).catch(function () {});
+  });
+
+  /* 点击表格任意一行 = 复制这一行（制表符分隔，可直接粘进 Excel） */
+  document.addEventListener("click", function (ev) {
+    var tr = ev.target && ev.target.closest ? ev.target.closest("tbody tr") : null;
+    if (!tr) return;
+    if (ev.target.closest && ev.target.closest("a,button,input,select,textarea")) return;
+    var cells = [];
+    tr.querySelectorAll("td").forEach(function (td) { cells.push(td.textContent.trim()); });
+    var line = cells.join("\t");
+    if (!line) return;
+    copyText(line).then(function () { toast("已复制这一行：" + line); }).catch(function () {});
   });
 
   /* chunk 里要用到的工具函数，统一挂到 window.FC */
