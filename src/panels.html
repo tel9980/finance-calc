@@ -8661,3 +8661,150 @@
       </div>
     </div>
   </section>
+  <section class="panel" id="panel-expcheck">
+    <div class="cols">
+      <div class="card">
+        <h2>输入：报销单与票据构成</h2>
+        <span class="row">
+          <label class="f"><span>报销总额</span><input id="ec-total" type="number" inputmode="decimal" min="0" step="1000" value="10000"></label>
+          <label class="f"><span>其中专票金额（进项可抵）</span><input id="ec-special" type="number" inputmode="decimal" min="0" step="1000" value="5000"></label>
+        </span>
+        <label class="f"><span>专票税率 %</span><input id="ec-vatrate" type="number" inputmode="decimal" min="0" step="1" value="6"></label>
+        <span class="row">
+          <label class="f"><span>无发票金额</span><input id="ec-noticket" type="number" inputmode="decimal" min="0" step="100" value="1000"></label>
+          <label class="f"><span>白条 / 收据金额</span><input id="ec-receipt" type="number" inputmode="decimal" min="0" step="100" value="800"></label>
+        </span>
+        <span class="row">
+          <label class="f"><span>超出公司标准</span><input id="ec-over" type="number" inputmode="decimal" min="0" step="100" value="500"></label>
+          <label class="f"><span>混入个人消费</span><input id="ec-personal" type="number" inputmode="decimal" min="0" step="100" value="700"></label>
+        </span>
+        <label class="f"><span>所得税率 %</span><input id="ec-tax" type="number" inputmode="decimal" min="0" step="1" value="25"></label>
+        <em>口径：无票、白条、个人消费都不能税前扣除；超标部分公司不承担就不入账、若承担同样调增。专票要三流一致（合同/资金/发票）才能抵进项。</em>
+      </div>
+      <div class="card res">
+        <h2>结果：合规自查</h2>
+        <div class="big"><span class="k">合规可报金额</span><strong id="ec-big">—</strong><span class="unit">元</span></div>
+        <ul class="kv">
+          <li><span>合规率</span><b id="ec-rate">—</b></li>
+          <li><span>可抵扣进项税</span><b id="ec-vat">—</b></li>
+          <li><span>需纳税调增</span><b id="ec-adjust">—</b></li>
+          <li><span>因此多缴所得税</span><b id="ec-taxamt">—</b></li>
+        </ul>
+        <div class="tablebox">
+          <table>
+            <thead><tr><th class="tal">票据类型</th><th>金额</th><th class="tal">税务处理</th></tr></thead>
+            <tbody id="ec-body"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="ec-note"></p>
+      </div>
+    </div>
+  </section>
+  <section class="panel" id="panel-dtax">
+    <div class="cols">
+      <div class="card">
+        <h2>输入：内部交易未实现利润</h2>
+        <label class="f"><span>内部未实现利润</span><input id="dtx-unreal" type="number" inputmode="decimal" min="0" step="10000" value="500000"></label>
+        <span class="row">
+          <label class="f"><span>购买方税率 %</span><input id="dtx-buy" type="number" inputmode="decimal" min="0" step="1" value="25"></label>
+          <label class="f"><span>销售方税率 %</span><input id="dtx-sell" type="number" inputmode="decimal" min="0" step="1" value="15"></label>
+        </span>
+        <em>口径：合并抵销内部未实现利润后，存货账面价值低于计税基础，形成可抵扣暂时性差异；递延所得税按「资产将来实现的主体（购买方）税率」计量，不是销售方税率。销售方是高新技术企业（15%）而购买方是普通税率（25%）时，DTA 会大于单体已缴。</em>
+      </div>
+      <div class="card res">
+        <h2>结果：合并递延所得税</h2>
+        <div class="big"><span class="k">递延所得税资产</span><strong id="dtx-big">—</strong><span class="unit">元</span></div>
+        <ul class="kv">
+          <li><span>可抵扣暂时性差异</span><b id="dtx-diff">—</b></li>
+          <li><span>单体已缴所得税（销售方）</span><b id="dtx-paid">—</b></li>
+          <li><span>合并所得税费用影响</span><b id="dtx-taxeff">—</b></li>
+          <li><span>合并净利影响</span><b id="dtx-ni">—</b></li>
+          <li><span>税率差影响（DTA − 已缴）</span><b id="dtx-spread">—</b></li>
+        </ul>
+        <div class="tablebox">
+          <table>
+            <thead><tr><th class="tal">项目</th><th>金额</th><th class="tal">说明</th></tr></thead>
+            <tbody id="dtx-body"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="dtx-note"></p>
+      </div>
+    </div>
+  </section>
+  <section class="panel" id="panel-invimpair">
+    <div class="cols">
+      <div class="card">
+        <h2>输入：存货库龄与毛利率</h2>
+        <span class="row">
+          <label class="f"><span>销售收入</span><input id="ivm-sales" type="number" inputmode="decimal" min="0" step="100000" value="10000000"></label>
+          <label class="f"><span>销售成本（不含减值）</span><input id="ivm-cogs" type="number" inputmode="decimal" min="0" step="100000" value="7000000"></label>
+        </span>
+        <span class="row">
+          <label class="f"><span>90 天内库存</span><input id="ivm-a1" type="number" inputmode="decimal" min="0" step="10000" value="1200000"></label>
+          <label class="f"><span>90 天内计提 %</span><input id="ivm-p1" type="number" inputmode="decimal" min="0" step="1" value="0"></label>
+        </span>
+        <span class="row">
+          <label class="f"><span>91–180 天库存</span><input id="ivm-a2" type="number" inputmode="decimal" min="0" step="10000" value="500000"></label>
+          <label class="f"><span>91–180 天计提 %</span><input id="ivm-p2" type="number" inputmode="decimal" min="0" step="1" value="10"></label>
+        </span>
+        <span class="row">
+          <label class="f"><span>181 天以上库存</span><input id="ivm-a3" type="number" inputmode="decimal" min="0" step="10000" value="300000"></label>
+          <label class="f"><span>181 天以上计提 %</span><input id="ivm-p3" type="number" inputmode="decimal" min="0" step="1" value="30"></label>
+        </span>
+        <em>口径：计提比例是会计估计，参考行业惯例（账龄越长计提越高），不是法规数字。减值计入当期损益，直接影响毛利；会计计提当期纳税调增，实际损失发生并留证据才可税前扣除。</em>
+      </div>
+      <div class="card res">
+        <h2>结果：减值对毛利的拖累</h2>
+        <div class="big"><span class="k">减值后毛利率</span><strong id="ivm-big">—</strong><span class="unit">%</span></div>
+        <ul class="kv">
+          <li><span>应计提存货减值</span><b id="ivm-imp">—</b></li>
+          <li><span>减值后毛利 / 毛利率</span><b id="ivm-gm">—</b></li>
+          <li><span>毛利率被拖低</span><b id="ivm-drag">—</b></li>
+          <li><span>库存减值率</span><b id="ivm-rate">—</b></li>
+          <li><span>181 天以上占比</span><b id="ivm-old">—</b></li>
+        </ul>
+        <div class="tablebox">
+          <table>
+            <thead><tr><th class="tal">库龄段</th><th>库存金额</th><th>计提比例</th><th>减值额</th></tr></thead>
+            <tbody id="ivm-body"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="ivm-note"></p>
+      </div>
+    </div>
+  </section>
+  <section class="panel" id="panel-budgetalert">
+    <div class="cols">
+      <div class="card">
+        <h2>输入：全年预算与已执行</h2>
+        <span class="row">
+          <label class="f"><span>全年预算收入</span><input id="bga-budinc" type="number" inputmode="decimal" min="0" step="100000" value="12000000"></label>
+          <label class="f"><span>全年预算费用</span><input id="bga-budexp" type="number" inputmode="decimal" min="0" step="100000" value="9000000"></label>
+        </span>
+        <label class="f"><span>已过月份</span><input id="bga-months" type="number" inputmode="decimal" min="1" max="11" step="1" value="5"></label>
+        <span class="row">
+          <label class="f"><span>已发生收入</span><input id="bga-actinc" type="number" inputmode="decimal" min="0" step="100000" value="4800000"></label>
+          <label class="f"><span>已发生费用</span><input id="bga-actexp" type="number" inputmode="decimal" min="0" step="100000" value="4300000"></label>
+        </span>
+        <em>口径：按「时间进度」对拍执行率——费用跑得比时间快要亮灯，收入跑得比时间慢也要亮灯。预警阈值：偏差 5 个百分点黄灯、10 个百分点红灯（可按需要改判断，数字只作示例）。</em>
+      </div>
+      <div class="card res">
+        <h2>结果：执行率预警</h2>
+        <div class="big"><span class="k">费用执行率</span><strong id="bga-big">—</strong><span class="unit">%</span></div>
+        <ul class="kv">
+          <li><span>收入执行率（时间进度）</span><b id="bga-inc">—</b></li>
+          <li><span>收入预警灯</span><b id="bga-inclight">—</b></li>
+          <li><span>费用预警灯</span><b id="bga-explight">—</b></li>
+          <li><span>追平收入需月均</span><b id="bga-needinc">—</b></li>
+          <li><span>守住费用月均限额</span><b id="bga-capexp">—</b></li>
+        </ul>
+        <div class="tablebox">
+          <table>
+            <thead><tr><th class="tal">指标</th><th>全年预算</th><th>已发生</th><th>执行率</th><th>时间进度</th><th>偏差</th><th class="tal">灯</th></tr></thead>
+            <tbody id="bga-body"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="bga-note"></p>
+      </div>
+    </div>
+  </section>

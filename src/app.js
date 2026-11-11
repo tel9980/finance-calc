@@ -9903,6 +9903,176 @@
     $("lnl-note").textContent = "加权平均利率 " + fmt(w, 2) + "% 是所有借款按金额加权的一年成本。利息资本化：专门借款先资本化（闲置收益可冲减），一般借款按加权平均利率；"
       + "本表按「月利息 × 资本化月数」粗算为 " + money(capInt) + "，实际要按累计资产支出加权平均。费用化部分进财务费用，直接影响当期利润。";
   }
+  /* ===== 费用报销合规自查 ===== */
+  function calcExpCheck() {
+    var total = Math.max(0, num($("ec-total"), 0));
+    var special = Math.max(0, num($("ec-special"), 0));
+    var vatRate = Math.max(0, num($("ec-vatrate"), 6)) / 100;
+    var noTicket = Math.max(0, num($("ec-noticket"), 0));
+    var receipt = Math.max(0, num($("ec-receipt"), 0));
+    var over = Math.max(0, num($("ec-over"), 0));
+    var personal = Math.max(0, num($("ec-personal"), 0));
+    var taxRate = Math.max(0, num($("ec-tax"), 25)) / 100;
+
+    var vat = special * vatRate;
+    var adjust = noTicket + receipt + personal;
+    var moreTax = adjust * taxRate;
+    var ok = Math.max(0, total - noTicket - receipt - over - personal);
+    var rate = total > 0 ? ok / total : 0;
+
+    $("ec-big").textContent = money(ok);
+    $("ec-rate").textContent = pct(rate, 2) + "（" + money(ok) + " ÷ " + money(total) + "）";
+    $("ec-vat").textContent = money(vat) + "（专票 " + money(special) + " × " + pct(vatRate, 0) + "）";
+    $("ec-adjust").textContent = money(adjust) + "（无票 + 白条 + 个人）";
+    $("ec-taxamt").textContent = money(moreTax) + "（调增 × " + pct(taxRate, 0) + "）";
+
+    var rows = [
+      ["专票（可抵进项）", money(special), "进项 " + money(vat) + "，三流一致才可抵"],
+      ["无发票", money(noTicket), "不能税前扣除，汇算调增"],
+      ["白条 / 收据", money(receipt), "不能税前扣除，汇算调增"],
+      ["超出公司标准", money(over), over > 0 ? "公司不承担则不入账；承担则调增" : "无"],
+      ["个人消费", money(personal), "与经营无关，不得扣除且调增"]
+    ];
+    var html = "";
+    for (var i = 0; i < rows.length; i++) {
+      html += "<tr><td class=\"tal\">" + rows[i][0] + "</td><td>" + rows[i][1] + "</td><td class=\"tal\">" + rows[i][2] + "</td></tr>";
+    }
+    $("ec-body").innerHTML = html;
+
+    $("ec-note").textContent = "合规率 " + pct(rate, 2) + "：这张单子里有 " + money(noTicket + receipt + personal) + " 不能税前扣除，要多缴所得税 " + money(moreTax) + "；"
+      + (over > 0 ? "超标 " + money(over) + " 别走公司账，让个人承担或下次卡标准；" : "")
+      + "无票部分能用「小额零星+收款凭证（注明姓名、身份证号、项目、金额）」顶一部分，其余尽量换专票/普票。";
+  }
+
+  /* ===== 合并报表递延所得税 ===== */
+  function calcDTax() {
+    var unreal = Math.max(0, num($("dtx-unreal"), 0));
+    var buyRate = Math.max(0, num($("dtx-buy"), 25)) / 100;
+    var sellRate = Math.max(0, num($("dtx-sell"), 15)) / 100;
+
+    var dta = unreal * buyRate;
+    var paid = unreal * sellRate;
+    var taxEff = -dta;
+    var ni = -unreal + dta;
+    var spread = dta - paid;
+
+    $("dtx-big").textContent = money(dta);
+    $("dtx-diff").textContent = money(unreal) + "（存货账面 < 计税基础）";
+    $("dtx-paid").textContent = money(paid) + "（销售方税率 " + pct(sellRate, 0) + "）";
+    $("dtx-taxeff").textContent = "-" + money(dta) + "（抵减所得税费用）";
+    $("dtx-ni").textContent = money(ni) + "（抵利润 -" + money(unreal) + " + 所得税费用抵减 " + money(dta) + "）";
+    $("dtx-spread").textContent = money(spread) + (spread >= 0 ? "（DTA 大于单体已缴，将来按购买方税率多抵）" : "（DTA 小于单体已缴）");
+
+    var rows = [
+      ["抵销未实现利润", "-" + money(unreal), "借收入/贷成本、贷存货"],
+      ["可抵扣暂时性差异", money(unreal), "账面价值 < 计税基础"],
+      ["递延所得税资产", money(dta), "差异 × 购买方税率 " + pct(buyRate, 0)],
+      ["单体已缴所得税", money(paid), "销售方已按 " + pct(sellRate, 0) + " 缴，税局不退"]
+    ];
+    var html = "";
+    for (var i = 0; i < rows.length; i++) {
+      html += "<tr><td class=\"tal\">" + rows[i][0] + "</td><td>" + rows[i][1] + "</td><td class=\"tal\">" + rows[i][2] + "</td></tr>";
+    }
+    $("dtx-body").innerHTML = html;
+
+    $("dtx-note").textContent = "合并层面这笔内部利润不认，但单体已经缴了 " + money(paid) + " 的税，税局不会退；合并账上确认递延所得税资产 " + money(dta) + "，等于「预缴」挂在资产里，等存货真正对外卖出去时转回。"
+      + "税率差 " + pct(sellRate, 0) + " → " + pct(buyRate, 0) + " 会让 DTA 与已缴差 " + money(Math.abs(spread)) + "，这是按购买方税率计量带来的正常结果，不是错账。";
+  }
+
+  /* ===== 存货减值与毛利联动 ===== */
+  function calcInvImpair() {
+    var sales = Math.max(0, num($("ivm-sales"), 0));
+    var cogs = Math.max(0, num($("ivm-cogs"), 0));
+    var a1 = Math.max(0, num($("ivm-a1"), 0));
+    var a2 = Math.max(0, num($("ivm-a2"), 0));
+    var a3 = Math.max(0, num($("ivm-a3"), 0));
+    var p1 = Math.max(0, num($("ivm-p1"), 0)) / 100;
+    var p2 = Math.max(0, num($("ivm-p2"), 0)) / 100;
+    var p3 = Math.max(0, num($("ivm-p3"), 0)) / 100;
+
+    var inv = a1 + a2 + a3;
+    var imp1 = a1 * p1, imp2 = a2 * p2, imp3 = a3 * p3;
+    var imp = imp1 + imp2 + imp3;
+    var newCogs = cogs + imp;
+    var gm = sales - newCogs;
+    var gmargin = sales > 0 ? gm / sales : 0;
+    var origMargin = sales > 0 ? (sales - cogs) / sales : 0;
+    var drag = origMargin - gmargin;
+    var impRate = inv > 0 ? imp / inv : 0;
+    var oldPct = inv > 0 ? a3 / inv : 0;
+
+    $("ivm-big").textContent = fmt(gmargin * 100, 2);
+    $("ivm-imp").textContent = money(imp) + "（占库存 " + pct(impRate, 2) + "）";
+    $("ivm-gm").textContent = money(gm) + "（毛利率 " + fmt(gmargin * 100, 2) + "%）";
+    $("ivm-drag").textContent = fmt(drag * 100, 2) + " 个百分点（毛利少 " + money(imp) + "）";
+    $("ivm-rate").textContent = pct(impRate, 2) + "（" + money(imp) + " ÷ " + money(inv) + "）";
+    $("ivm-old").textContent = pct(oldPct, 2) + "（" + money(a3) + " 库存）";
+
+    var rows = [
+      ["90 天内", money(a1), pct(p1, 0), money(imp1)],
+      ["91–180 天", money(a2), pct(p2, 0), money(imp2)],
+      ["181 天以上", money(a3), pct(p3, 0), money(imp3)],
+      ["合计", money(inv), "—", money(imp)]
+    ];
+    var html = "";
+    for (var i = 0; i < rows.length; i++) {
+      html += "<tr" + (i === 3 ? ' class="c-info"' : "") + "><td class=\"tal\">" + rows[i][0] + "</td><td>" + rows[i][1] + "</td><td>" + rows[i][2] + "</td><td>" + rows[i][3] + "</td></tr>";
+    }
+    $("ivm-body").innerHTML = html;
+
+    $("ivm-note").textContent = "这笔减值 " + money(imp) + " 进当期损益，把毛利率从 " + fmt(origMargin * 100, 2) + "% 拖到 " + fmt(gmargin * 100, 2) + "%（" + fmt(drag * 100, 2) + " 个点）。"
+      + (a3 > 0 ? "181 天以上库存 " + money(a3) + " 是最大雷区，计提了 " + money(imp3) + "，优先折价清掉或与供应商谈退回；" : "")
+      + "会计计提当期纳税调增（DTA 只是推后不是省税），只有实际处置并留证据才能税前扣除。";
+  }
+
+  /* ===== 预算执行偏差预警 ===== */
+  function calcBudgetAlert() {
+    var budInc = Math.max(0, num($("bga-budinc"), 0));
+    var budExp = Math.max(0, num($("bga-budexp"), 0));
+    var m = Math.min(11, Math.max(1, Math.round(num($("bga-months"), 5))));
+    var actInc = Math.max(0, num($("bga-actinc"), 0));
+    var actExp = Math.max(0, num($("bga-actexp"), 0));
+
+    var time = m / 12;
+    var incRate = budInc > 0 ? actInc / budInc : 0;
+    var expRate = budExp > 0 ? actExp / budExp : 0;
+    var incDev = incRate - time;
+    var expDev = expRate - time;
+    var rem = 12 - m;
+    var needInc = rem > 0 ? (budInc - actInc) / rem : 0;
+    var capExp = rem > 0 ? (budExp - actExp) / rem : 0;
+
+    function light(dev, dir) {
+      var a = Math.abs(dev);
+      if (a >= 0.10) return "🔴 红灯（" + (dir === "收入" ? "落后" : "超支") + " ≥10 点）";
+      if (a >= 0.05) return "🟡 黄灯（" + (dir === "收入" ? "落后" : "超支") + " ≥5 点）";
+      return "🟢 绿灯";
+    }
+
+    $("bga-big").textContent = fmt(expRate * 100, 2);
+    $("bga-inc").textContent = fmt(incRate * 100, 2) + "%（时间进度 " + fmt(time * 100, 2) + "%，偏差 " + (incDev >= 0 ? "+" : "") + fmt(incDev * 100, 2) + " 点）";
+    $("bga-inclight").textContent = light(incDev, "收入");
+    $("bga-explight").textContent = light(expDev, "费用");
+    $("bga-needinc").textContent = money(needInc) + "（预算月均 " + money(budInc / 12) + "）";
+    $("bga-capexp").textContent = money(capExp) + "（预算月均 " + money(budExp / 12) + "）";
+
+    var rows = [
+      ["收入", money(budInc), money(actInc), fmt(incRate * 100, 2) + "%", fmt(time * 100, 2) + "%", (incDev >= 0 ? "+" : "") + fmt(incDev * 100, 2) + " 点", light(incDev, "收入")],
+      ["费用", money(budExp), money(actExp), fmt(expRate * 100, 2) + "%", fmt(time * 100, 2) + "%", (expDev >= 0 ? "+" : "") + fmt(expDev * 100, 2) + " 点", light(expDev, "费用")]
+    ];
+    var html = "";
+    for (var i = 0; i < rows.length; i++) {
+      html += "<tr><td class=\"tal\">" + rows[i][0] + "</td><td>" + rows[i][1] + "</td><td>" + rows[i][2] + "</td><td>" + rows[i][3] + "</td><td>" + rows[i][4] + "</td><td>" + rows[i][5] + "</td><td class=\"tal\">" + rows[i][6] + "</td></tr>";
+    }
+    $("bga-body").innerHTML = html;
+
+    var tips = [];
+    if (incDev < -0.05) tips.push("收入落后时间进度，追平需剩余 " + rem + " 个月月均 " + money(needInc));
+    if (expDev > 0.05) tips.push("费用跑得比时间快，剩余月份要压到月均 " + money(capExp));
+    if (!tips.length) tips.push("收入与费用都在节奏内");
+    $("bga-note").textContent = "执行率 = 已发生 ÷ 全年预算，对拍时间进度 " + fmt(time * 100, 2) + "%。" + tips.join("；")
+      + "。费用执行率 " + fmt(expRate * 100, 2) + "% 若是因为「提前付年费/备货」这类一次性支出，看口径时要把它们剔掉再比，否则会误报。";
+  }
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
@@ -9954,7 +10124,8 @@
     contractperf: calcContractPerf, projrev: calcProjRev, creditpolicy: calcCreditPolicy, rateadj: calcRateAdj,
     bundle: calcBundle, monthly: calcMonthly, yearcmp: calcYearCmp, yearreport: calcYearReport,
     fifocost: calcFifoCost, hlcost: calcHlCost, trialbal: calcTrialBal, citprep: calcCitPrep,
-    rollbudget: calcRollBudget, csladv: calcCslAdv, taxwarn: calcTaxWarn, loanledger: calcLoanLedger
+    rollbudget: calcRollBudget, csladv: calcCslAdv, taxwarn: calcTaxWarn, loanledger: calcLoanLedger,
+    expcheck: calcExpCheck, dtax: calcDTax, invimpair: calcInvImpair, budgetalert: calcBudgetAlert
   };
 
   var curCat = "hot", curSub = "";
@@ -10405,9 +10576,13 @@
     "rbg-budinc", "rbg-budexp", "rbg-months", "rbg-adj", "rbg-actinc", "rbg-actexp",
     "csl-pinc", "csl-sinc", "csl-intra", "csl-unreal", "csl-recv", "csl-invest", "csl-net", "csl-own", "csl-pni", "csl-sni", "csl-div",
     "tbw-sales", "tbw-input", "tbw-vatrate", "tbw-profit", "tbw-itrate", "tbw-paid", "tbw-vatref", "tbw-itref", "tbw-band",
-    "lnl-a1", "lnl-r1", "lnl-m1", "lnl-a2", "lnl-r2", "lnl-m2", "lnl-a3", "lnl-r3", "lnl-m3", "lnl-cap"
+    "lnl-a1", "lnl-r1", "lnl-m1", "lnl-a2", "lnl-r2", "lnl-m2", "lnl-a3", "lnl-r3", "lnl-m3", "lnl-cap",
+    "ec-total", "ec-special", "ec-vatrate", "ec-noticket", "ec-receipt", "ec-over", "ec-personal", "ec-tax",
+    "dtx-unreal", "dtx-buy", "dtx-sell",
+    "ivm-sales", "ivm-cogs", "ivm-a1", "ivm-p1", "ivm-a2", "ivm-p2", "ivm-a3", "ivm-p3",
+    "bga-budinc", "bga-budexp", "bga-months", "bga-actinc", "bga-actexp"
 ];
-  var KEY = "finance-calc-v55";
+  var KEY = "finance-calc-v56";
   var CAT_KEY = "finance-calc-cat";
 
   /* ---------------- 现金流月历 ---------------- */
