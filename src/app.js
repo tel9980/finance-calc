@@ -10491,17 +10491,72 @@
   }
   var WF_MAN_KEY = "finance-calc-wfman";
   var WF_ROLE_KEY = "finance-calc-wfrole";
+  var WF_CUST_KEY = "finance-calc-wfcust";
+  var WF_NOTE_KEY = "finance-calc-wfnotes";
   var WF_MAN = {};
+  var WF_CUST = [];
+  var WF_NOTES = {};
   function loadWfMan() { try { WF_MAN = JSON.parse(localStorage.getItem(WF_MAN_KEY) || "{}"); } catch (e) { WF_MAN = {}; } }
   function wfManSave() { try { localStorage.setItem(WF_MAN_KEY, JSON.stringify(WF_MAN)); } catch (e) {} }
   function getWfMan() { return WF_MAN; }
   function toggleWfMan(key) { if (WF_MAN[key]) { delete WF_MAN[key]; } else { WF_MAN[key] = 1; } wfManSave(); }
   function clearWfMan() { WF_MAN = {}; wfManSave(); }
+  function loadWfCust() { try { WF_CUST = JSON.parse(localStorage.getItem(WF_CUST_KEY) || "[]"); } catch (e) { WF_CUST = []; } }
+  function saveWfCust() { try { localStorage.setItem(WF_CUST_KEY, JSON.stringify(WF_CUST)); } catch (e) {} }
+  function getWfCust() { return WF_CUST; }
+  function loadWfNotes() { try { WF_NOTES = JSON.parse(localStorage.getItem(WF_NOTE_KEY) || "{}"); } catch (e) { WF_NOTES = {}; } }
+  function getWfNotes() { return WF_NOTES; }
+  function wfNoteSave() { try { localStorage.setItem(WF_NOTE_KEY, JSON.stringify(WF_NOTES)); } catch (e) {} }
+  function wfHandoff() {
+    var roleEl = $("wf-role");
+    var role = roleEl ? roleEl.value : "0";
+    var roleName = roleEl && roleEl.selectedIndex >= 0 ? roleEl.options[roleEl.selectedIndex].textContent : "全部路径";
+    var dets = document.querySelectorAll("#panel-workflow .card:not(.res) details");
+    var lines = ["# 财务工作流 · 交接单", "", "- 岗位：" + roleName, "- 导出时间：" + new Date().toLocaleString("zh-CN"), ""];
+    var wfDone = getWfDone();
+    var wfMan = getWfMan();
+    for (var j = 0; j < dets.length; j++) {
+      var rr = (dets[j].getAttribute("data-role") || "").split(/\s+/);
+      if (role !== "0" && rr.indexOf(role) < 0) continue;
+      var al = dets[j].querySelectorAll("a[href^='#']");
+      if (!al.length) continue;
+      var sum = dets[j].querySelector("summary");
+      var sumTxt = "";
+      if (sum) {
+        var fn = sum.firstChild;
+        sumTxt = (fn && fn.nodeType === 3) ? fn.nodeValue.trim() : sum.textContent;
+      }
+      lines.push("## " + sumTxt.replace(/^[①-⑨]\s*/, ""));
+      for (var k = 0; k < al.length; k++) {
+        var hh = (al[k].getAttribute("href") || "").replace(/^#/, "").split("?")[0];
+        var key = j + "-" + k;
+        var auto = !!wfDone[hh];
+        var man = !!wfMan[key];
+        var note = (WF_NOTES[key] || "").trim();
+        var mark = man ? "✅ 本月已完成" : (auto ? "🟢 点开过" : "⬜ 未完成");
+        lines.push("- " + (man ? "[x]" : "[ ]") + " " + al[k].textContent.trim() + " — " + mark + (note ? " · 备注：" + note : ""));
+      }
+      lines.push("");
+    }
+    var blob = new Blob(["\ufeff" + lines.join("\n")], { type: "text/markdown;charset=utf-8" });
+    var link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "财务计算器-工作流交接单.md";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+    toast("已导出交接单");
+  }
   function calcWorkflow() {
     loadWfDone();
     loadWfMan();
+    loadWfCust();
+    loadWfNotes();
     var wfDone = getWfDone();
     var wfMan = getWfMan();
+    var wfCust = getWfCust();
+    var wfNotes = getWfNotes();
     var roleEl = $("wf-role");
     if (roleEl) {
       var savedRole = "";
@@ -10509,6 +10564,40 @@
       if (savedRole) roleEl.value = savedRole;
     }
     var role = roleEl ? roleEl.value : "0";
+    var custSel = $("wf-cust-add");
+    if (custSel && !custSel.getAttribute("data-filled")) {
+      var tabs = document.querySelectorAll(".tab[data-tab]");
+      for (var ti = 0; ti < tabs.length; ti++) {
+        var tid = tabs[ti].getAttribute("data-tab");
+        if (tid === "workflow") continue;
+        var op = document.createElement("option");
+        op.value = tid;
+        op.textContent = tabs[ti].textContent.replace(/\s+/g, "");
+        custSel.appendChild(op);
+      }
+      custSel.setAttribute("data-filled", "1");
+    }
+    var custBox = $("wf-cust-links");
+    if (custBox) {
+      custBox.innerHTML = "";
+      for (var ci = 0; ci < wfCust.length; ci++) {
+        var mod = wfCust[ci];
+        var aEl = document.createElement("a");
+        aEl.setAttribute("href", "#" + mod);
+        aEl.textContent = cmpTabName(mod);
+        var del = document.createElement("button");
+        del.type = "button";
+        del.className = "wf-cust-del";
+        del.setAttribute("data-idx", ci);
+        del.textContent = "×";
+        if (ci > 0) custBox.appendChild(document.createTextNode(" → "));
+        custBox.appendChild(aEl);
+        custBox.appendChild(del);
+      }
+      if (!wfCust.length) custBox.textContent = "还没有步骤：从下面下拉挑模块加进来。";
+    }
+    var ctl = $("wf-cust-ctl");
+    if (ctl) ctl.hidden = role !== "9";
     var dets = document.querySelectorAll("#panel-workflow .card:not(.res) details");
     var vis = [];
     for (var vj = 0; vj < dets.length; vj++) {
@@ -10569,6 +10658,18 @@
         }
         tickEl.setAttribute("data-step", key);
         if (wfMan[key]) { tickEl.classList.add("on"); mt++; } else { tickEl.classList.remove("on"); }
+        var noteEl = tickEl.nextSibling;
+        var noteBtn = (noteEl && noteEl.nodeType === 1 && noteEl.classList && noteEl.classList.contains("wf-note")) ? noteEl : null;
+        if (!noteBtn) {
+          noteBtn = document.createElement("button");
+          noteBtn.type = "button";
+          noteBtn.className = "wf-note";
+          noteBtn.setAttribute("aria-label", "给这一步写一句备注");
+          noteBtn.textContent = "✎";
+          tickEl.parentNode.insertBefore(noteBtn, tickEl.nextSibling);
+        }
+        noteBtn.setAttribute("data-step", key);
+        if (wfNotes[key]) { noteBtn.classList.add("on"); } else { noteBtn.classList.remove("on"); }
       }
       if (vis[j]) { total += al.length; done += dt; man += mt; }
       var sum = dets[j].querySelector("summary");
@@ -10678,6 +10779,40 @@
       if (typeof refreshWfBadge === "function") refreshWfBadge();
       if (typeof runCalc === "function") runCalc("workflow");
       toast("已清空本月手动打勾");
+      return;
+    }
+    if (e.target && e.target.closest && e.target.closest("#wf-handoff")) {
+      wfHandoff();
+      return;
+    }
+    var nb = e.target && e.target.closest ? e.target.closest(".wf-note") : null;
+    if (nb) {
+      var nkey = nb.getAttribute("data-step") || "";
+      var cur = WF_NOTES[nkey] || "";
+      var v = window.prompt("给这一步写一句备注（交接时能看到，可留空）：", cur);
+      if (v !== null) {
+        if (v.trim()) { WF_NOTES[nkey] = v.trim(); } else { delete WF_NOTES[nkey]; }
+        wfNoteSave();
+        if (typeof runCalc === "function") runCalc("workflow");
+      }
+      return;
+    }
+    if (e.target && e.target.closest && e.target.closest("#wf-cust-addbtn")) {
+      var sel = $("wf-cust-add");
+      var vv = sel ? sel.value : "";
+      if (!vv) { toast("先挑一个模块"); return; }
+      if (WF_CUST.indexOf(vv) < 0) { WF_CUST.push(vv); saveWfCust(); if (typeof runCalc === "function") runCalc("workflow"); }
+      return;
+    }
+    if (e.target && e.target.closest && e.target.closest("#wf-cust-clear")) {
+      WF_CUST = []; saveWfCust(); if (typeof runCalc === "function") runCalc("workflow"); toast("已清空我的路径");
+      return;
+    }
+    var cd = e.target && e.target.closest ? e.target.closest(".wf-cust-del") : null;
+    if (cd) {
+      var idx = parseInt(cd.getAttribute("data-idx") || "-1", 10);
+      if (idx >= 0 && idx < WF_CUST.length) { WF_CUST.splice(idx, 1); saveWfCust(); if (typeof runCalc === "function") runCalc("workflow"); }
+      return;
     }
   });
   function calcExcoll() {

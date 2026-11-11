@@ -485,3 +485,9 @@ html[data-theme="dark"] #panel-workflow .kv a { color: #93b4f7; }
 .card details.wf-hide { display: none; }
 .wfctl { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 4px 0 6px; }
 .wfctl select { background: var(--field); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font-size: 13px; max-width: 100%; }
+
+/* 工作流：步骤备注 + 自定义路径 */
+.wf-note { margin-left: 5px; border: 1px solid var(--line); background: transparent; color: var(--ink3); border-radius: 999px; width: 20px; height: 20px; font-size: 11px; line-height: 18px; cursor: pointer; padding: 0; vertical-align: 1px; }
+.wf-note.on { background: #1e3a8a; color: #fff; border-color: #1e3a8a; }
+.wf-cust-del { margin-left: 5px; border: 1px solid var(--line); background: transparent; color: var(--ink3); border-radius: 999px; width: 18px; height: 18px; font-size: 12px; line-height: 16px; cursor: pointer; padding: 0; }
+.wf-cust-del:hover { background: #fee2e2; color: #b91c1c; border-color: #fca5a5; }

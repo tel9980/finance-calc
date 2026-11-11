@@ -9220,6 +9220,7 @@
           <option value="2">总账 · 结账报表</option>
           <option value="3">税务 · 申报</option>
           <option value="4">预算 · 分析</option>
+          <option value="9">我的路径</option>
         </select></label></p>
         <p class="hint" id="wf-note"></p>
         <details class="hintd" open data-role="1">
@@ -9242,7 +9243,16 @@
           <summary>⑤ 预算与滚动预测</summary>
           <p class="jump"><a href="#bplan">年度预算联动</a> → <a href="#rollfc">滚动预测</a> → <a href="#rollbudget">预算滚动预测</a> → <a href="#budgetalert">偏差预警</a> → <a href="#expbudget">费用预算差异</a></p>
         </details>
-        <p class="wfctl"><button type="button" id="wf-auto" class="ghost sm">一键走完本岗位</button> <button type="button" id="wf-clear" class="ghost sm">清空本月手动打勾</button></p>
+        <details class="hintd" data-role="9" id="wf-cust-details">
+          <summary>⑨ 我的路径</summary>
+          <p class="jump" id="wf-cust-links"></p>
+        </details>
+        <p class="wfctl" id="wf-cust-ctl" hidden>
+          <select id="wf-cust-add" class="ghost sm"></select>
+          <button type="button" id="wf-cust-addbtn" class="ghost sm">加进我的路径</button>
+          <button type="button" id="wf-cust-clear" class="ghost sm">清空</button>
+        </p>
+        <p class="wfctl"><button type="button" id="wf-auto" class="ghost sm">一键走完本岗位</button> <button type="button" id="wf-clear" class="ghost sm">清空本月手动打勾</button> <button type="button" id="wf-handoff" class="ghost sm">导出交接单</button></p>
       </div>
       <div class="card res">
         <h2>说明</h2>
