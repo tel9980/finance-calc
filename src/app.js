@@ -10504,21 +10504,29 @@
     var links = document.querySelectorAll("#panel-workflow a[href^='#']");
     var total = links.length, done = 0, man = 0;
     var carry = {
-      budgetalert: [["bpl-rev", "bga-budinc"], ["bpl-opex", "bga-budexp"]],
+      mgmtpack: [["pl-rev", "pk-rev"]],
+      bplan: [["pk-rev", "bpl-rev"]],
+      rollfc: [["bpl-rev", "rl-bud"]],
+      budgetalert: [["bpl-rev", "bga-budinc"], ["bpl-opex", "bga-budexp"], ["rbg-budinc", "bga-budinc"], ["rbg-budexp", "bga-budexp"]],
       vatcheck: [["vd-out", "vchk-out"], ["vd-in", "vchk-in"]],
       ratios: [["pl-rev", "rt-rev"], ["pl-cogs", "rt-cogs"]],
-      rollbudget: [["bga-budinc", "rbg-budinc"], ["bga-budexp", "rbg-budexp"]]
+      rollbudget: [["bpl-rev", "rbg-budinc"], ["bpl-opex", "rbg-budexp"], ["rl-bud", "rbg-budinc"], ["bga-budinc", "rbg-budinc"], ["bga-budexp", "rbg-budexp"]],
+      taxadj: [["cit-income", "txj-rev"], ["cit-adjust", "txj-ad"]],
+      taxwarn: [["txj-rev", "tbw-sales"], ["txj-profit", "tbw-profit"]]
     };
     var st = window.FC ? (window.FC.STORED || {}) : {};
+    var ed = window.FC ? (window.FC.EDITED || {}) : {};
     for (var i = 0; i < links.length; i++) {
       var h = (links[i].getAttribute("href") || "").replace(/^#/, "").split("?")[0];
-      var c = carry[h], qs = [];
+      var c = carry[h], qm = {};
       if (c) {
         for (var ci = 0; ci < c.length; ci++) {
           var sv = st[c[ci][0]];
-          if (sv !== undefined && sv !== null && sv !== "") qs.push(encodeURIComponent(c[ci][1]) + "=" + encodeURIComponent(String(sv)));
+          if (ed[c[ci][0]] && sv !== undefined && sv !== null && sv !== "") qm[c[ci][1]] = String(sv);
         }
       }
+      var qs = [];
+      for (var qk in qm) { if (Object.prototype.hasOwnProperty.call(qm, qk)) qs.push(encodeURIComponent(qk) + "=" + encodeURIComponent(qm[qk])); }
       links[i].setAttribute("href", "#" + h + (qs.length ? "?" + qs.join("&") : ""));
       if (wfDone[h]) { links[i].classList.add("wf-done"); done++; } else { links[i].classList.remove("wf-done"); }
     }
@@ -11366,6 +11374,7 @@
     if (name === "snaps") return;   // 方案快照面板没有输入，勾选走 change 事件
     if (calcMap[name]) calcMap[name]();
     save();
+    if (e.target && e.target.id) EDITED[e.target.id] = true;
     markBadInputs(panel);
   });
 
@@ -11858,6 +11867,7 @@
 
   /* 全量已存值：面板是懒挂载的，只存当前 DOM 会把没挂载模块的值弄丢 */
   var STORED = {};
+  var EDITED = {};   // 本次会话被用户实际改过的输入（工作流带参跳转只带这些，默认值不带）
   var PENDING_PARAMS = null;
   var DEFERRED_TAPS = [];
 

@@ -1,5 +1,5 @@
 /* 自动生成，勿手改：life 分类模块（点开才下载） */
-const { $, BUILD_TAG, CAT_KEY, CAT_LABEL, CHUNK_FILES, CHUNK_OF, CMP_KEY, CORE_CALC, CURS, DEFERRED_TAPS, DIVISOR, ERR_BOX, FAV_KEY, FIELDS, FIRST_ACTIVATE, KEY, LAST_KEY, MONTH_CATS, MONTH_TABLE, NEXT_OF, PALETTE_EL, PENDING_PARAMS, PRE_KEY, QUOTA_WARNED, RECENT_KEY, SAVE_TIMER, SEARCH_KEY, SNAP_KEY, SNAP_PICK, STORED, TABS, THEME_KEY, TOAST_EL, UNITS, WF_DONE, WF_KEY, WF_MAN, WF_MAN_KEY, XL_ROWS, YEAR_TABLE, _onPanels, activate, addMonths, annuityPV, annuityPayment, applyFilter, applyParams, applyStoredTo, bizAdd, bonusSoloTax, buildLoanSchedule, buildShare, buildTabBadges, calcLoan, calcMap, clearWfMan, closePalette, cmpTabName, cnUpper, combineTax, convertTemp, copyText, cumulativeTax, curCat, currentSnap, diagText, dlJson, doPrint, drawMonthCats, drawMonthStack, drawReportCharts, drawRpMini, drawnMonthlyChart, drawnYearChart, enhanceNums, enhancePanelUi, ensureChunk, evalExpr, favList, fillCmpMod, fillMonthGrid, fillUnits, flash, flushParams, flushSave, fmt, fmtAt, fmtDate, fx, gauss, getWfDone, getWfMan, hashTarget, isFav, lastName, leftAfter, linkTo, loadCmpA, loadSnaps, loadWfDone, loadWfMan, loanRows, makeSnap, markBadInputs, matchQ, money, monthToDate, monthlyIRR, months, npvDiff, num, numBlur, numFocus, numInput, numKey, numOf, openPalette, palKey, panelEls, panelParams, parseAmounts, parseDate, parseNum, pct, percentile, plRank, plScoreCov, plScoreDsr, plScoreEmg, plScoreLev, plScoreSave, prePanels, presets, printCover, pushRecent, pushSearch, quickOf, rateOf, readJsonFile, readMonthGrid, recentList, recordWf, refreshCounts, refreshTableTools, refreshTrackMods, refreshWfBadge, renderLoanTable, renderNext, renderPalette, renderPresets, renderSearchHist, renderSnapCompare, renderSnapList, renderTrack, rentBuyAt, restore, runCalc, runDeferredTaps, save, saveCmpA, saveFav, savePresets, saveSnaps, savedCat, scrollResultIfDeepLink, searchHist, setCat, setSub, setTheme, showErrorBox, showUpdateBar, snapNameOf, snapshot, st0, stamp, startName, tabCatLabel, tap, taxBy, toast, toggleWfMan, trimNum, unitFor, updShown, wfManSave, wfSave, yuan, zOf } = window.FC;
+const { $, BUILD_TAG, CAT_KEY, CAT_LABEL, CHUNK_FILES, CHUNK_OF, CMP_KEY, CORE_CALC, CURS, DEFERRED_TAPS, DIVISOR, EDITED, ERR_BOX, FAV_KEY, FIELDS, FIRST_ACTIVATE, KEY, LAST_KEY, MONTH_CATS, MONTH_TABLE, NEXT_OF, PALETTE_EL, PENDING_PARAMS, PRE_KEY, QUOTA_WARNED, RECENT_KEY, SAVE_TIMER, SEARCH_KEY, SNAP_KEY, SNAP_PICK, STORED, TABS, THEME_KEY, TOAST_EL, UNITS, WF_DONE, WF_KEY, WF_MAN, WF_MAN_KEY, XL_ROWS, YEAR_TABLE, _onPanels, activate, addMonths, annuityPV, annuityPayment, applyFilter, applyParams, applyStoredTo, bizAdd, bonusSoloTax, buildLoanSchedule, buildShare, buildTabBadges, calcLoan, calcMap, clearWfMan, closePalette, cmpTabName, cnUpper, combineTax, convertTemp, copyText, cumulativeTax, curCat, currentSnap, diagText, dlJson, doPrint, drawMonthCats, drawMonthStack, drawReportCharts, drawRpMini, drawnMonthlyChart, drawnYearChart, enhanceNums, enhancePanelUi, ensureChunk, evalExpr, favList, fillCmpMod, fillMonthGrid, fillUnits, flash, flushParams, flushSave, fmt, fmtAt, fmtDate, fx, gauss, getWfDone, getWfMan, hashTarget, isFav, lastName, leftAfter, linkTo, loadCmpA, loadSnaps, loadWfDone, loadWfMan, loanRows, makeSnap, markBadInputs, matchQ, money, monthToDate, monthlyIRR, months, npvDiff, num, numBlur, numFocus, numInput, numKey, numOf, openPalette, palKey, panelEls, panelParams, parseAmounts, parseDate, parseNum, pct, percentile, plRank, plScoreCov, plScoreDsr, plScoreEmg, plScoreLev, plScoreSave, prePanels, presets, printCover, pushRecent, pushSearch, quickOf, rateOf, readJsonFile, readMonthGrid, recentList, recordWf, refreshCounts, refreshTableTools, refreshTrackMods, refreshWfBadge, renderLoanTable, renderNext, renderPalette, renderPresets, renderSearchHist, renderSnapCompare, renderSnapList, renderTrack, rentBuyAt, restore, runCalc, runDeferredTaps, save, saveCmpA, saveFav, savePresets, saveSnaps, savedCat, scrollResultIfDeepLink, searchHist, setCat, setSub, setTheme, showErrorBox, showUpdateBar, snapNameOf, snapshot, st0, stamp, startName, tabCatLabel, tap, taxBy, toast, toggleWfMan, trimNum, unitFor, updShown, wfManSave, wfSave, yuan, zOf } = window.FC;
 
   function calcInstallment() {
     var P = num($("is-amount"));
@@ -593,21 +593,29 @@ const { $, BUILD_TAG, CAT_KEY, CAT_LABEL, CHUNK_FILES, CHUNK_OF, CMP_KEY, CORE_C
     var links = document.querySelectorAll("#panel-workflow a[href^='#']");
     var total = links.length, done = 0, man = 0;
     var carry = {
-      budgetalert: [["bpl-rev", "bga-budinc"], ["bpl-opex", "bga-budexp"]],
+      mgmtpack: [["pl-rev", "pk-rev"]],
+      bplan: [["pk-rev", "bpl-rev"]],
+      rollfc: [["bpl-rev", "rl-bud"]],
+      budgetalert: [["bpl-rev", "bga-budinc"], ["bpl-opex", "bga-budexp"], ["rbg-budinc", "bga-budinc"], ["rbg-budexp", "bga-budexp"]],
       vatcheck: [["vd-out", "vchk-out"], ["vd-in", "vchk-in"]],
       ratios: [["pl-rev", "rt-rev"], ["pl-cogs", "rt-cogs"]],
-      rollbudget: [["bga-budinc", "rbg-budinc"], ["bga-budexp", "rbg-budexp"]]
+      rollbudget: [["bpl-rev", "rbg-budinc"], ["bpl-opex", "rbg-budexp"], ["rl-bud", "rbg-budinc"], ["bga-budinc", "rbg-budinc"], ["bga-budexp", "rbg-budexp"]],
+      taxadj: [["cit-income", "txj-rev"], ["cit-adjust", "txj-ad"]],
+      taxwarn: [["txj-rev", "tbw-sales"], ["txj-profit", "tbw-profit"]]
     };
     var st = window.FC ? (window.FC.STORED || {}) : {};
+    var ed = window.FC ? (window.FC.EDITED || {}) : {};
     for (var i = 0; i < links.length; i++) {
       var h = (links[i].getAttribute("href") || "").replace(/^#/, "").split("?")[0];
-      var c = carry[h], qs = [];
+      var c = carry[h], qm = {};
       if (c) {
         for (var ci = 0; ci < c.length; ci++) {
           var sv = st[c[ci][0]];
-          if (sv !== undefined && sv !== null && sv !== "") qs.push(encodeURIComponent(c[ci][1]) + "=" + encodeURIComponent(String(sv)));
+          if (ed[c[ci][0]] && sv !== undefined && sv !== null && sv !== "") qm[c[ci][1]] = String(sv);
         }
       }
+      var qs = [];
+      for (var qk in qm) { if (Object.prototype.hasOwnProperty.call(qm, qk)) qs.push(encodeURIComponent(qk) + "=" + encodeURIComponent(qm[qk])); }
       links[i].setAttribute("href", "#" + h + (qs.length ? "?" + qs.join("&") : ""));
       if (wfDone[h]) { links[i].classList.add("wf-done"); done++; } else { links[i].classList.remove("wf-done"); }
     }
