@@ -10822,6 +10822,70 @@
     $("lc-note").textContent = "预计总成本 > 合同总价即为亏损合同：已发生部分按进度进损益，未发生部分计提预计负债（本期计提 = 总损失 − 已确认亏损）。有标的资产的，先做减值测试再计提预计负债，不得重复。可撤结合同不确认损失（只有当义务不可撤销时才计提）。";
   }
 
+  function calcBankacct() {
+    var b = [num($("bk-b1"),1200000), num($("bk-b2"),800000), num($("bk-b3"),500000), num($("bk-b4"),300000)];
+    var s = [num($("bk-s1"),1200500), num($("bk-s2"),780000), num($("bk-s3"),500000), num($("bk-s4"),300000)];
+    var rest = num($("bk-restrict"), 100000);
+    var book = b[0]+b[1]+b[2]+b[3];
+    var stmt = s[0]+s[1]+s[2]+s[3];
+    var diff = stmt - book;
+    var avail = book - rest;
+    $("bk-big").textContent = money(avail);
+    $("bk-book").textContent = money(book);
+    $("bk-stmt").textContent = money(stmt);
+    $("bk-diff").textContent = (diff >= 0 ? "+" : "") + money(diff);
+    $("bk-restkv").textContent = money(rest);
+    $("bk-note").textContent = "账面余额与对账单余额的差就是未达账项（企业已收银行未收、企业已付银行未付、银行已收企业未收、银行已付企业未付），要逐笔用「银行余额调节表」对平；受限资金（保证金、冻结款）账面有但用不了，所以可用资金 = 账面合计 − 受限。";
+  }
+
+  function calcEquitychg() {
+    var sc0 = num($("eqc-sc0"), 5000000), cr0 = num($("eqc-cr0"), 1000000);
+    var re0 = num($("eqc-re0"), 500000), up0 = num($("eqc-up0"), 800000);
+    var np = num($("eqc-np"), 1200000), re = num($("eqc-re"), 120000), div = num($("eqc-div"), 300000);
+    var add = num($("eqc-add"), 0), oci = num($("eqc-oci"), 50000);
+    var sc1 = sc0 + add, cr1 = cr0, re1 = re0 + re, up1 = up0 + np - re - div;
+    var total = sc1 + cr1 + re1 + up1 + oci;
+    $("eqc-big").textContent = money(total);
+    $("eqc-sc1").textContent = money(sc1);
+    $("eqc-cr1").textContent = money(cr1);
+    $("eqc-re1").textContent = money(re1);
+    $("eqc-up1").textContent = money(up1);
+    $("eqc-note").textContent = "期末未分配利润 = 期初 + 净利润 − 提取盈余公积 − 分配股利；其他综合收益单独列示不计入净利润。勾稽：期末权益合计 = 期初合计 + 净利润 + 增资 + 其他综合收益 − 分红。这里是简化版，未含库存股、股份支付等复杂项。";
+  }
+
+  function calcEstimatechg() {
+    var cost = num($("est-cost"), 1000000), acc = num($("est-acc"), 400000);
+    var salv = num($("est-salv"), 5) / 100, tax = num($("est-tax"), 25) / 100;
+    var oldn = num($("est-old"), 5), newn = num($("est-new"), 3);
+    var base = cost * (1 - salv) - acc;
+    if (base < 0) base = 0;
+    var oldv = oldn > 0 ? base / oldn : 0;
+    var newv = newn > 0 ? base / newn : 0;
+    var d = newv - oldv;
+    var cum = d * newn;
+    var net = -d * (1 - tax);
+    $("est-big").textContent = money(d);
+    $("est-oldv").textContent = money(oldv);
+    $("est-newv").textContent = money(newv);
+    $("est-cum").textContent = money(cum);
+    $("est-net").textContent = money(net);
+    $("est-note").textContent = "折旧年限变更是会计估计变更，采用未来适用法（不追溯调整以前年度）。每年多提折旧 = 剩余应提折旧 ÷ 新年限 − 原年折旧；税前列支口径可能与会计不同，这里只算会计影响，税会差异走递延所得税。";
+  }
+
+  function calcDtlind() {
+    var bad = num($("dli-bad"), 500000), inv = num($("dli-inv"), 300000), dep = num($("dli-dep"), 100000);
+    var tax = num($("dli-tax"), 25) / 100, dta0 = num($("dli-dta0"), 150000), dtl0 = num($("dli-dtl0"), 0);
+    var dta = (bad + inv) * tax, dtl = dep * tax;
+    var dta1 = dta - dta0, dtl1 = dtl - dtl0;
+    var net = dtl1 - dta1;
+    $("dli-big").textContent = money(dta);
+    $("dli-dtl").textContent = money(dtl);
+    $("dli-dta1").textContent = (dta1 >= 0 ? "+" : "") + money(dta1);
+    $("dli-dtl1").textContent = (dtl1 >= 0 ? "+" : "") + money(dtl1);
+    $("dli-net").textContent = (net >= 0 ? "+" : "") + money(net);
+    $("dli-note").textContent = "递延所得税资产 = 可抵扣暂时性差异 × 税率（坏账准备、存货跌价等，预期能转回时确认）；递延所得税负债 = 应纳税暂时性差异 × 税率（加速折旧等）。本期变动 = 期末 − 期初；递延所得税费用 = 负债增加 − 资产增加，负数表示所得税费用减少（但不是少缴，是时间性差异）。";
+  }
+
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
@@ -10881,7 +10945,8 @@
     workflow: calcWorkflow,
     excoll: calcExcoll, assetdisptax: calcAssetDispTax, tpdocs: calcTpdocs, fxhedge: calcFxhedge,
     unbilled: calcUnbilled, deferred: calcDeferred, interco: calcInterco, sharepay: calcSharepay,
-    vatrefund: calcVatrefund, smallmicro: calcSmallmicro, addcredit: calcAddcredit, losscontract: calcLosscontract
+    vatrefund: calcVatrefund, smallmicro: calcSmallmicro, addcredit: calcAddcredit, losscontract: calcLosscontract,
+    bankacct: calcBankacct, equitychg: calcEquitychg, estimatechg: calcEstimatechg, dtlind: calcDtlind
   };
 
   var curCat = "hot", curSub = "";
@@ -11365,10 +11430,14 @@
     "vrf-credit","vrf-ratio","vrf-refund","vrf-had",
     "smm-income","smm-people","smm-assets","smm-cap","smm-peoplecap","smm-assetcap","smm-rate",
     "acd-input","acd-plus","acd-brought","acd-tax","acd-taken",
-    "lc-price","lc-cost","lc-incurred"
+    "lc-price","lc-cost","lc-incurred",
+    "bk-b1","bk-b2","bk-b3","bk-b4","bk-s1","bk-s2","bk-s3","bk-s4","bk-restrict",
+    "eqc-sc0","eqc-cr0","eqc-re0","eqc-up0","eqc-np","eqc-re","eqc-div","eqc-add","eqc-oci",
+    "est-cost","est-acc","est-salv","est-old","est-new","est-tax",
+    "dli-bad","dli-inv","dli-dep","dli-tax","dli-dta0","dli-dtl0"
 
 ];
-  var KEY = "finance-calc-v61";
+  var KEY = "finance-calc-v62";
   var CAT_KEY = "finance-calc-cat";
   /* 构建时由 build.mjs 注入为 "v<内容哈希>"，页脚展示，方便核对版本 */
   var BUILD_TAG = "";

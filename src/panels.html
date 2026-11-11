@@ -9581,3 +9581,130 @@
       </div>
     </div>
   </section>
+
+  <section class="panel" id="panel-bankacct">
+    <div class="cols">
+      <div class="card">
+        <h2>银行账户与余额汇总</h2>
+        <span class="row">
+          <label class="f"><span>账户 1 账面余额</span><input id="bk-b1" type="number" inputmode="decimal" min="0" step="1000" value="1200000"></label>
+          <label class="f"><span>账户 1 对账单余额</span><input id="bk-s1" type="number" inputmode="decimal" min="0" step="1000" value="1200500"></label>
+        </span>
+        <span class="row">
+          <label class="f"><span>账户 2 账面余额</span><input id="bk-b2" type="number" inputmode="decimal" min="0" step="1000" value="800000"></label>
+          <label class="f"><span>账户 2 对账单余额</span><input id="bk-s2" type="number" inputmode="decimal" min="0" step="1000" value="780000"></label>
+        </span>
+        <span class="row">
+          <label class="f"><span>账户 3 账面余额</span><input id="bk-b3" type="number" inputmode="decimal" min="0" step="1000" value="500000"></label>
+          <label class="f"><span>账户 3 对账单余额</span><input id="bk-s3" type="number" inputmode="decimal" min="0" step="1000" value="500000"></label>
+        </span>
+        <span class="row">
+          <label class="f"><span>账户 4 账面余额</span><input id="bk-b4" type="number" inputmode="decimal" min="0" step="1000" value="300000"></label>
+          <label class="f"><span>账户 4 对账单余额</span><input id="bk-s4" type="number" inputmode="decimal" min="0" step="1000" value="300000"></label>
+        </span>
+        <label class="f"><span>其中受限资金（保证金等）</span><input id="bk-restrict" type="number" inputmode="decimal" min="0" step="1000" value="100000"></label>
+      </div>
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">可用资金</span><strong id="bk-big">—</strong><span class="unit">元</span></div>
+        <ul class="kv">
+          <li><span>账面合计</span><b id="bk-book">—</b></li>
+          <li><span>对账单合计</span><b id="bk-stmt">—</b></li>
+          <li><span>差额（未达账项待查）</span><b id="bk-diff">—</b></li>
+          <li><span>受限资金</span><b id="bk-restkv">—</b></li>
+        </ul>
+        <p class="hint" id="bk-note"></p>
+      </div>
+    </div>
+  </section>
+  <section class="panel" id="panel-equitychg">
+    <div class="cols">
+      <div class="card">
+        <h2>所有者权益变动表</h2>
+        <span class="row">
+          <label class="f"><span>期初实收资本</span><input id="eqc-sc0" type="number" inputmode="decimal" min="0" step="10000" value="5000000"></label>
+          <label class="f"><span>期初资本公积</span><input id="eqc-cr0" type="number" inputmode="decimal" min="0" step="10000" value="1000000"></label>
+        </span>
+        <span class="row">
+          <label class="f"><span>期初盈余公积</span><input id="eqc-re0" type="number" inputmode="decimal" min="0" step="10000" value="500000"></label>
+          <label class="f"><span>期初未分配利润</span><input id="eqc-up0" type="number" inputmode="decimal" min="0" step="10000" value="800000"></label>
+        </span>
+        <label class="f"><span>本年净利润</span><input id="eqc-np" type="number" inputmode="decimal" min="0" step="10000" value="1200000"></label>
+        <span class="row">
+          <label class="f"><span>提取盈余公积</span><input id="eqc-re" type="number" inputmode="decimal" min="0" step="10000" value="120000"></label>
+          <label class="f"><span>分配股利</span><input id="eqc-div" type="number" inputmode="decimal" min="0" step="10000" value="300000"></label>
+        </span>
+        <span class="row">
+          <label class="f"><span>本期增资</span><input id="eqc-add" type="number" inputmode="decimal" min="0" step="10000" value="0"></label>
+          <label class="f"><span>其他综合收益增加</span><input id="eqc-oci" type="number" inputmode="decimal" min="0" step="10000" value="50000"></label>
+        </span>
+      </div>
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">期末权益合计</span><strong id="eqc-big">—</strong><span class="unit">元</span></div>
+        <ul class="kv">
+          <li><span>期末实收资本</span><b id="eqc-sc1">—</b></li>
+          <li><span>期末资本公积</span><b id="eqc-cr1">—</b></li>
+          <li><span>期末盈余公积</span><b id="eqc-re1">—</b></li>
+          <li><span>期末未分配利润</span><b id="eqc-up1">—</b></li>
+        </ul>
+        <p class="hint" id="eqc-note"></p>
+      </div>
+    </div>
+  </section>
+  <section class="panel" id="panel-estimatechg">
+    <div class="cols">
+      <div class="card">
+        <h2>会计估计变更影响</h2>
+        <label class="f"><span>固定资产原值</span><input id="est-cost" type="number" inputmode="decimal" min="0" step="10000" value="1000000"></label>
+        <span class="row">
+          <label class="f"><span>累计已提折旧</span><input id="est-acc" type="number" inputmode="decimal" min="0" step="10000" value="400000"></label>
+          <label class="f"><span>残值率 %</span><input id="est-salv" type="number" inputmode="decimal" min="0" max="100" value="5"></label>
+        </span>
+        <span class="row">
+          <label class="f"><span>原剩余年限</span><input id="est-old" type="number" inputmode="decimal" min="1" value="5"></label>
+          <label class="f"><span>新剩余年限</span><input id="est-new" type="number" inputmode="decimal" min="1" value="3"></label>
+        </span>
+        <label class="f"><span>所得税税率 %</span><input id="est-tax" type="number" inputmode="decimal" min="0" max="100" value="25"></label>
+      </div>
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">每年多提折旧</span><strong id="est-big">—</strong><span class="unit">元</span></div>
+        <ul class="kv">
+          <li><span>变更前年折旧</span><b id="est-oldv">—</b></li>
+          <li><span>变更后年折旧</span><b id="est-newv">—</b></li>
+          <li><span>剩余期间累计多提</span><b id="est-cum">—</b></li>
+          <li><span>对每年净利润影响</span><b id="est-net">—</b></li>
+        </ul>
+        <p class="hint" id="est-note"></p>
+      </div>
+    </div>
+  </section>
+  <section class="panel" id="panel-dtlind">
+    <div class="cols">
+      <div class="card">
+        <h2>递延所得税明细（个体）</h2>
+        <span class="row">
+          <label class="f"><span>可抵扣差异：坏账准备</span><input id="dli-bad" type="number" inputmode="decimal" min="0" step="10000" value="500000"></label>
+          <label class="f"><span>可抵扣差异：存货跌价</span><input id="dli-inv" type="number" inputmode="decimal" min="0" step="10000" value="300000"></label>
+        </span>
+        <label class="f"><span>应纳税差异：加速折旧</span><input id="dli-dep" type="number" inputmode="decimal" min="0" step="10000" value="100000"></label>
+        <span class="row">
+          <label class="f"><span>所得税税率 %</span><input id="dli-tax" type="number" inputmode="decimal" min="0" max="100" value="25"></label>
+          <label class="f"><span>期初递延所得税资产</span><input id="dli-dta0" type="number" inputmode="decimal" min="0" step="10000" value="150000"></label>
+        </span>
+        <label class="f"><span>期初递延所得税负债</span><input id="dli-dtl0" type="number" inputmode="decimal" min="0" step="10000" value="0"></label>
+      </div>
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">递延所得税资产</span><strong id="dli-big">—</strong><span class="unit">元</span></div>
+        <ul class="kv">
+          <li><span>递延所得税负债</span><b id="dli-dtl">—</b></li>
+          <li><span>本期确认资产变动</span><b id="dli-dta1">—</b></li>
+          <li><span>本期确认负债变动</span><b id="dli-dtl1">—</b></li>
+          <li><span>递延所得税费用（减项为少缴）</span><b id="dli-net">—</b></li>
+        </ul>
+        <p class="hint" id="dli-note"></p>
+      </div>
+    </div>
+  </section>
