@@ -465,3 +465,12 @@ html[data-theme="dark"] .totop{background:#131b2e;border-color:#253252}
 #panel-workflow a.wf-done { color: #15803d; }
 html[data-theme="dark"] #panel-workflow a.wf-done { color: #4ade80; }
 html[data-theme="dark"] .wfp-full { background: #14532d; color: #86efac; }
+
+/* 工作流手动打勾 */
+.wf-tick { margin-left: 6px; border: 1px solid var(--line, #d7deeb); background: transparent; color: var(--ink3); border-radius: 999px; width: 22px; height: 22px; line-height: 1; font-size: 13px; padding: 0; cursor: pointer; vertical-align: middle; }
+.wf-tick.on { background: #1e3a8a; border-color: #1e3a8a; color: #fff; }
+html[data-theme="dark"] .wf-tick.on { background: #7c93e6; border-color: #7c93e6; color: #0b1220; }
+.wfpm { margin-left: 8px; font-size: 12px; color: var(--ink3); background: #eef2ff; border-radius: 999px; padding: 2px 9px; white-space: nowrap; }
+.wfpm-full { background: #bbf7d0; color: #15803d; }
+html[data-theme="dark"] .wfpm-full { background: #14532d; color: #86efac; }
+.wfctl { margin: 10px 0 0; }

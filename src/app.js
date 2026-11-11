@@ -10482,37 +10482,81 @@
     }
     if (known[name] && !WF_DONE[name]) { WF_DONE[name] = 1; wfSave(); }
   }
+  var WF_MAN_KEY = "finance-calc-wfman";
+  var WF_MAN = {};
+  function loadWfMan() { try { WF_MAN = JSON.parse(localStorage.getItem(WF_MAN_KEY) || "{}"); } catch (e) { WF_MAN = {}; } }
+  function wfManSave() { try { localStorage.setItem(WF_MAN_KEY, JSON.stringify(WF_MAN)); } catch (e) {} }
+  function getWfMan() { return WF_MAN; }
+  function toggleWfMan(key) { if (WF_MAN[key]) { delete WF_MAN[key]; } else { WF_MAN[key] = 1; } wfManSave(); }
+  function clearWfMan() { WF_MAN = {}; wfManSave(); }
   function calcWorkflow() {
     loadWfDone();
+    loadWfMan();
     var wfDone = getWfDone();
+    var wfMan = getWfMan();
     var links = document.querySelectorAll("#panel-workflow a[href^='#']");
-    var total = links.length, done = 0;
+    var total = links.length, done = 0, man = 0;
     for (var i = 0; i < links.length; i++) {
       var h = (links[i].getAttribute("href") || "").replace(/^#/, "").split("?")[0];
       if (wfDone[h]) { links[i].classList.add("wf-done"); done++; } else { links[i].classList.remove("wf-done"); }
     }
     var dets = document.querySelectorAll("#panel-workflow .card:not(.res) details");
+    var stepSeq = 0;
     for (var j = 0; j < dets.length; j++) {
       var al = dets[j].querySelectorAll("a[href^='#']");
-      var dt = 0;
+      var dt = 0, mt = 0;
       for (var k = 0; k < al.length; k++) {
         var hh = (al[k].getAttribute("href") || "").replace(/^#/, "").split("?")[0];
         if (wfDone[hh]) dt++;
+        var key = j + "-" + k;
+        var prevTick = al[k].nextSibling;
+        var tickEl = (prevTick && prevTick.nodeType === 1 && prevTick.classList && prevTick.classList.contains("wf-tick")) ? prevTick : null;
+        if (!tickEl) {
+          tickEl = document.createElement("button");
+          tickEl.type = "button";
+          tickEl.className = "wf-tick";
+          tickEl.setAttribute("aria-label", "标记本月已完成");
+          tickEl.textContent = "✓";
+          al[k].parentNode.insertBefore(tickEl, al[k].nextSibling);
+        }
+        tickEl.setAttribute("data-step", key);
+        if (wfMan[key]) { tickEl.classList.add("on"); mt++; man++; } else { tickEl.classList.remove("on"); }
+        stepSeq++;
       }
       var sum = dets[j].querySelector("summary");
       var oldB = sum.querySelector(".wfp");
       if (oldB) oldB.remove();
+      var oldM = sum.querySelector(".wfpm");
+      if (oldM) oldM.remove();
       var b = document.createElement("span");
       b.className = "wfp" + (dt === al.length && al.length > 0 ? " wfp-full" : "");
       b.textContent = dt + "/" + al.length;
+      var m = document.createElement("span");
+      m.className = "wfpm" + (mt === al.length && al.length > 0 ? " wfpm-full" : "");
+      m.textContent = "本月 " + mt + "/" + al.length;
       sum.appendChild(b);
+      sum.appendChild(m);
     }
     if ($("wf-big")) $("wf-big").textContent = done + "/" + total;
     if ($("wf-donekv")) $("wf-donekv").textContent = done + " 步";
     if ($("wf-pctkv")) $("wf-pctkv").textContent = (total ? pct(done / total, 1) : "0.0%");
+    if ($("wf-mankv")) $("wf-mankv").textContent = man + "/" + total;
     var n = $("wf-note");
-    if (n) n.textContent = done === 0 ? "五条常用岗位路径，点任意一步开始；点开过的模块会自动在这里打勾，进度只存在本机浏览器。" : (done >= total ? "五条路径全部走完一遍了。日常可以按岗位重复走，打勾不会自动清空。" : "五条常用岗位路径；已点开 " + done + "/" + total + " 个，点任意一步继续。进度只存在本机浏览器。");
+    if (n) n.textContent = done === 0 ? "五条常用岗位路径，点任意一步开始；点开过的模块会自动打勾，「✓」按钮手动标记本月已完成（月底点「清空本月手动打勾」重来）。" : (done >= total ? "五条路径全部走完一遍了。日常可以按岗位重复走：自动打勾不会清空，手动「✓」每月点一次、月底清空。" : "五条常用岗位路径；已点开 " + done + "/" + total + " 个。绿色✓＝自动（点开过），深色✓＝本月手动完成。");
   }
+  document.addEventListener("click", function (e) {
+    var t = e.target && e.target.closest ? e.target.closest(".wf-tick") : null;
+    if (t) {
+      toggleWfMan(t.getAttribute("data-step") || "");
+      if (typeof runCalc === "function") runCalc("workflow");
+      return;
+    }
+    if (e.target && e.target.closest && e.target.closest("#wf-clear")) {
+      clearWfMan();
+      if (typeof runCalc === "function") runCalc("workflow");
+      toast("已清空本月手动打勾");
+    }
+  });
   function calcExcoll() {
     var fob = num($("exr-fob"), 500000);
     var coll = num($("exr-collect"), 460000);
@@ -10886,6 +10930,68 @@
     $("dli-note").textContent = "递延所得税资产 = 可抵扣暂时性差异 × 税率（坏账准备、存货跌价等，预期能转回时确认）；递延所得税负债 = 应纳税暂时性差异 × 税率（加速折旧等）。本期变动 = 期末 − 期初；递延所得税费用 = 负债增加 − 资产增加，负数表示所得税费用减少（但不是少缴，是时间性差异）。";
   }
 
+  function calcRelparty() {
+    var amt = num($("rlp-amt"), 5000000);
+    var equity = num($("rlp-equity"), 50000000);
+    var prior = num($("rlp-prior"), 2000000);
+    var board = num($("rlp-board"), 3000000);
+    var disc = num($("rlp-disclose"), 0.5) / 100;
+    var sh = num($("rlp-sh"), 30000000);
+    var shpct = num($("rlp-shpct"), 5) / 100;
+    var ratio = equity > 0 ? amt / equity : 0;
+    var total = amt + prior;
+    var boardOk = amt >= board && ratio >= disc;
+    var shareOk = amt >= sh && ratio >= shpct;
+    $("rlp-big").textContent = shareOk ? "需股东大会审议" : (boardOk ? "需董事会审议＋披露" : "未达审议线");
+    $("rlp-ratio").textContent = pct(ratio, 2);
+    $("rlp-total").textContent = money(total);
+    $("rlp-boardkv").textContent = boardOk ? "是（金额 " + money(amt) + " ≥ " + money(board) + " 且占比达标）" : "否";
+    $("rlp-shkv").textContent = shareOk ? "是（金额 " + money(amt) + " ≥ " + money(sh) + " 且占比 ≥ " + pct(shpct, 1) + "）" : "否";
+    $("rlp-note").textContent = "口径：披露/董事会 = 金额 ≥ " + money(board) + " 且 占净资产 ≥ " + pct(disc, 2) + "；股东大会 = 金额 ≥ " + money(sh) + " 且 占比 ≥ " + pct(shpct, 1) + "。上市公司与关联法人以 300 万/0.5% 为常见披露线（可改），各板块与公司章程口径可能不同，重大关联交易须独立董事事前认可与回避表决；12 个月内同类交易要累计计算。";
+  }
+
+  function calcRepaircap() {
+    var orig = num($("rep-orig"), 1000000);
+    var dep = num($("rep-dep"), 600000);
+    var amt = num($("rep-amt"), 300000);
+    var years = num($("rep-years"), 5);
+    var tax = num($("rep-tax"), 25) / 100;
+    var life = num($("rep-life"), 1) > 0;
+    var perf = num($("rep-perf"), 1) > 0;
+    var cap = (life || perf);
+    var capAmt = cap ? amt : 0;
+    var expAmt = cap ? 0 : amt;
+    var depAdd = cap && years > 0 ? amt / years : 0;
+    var pretax = cap ? 0 : -expAmt;
+    var aftertax = cap ? 0 : -expAmt * (1 - tax);
+    $("rep-big").textContent = cap ? "资本化（后续支出）" : "费用化（当期损益）";
+    $("rep-cap").textContent = money(capAmt);
+    $("rep-pretax").textContent = pretax === 0 ? "0.00 元" : yuan(pretax);
+    $("rep-aftertax").textContent = aftertax === 0 ? "0.00 元" : yuan(aftertax);
+    $("rep-depkv").textContent = money(depAdd) + " /年";
+    $("rep-note").textContent = cap ? "延长使用寿命或提高性能的后续支出资本化，按剩余年限 " + years + " 年重新计提折旧（每年 " + money(depAdd) + "，税前）；日常维修直接费用化。税会处理一般一致，但金额大且跨越多个年度的，注意与税务沟通一次性扣除还是分期。" : "日常维修/恢复原状，不延长寿命也不提高性能 → 全部费用化（当年税前 −" + money(amt) + "，税后 −" + money(amt * (1 - tax)) + "）。判断标准是实质重于形式：是否带来未来经济利益的增加。";
+  }
+
+  function calcEps() {
+    var ni = num($("eps-ni"), 10000000);
+    var pref = num($("eps-pref"), 500000);
+    var shares = num($("eps-shares"), 50000000);
+    var dil = num($("eps-dil"), 5000000);
+    var dilni = num($("eps-dilni"), 300000);
+    var price = num($("eps-price"), 10);
+    var basic = shares > 0 ? (ni - pref) / shares : 0;
+    var diluted = (shares + dil) > 0 ? (ni - pref + dilni) / (shares + dil) : 0;
+    var anti = diluted > basic;
+    var pe = basic > 0 ? price / basic : 0;
+    var ppe = diluted > 0 ? price / diluted : 0;
+    $("eps-big").textContent = fmt(basic, 4);
+    $("eps-dilkv").textContent = fmt(diluted, 4);
+    $("eps-pe").textContent = pe > 0 ? fmt(pe, 2) + " 倍" : "—";
+    $("eps-pped").textContent = ppe > 0 ? fmt(ppe, 2) + " 倍" : "—";
+    $("eps-judge").textContent = anti ? "反稀释（不计入稀释每股收益）" : "具稀释性";
+    $("eps-note").textContent = "基本 EPS =（归母净利润 − 优先股股息）÷ 加权平均普通股股数；稀释 EPS 再把可转债/期权/认股权证等潜在普通股按「假设转换」加入分子分母。若稀释 EPS 反而比基本 EPS 高（反稀释），准则要求不纳入计算。加权股数要按发行/回购时间加权，不是期末数。";
+  }
+
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
@@ -10946,7 +11052,8 @@
     excoll: calcExcoll, assetdisptax: calcAssetDispTax, tpdocs: calcTpdocs, fxhedge: calcFxhedge,
     unbilled: calcUnbilled, deferred: calcDeferred, interco: calcInterco, sharepay: calcSharepay,
     vatrefund: calcVatrefund, smallmicro: calcSmallmicro, addcredit: calcAddcredit, losscontract: calcLosscontract,
-    bankacct: calcBankacct, equitychg: calcEquitychg, estimatechg: calcEstimatechg, dtlind: calcDtlind
+    bankacct: calcBankacct, equitychg: calcEquitychg, estimatechg: calcEstimatechg, dtlind: calcDtlind,
+    relparty: calcRelparty, repaircap: calcRepaircap, eps: calcEps
   };
 
   var curCat = "hot", curSub = "";
@@ -11434,10 +11541,13 @@
     "bk-b1","bk-b2","bk-b3","bk-b4","bk-s1","bk-s2","bk-s3","bk-s4","bk-restrict",
     "eqc-sc0","eqc-cr0","eqc-re0","eqc-up0","eqc-np","eqc-re","eqc-div","eqc-add","eqc-oci",
     "est-cost","est-acc","est-salv","est-old","est-new","est-tax",
-    "dli-bad","dli-inv","dli-dep","dli-tax","dli-dta0","dli-dtl0"
+    "dli-bad","dli-inv","dli-dep","dli-tax","dli-dta0","dli-dtl0",
+    "rlp-amt","rlp-equity","rlp-prior","rlp-board","rlp-disclose","rlp-sh","rlp-shpct",
+    "rep-orig","rep-dep","rep-amt","rep-years","rep-tax","rep-life","rep-perf",
+    "eps-ni","eps-pref","eps-shares","eps-price","eps-dil","eps-dilni"
 
 ];
-  var KEY = "finance-calc-v62";
+  var KEY = "finance-calc-v63";
   var CAT_KEY = "finance-calc-cat";
   /* 构建时由 build.mjs 注入为 "v<内容哈希>"，页脚展示，方便核对版本 */
   var BUILD_TAG = "";

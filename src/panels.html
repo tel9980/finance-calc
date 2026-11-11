@@ -9235,6 +9235,7 @@
           <summary>⑤ 预算与滚动预测</summary>
           <p class="jump"><a href="#bplan">年度预算联动</a> → <a href="#rollfc">滚动预测</a> → <a href="#rollbudget">预算滚动预测</a> → <a href="#budgetalert">偏差预警</a> → <a href="#expbudget">费用预算差异</a></p>
         </details>
+        <p class="wfctl"><button type="button" id="wf-clear" class="ghost sm">清空本月手动打勾</button></p>
       </div>
       <div class="card res">
         <h2>说明</h2>
@@ -9242,6 +9243,7 @@
         <ul class="kv">
           <li><span>已点开</span><b id="wf-donekv">0 步</b></li>
           <li><span>完成率</span><b id="wf-pctkv">0.0%</b></li>
+          <li><span>本月手动完成</span><b id="wf-mankv">0/22</b></li>
           <li><span>用法</span><b>点任意一步跳到对应模块，点过自动打勾</b></li>
         </ul>
         <p class="hint">每一步跳到模块后，都能继续用模块底部的「下一步常用」往下走；这条面板只是把整条岗位路径先串起来。</p>
@@ -9705,6 +9707,97 @@
           <li><span>递延所得税费用（减项为少缴）</span><b id="dli-net">—</b></li>
         </ul>
         <p class="hint" id="dli-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-relparty">
+    <div class="cols">
+      <div class="card">
+        <h2>关联交易审议与披露门槛</h2>
+        <label class="f"><span>本次关联交易金额</span><input id="rlp-amt" type="number" inputmode="decimal" min="0" step="10000" value="5000000"></label>
+        <span class="row">
+          <label class="f"><span>最近一期经审计净资产</span><input id="rlp-equity" type="number" inputmode="decimal" min="0" step="10000" value="50000000"></label>
+          <label class="f"><span>上年度同类交易累计</span><input id="rlp-prior" type="number" inputmode="decimal" min="0" step="10000" value="2000000"></label>
+        </span>
+        <span class="row">
+          <label class="f"><span>披露金额线</span><input id="rlp-board" type="number" inputmode="decimal" min="0" step="10000" value="3000000"></label>
+          <label class="f"><span>披露占净资产 %</span><input id="rlp-disclose" type="number" inputmode="decimal" min="0" value="0.5"></label>
+        </span>
+        <span class="row">
+          <label class="f"><span>股东大会金额线</span><input id="rlp-sh" type="number" inputmode="decimal" min="0" step="10000" value="30000000"></label>
+          <label class="f"><span>股东大会占净资产 %</span><input id="rlp-shpct" type="number" inputmode="decimal" min="0" value="5"></label>
+        </span>
+      </div>
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">本次交易判定</span><strong id="rlp-big">—</strong><span class="unit"></span></div>
+        <ul class="kv">
+          <li><span>占净资产比例</span><b id="rlp-ratio">—</b></li>
+          <li><span>累计后金额</span><b id="rlp-total">—</b></li>
+          <li><span>是否需董事会审议＋披露</span><b id="rlp-boardkv">—</b></li>
+          <li><span>是否需股东大会审议</span><b id="rlp-shkv">—</b></li>
+        </ul>
+        <p class="hint" id="rlp-note"></p>
+      </div>
+    </div>
+  </section>
+  <section class="panel" id="panel-repaircap">
+    <div class="cols">
+      <div class="card">
+        <h2>固定资产维修 vs 改良（资本化判断）</h2>
+        <label class="f"><span>资产原值</span><input id="rep-orig" type="number" inputmode="decimal" min="0" step="10000" value="1000000"></label>
+        <label class="f"><span>累计折旧</span><input id="rep-dep" type="number" inputmode="decimal" min="0" step="10000" value="600000"></label>
+        <label class="f"><span>本次支出金额</span><input id="rep-amt" type="number" inputmode="decimal" min="0" step="10000" value="300000"></label>
+        <span class="row">
+          <label class="f"><span>剩余使用年限</span><input id="rep-years" type="number" inputmode="decimal" min="1" value="5"></label>
+          <label class="f"><span>所得税率 %</span><input id="rep-tax" type="number" inputmode="decimal" min="0" value="25"></label>
+        </span>
+        <span class="row">
+          <label class="f"><span>是否延长使用寿命</span>
+            <select id="rep-life"><option value="1">是</option><option value="0">否</option></select></label>
+          <label class="f"><span>是否提高性能/产能</span>
+            <select id="rep-perf"><option value="1">是</option><option value="0">否</option></select></label>
+        </span>
+      </div>
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">处理方式</span><strong id="rep-big">—</strong><span class="unit"></span></div>
+        <ul class="kv">
+          <li><span>资本化金额</span><b id="rep-cap">—</b></li>
+          <li><span>当年税前利润影响</span><b id="rep-pretax">—</b></li>
+          <li><span>当年税后利润影响</span><b id="rep-aftertax">—</b></li>
+          <li><span>以后年度每年多提折旧</span><b id="rep-depkv">—</b></li>
+        </ul>
+        <p class="hint" id="rep-note"></p>
+      </div>
+    </div>
+  </section>
+  <section class="panel" id="panel-eps">
+    <div class="cols">
+      <div class="card">
+        <h2>每股收益测算（基本 + 稀释）</h2>
+        <label class="f"><span>归母净利润</span><input id="eps-ni" type="number" inputmode="decimal" min="0" step="10000" value="10000000"></label>
+        <label class="f"><span>优先股股息</span><input id="eps-pref" type="number" inputmode="decimal" min="0" step="10000" value="500000"></label>
+        <span class="row">
+          <label class="f"><span>加权平均普通股股数</span><input id="eps-shares" type="number" inputmode="decimal" min="0" step="100000" value="50000000"></label>
+          <label class="f"><span>当前股价</span><input id="eps-price" type="number" inputmode="decimal" min="0" value="10"></label>
+        </span>
+        <span class="row">
+          <label class="f"><span>稀释性潜在普通股股数</span><input id="eps-dil" type="number" inputmode="decimal" min="0" step="100000" value="5000000"></label>
+          <label class="f"><span>稀释项增加的净利润</span><input id="eps-dilni" type="number" inputmode="decimal" min="0" step="10000" value="300000"></label>
+        </span>
+      </div>
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">基本每股收益</span><strong id="eps-big">—</strong><span class="unit">元/股</span></div>
+        <ul class="kv">
+          <li><span>稀释每股收益</span><b id="eps-dilkv">—</b></li>
+          <li><span>市盈率（基本）</span><b id="eps-pe">—</b></li>
+          <li><span>市盈率（稀释）</span><b id="eps-pped">—</b></li>
+          <li><span>稀释性判断</span><b id="eps-judge">—</b></li>
+        </ul>
+        <p class="hint" id="eps-note"></p>
       </div>
     </div>
   </section>
