@@ -8808,3 +8808,155 @@
       </div>
     </div>
   </section>
+  <section class="panel" id="panel-cashcycle">
+    <div class="cols">
+      <div class="card">
+        <h2>输入：营运资金三要素</h2>
+        <span class="row">
+          <label class="f"><span>年销售收入</span><input id="cc-sales" type="number" inputmode="decimal" min="0" step="100000" value="12000000"></label>
+          <label class="f"><span>年销售成本</span><input id="cc-cogs" type="number" inputmode="decimal" min="0" step="100000" value="9000000"></label>
+        </span>
+        <span class="row">
+          <label class="f"><span>平均应收账款</span><input id="cc-ar" type="number" inputmode="decimal" min="0" step="10000" value="2000000"></label>
+          <label class="f"><span>平均存货</span><input id="cc-inv" type="number" inputmode="decimal" min="0" step="10000" value="2200000"></label>
+        </span>
+        <span class="row">
+          <label class="f"><span>平均应付账款</span><input id="cc-ap" type="number" inputmode="decimal" min="0" step="10000" value="1800000"></label>
+          <label class="f"><span>目标现金周转天数</span><input id="cc-target" type="number" inputmode="decimal" min="0" step="1" value="60"></label>
+        </span>
+        <em>口径：按 365 天计。DSO = 应收 ÷ 日均销售额，DIO = 存货 ÷ 日均销售成本，DPO = 应付 ÷ 日均销售成本；现金周期 = DSO + DIO − DPO。应付越晚、应收存货越快，占钱越少。</em>
+      </div>
+      <div class="card res">
+        <h2>结果：现金周转天数拆解</h2>
+        <div class="big"><span class="k">现金周转天数</span><strong id="cc-big">—</strong><span class="unit">天</span></div>
+        <ul class="kv">
+          <li><span>应收天数 DSO</span><b id="cc-dso">—</b></li>
+          <li><span>存货天数 DIO</span><b id="cc-dio">—</b></li>
+          <li><span>应付天数 DPO（抵扣）</span><b id="cc-dpo">—</b></li>
+          <li><span>占压资金</span><b id="cc-occ">—</b></li>
+          <li><span>每压 1 天释放</span><b id="cc-perday">—</b></li>
+          <li><span>距目标还差</span><b id="cc-gap">—</b></li>
+        </ul>
+        <div class="tablebox">
+          <table>
+            <thead><tr><th class="tal">环节</th><th>金额</th><th>天数</th><th class="tal">说明</th></tr></thead>
+            <tbody id="cc-body"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="ccy-note"></p>
+      </div>
+    </div>
+  </section>
+  <section class="panel" id="panel-saleexp">
+    <div class="cols">
+      <div class="card">
+        <h2>输入：两期销售与费用</h2>
+        <span class="row">
+          <label class="f"><span>本期销售收入</span><input id="se-sales" type="number" inputmode="decimal" min="0" step="100000" value="10000000"></label>
+          <label class="f"><span>上期销售收入</span><input id="se-sales0" type="number" inputmode="decimal" min="0" step="100000" value="8000000"></label>
+        </span>
+        <span class="row">
+          <label class="f"><span>本期销售费用</span><input id="se-exp" type="number" inputmode="decimal" min="0" step="10000" value="1200000"></label>
+          <label class="f"><span>上期销售费用</span><input id="se-exp0" type="number" inputmode="decimal" min="0" step="10000" value="1000000"></label>
+        </span>
+        <label class="f"><span>毛利率 %</span><input id="se-margin" type="number" inputmode="decimal" min="0" step="1" value="30"></label>
+        <em>口径：边际 ROI = 增量收入 × 毛利率 ÷ 增量销售费用，衡量「多花的每一元费用多赚多少毛利」，&gt;1 才算划算。费用弹性 = 费用增速 ÷ 收入增速，&lt;1 说明费用涨得比收入慢，费效在改善。</em>
+      </div>
+      <div class="card res">
+        <h2>结果：销售费用投入产出</h2>
+        <div class="big"><span class="k">边际 ROI</span><strong id="se-big">—</strong><span class="unit">倍</span></div>
+        <ul class="kv">
+          <li><span>销售费用率（本期 / 上期）</span><b id="se-rate">—</b></li>
+          <li><span>费用弹性（费用增速 ÷ 收入增速）</span><b id="se-elas">—</b></li>
+          <li><span>增量毛利</span><b id="se-newgm">—</b></li>
+          <li><span>增量净贡献</span><b id="se-net">—</b></li>
+        </ul>
+        <div class="tablebox">
+          <table>
+            <thead><tr><th class="tal">指标</th><th>上期</th><th>本期</th><th>变化</th></tr></thead>
+            <tbody id="se-body"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="se-note"></p>
+      </div>
+    </div>
+  </section>
+  <section class="panel" id="panel-deptcost">
+    <div class="cols">
+      <div class="card">
+        <h2>输入：四部门预算与实际</h2>
+        <span class="row">
+          <label class="f"><span>销售部预算</span><input id="dc-b1" type="number" inputmode="decimal" min="0" step="10000" value="300000"></label>
+          <label class="f"><span>销售部实际</span><input id="dc-a1" type="number" inputmode="decimal" min="0" step="10000" value="280000"></label>
+        </span>
+        <span class="row">
+          <label class="f"><span>生产部预算</span><input id="dc-b2" type="number" inputmode="decimal" min="0" step="10000" value="500000"></label>
+          <label class="f"><span>生产部实际</span><input id="dc-a2" type="number" inputmode="decimal" min="0" step="10000" value="540000"></label>
+        </span>
+        <span class="row">
+          <label class="f"><span>管理部预算</span><input id="dc-b3" type="number" inputmode="decimal" min="0" step="10000" value="200000"></label>
+          <label class="f"><span>管理部实际</span><input id="dc-a3" type="number" inputmode="decimal" min="0" step="10000" value="190000"></label>
+        </span>
+        <span class="row">
+          <label class="f"><span>研发部预算</span><input id="dc-b4" type="number" inputmode="decimal" min="0" step="10000" value="150000"></label>
+          <label class="f"><span>研发部实际</span><input id="dc-a4" type="number" inputmode="decimal" min="0" step="10000" value="170000"></label>
+        </span>
+        <em>口径：费用中心考核看「预算 vs 实际」的差异额与差异率，超支 &gt;5% 标黄、&gt;10% 标红；节约部门也要确认不是「没干活」或「费用挂错部门」。</em>
+      </div>
+      <div class="card res">
+        <h2>结果：部门费用考核</h2>
+        <div class="big"><span class="k">总差异</span><strong id="dc-big">—</strong><span class="unit">元</span></div>
+        <ul class="kv">
+          <li><span>总预算 / 总实际</span><b id="dc-total">—</b></li>
+          <li><span>总差异率</span><b id="dc-rate">—</b></li>
+          <li><span>最该先管的部门</span><b id="dc-worst">—</b></li>
+        </ul>
+        <div class="tablebox">
+          <table>
+            <thead><tr><th class="tal">部门</th><th>预算</th><th>实际</th><th>差异</th><th>差异率</th><th class="tal">判定</th></tr></thead>
+            <tbody id="dc-body"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="dcx-note"></p>
+      </div>
+    </div>
+  </section>
+  <section class="panel" id="panel-invvar">
+    <div class="cols">
+      <div class="card">
+        <h2>输入：6 期盘点差异</h2>
+        <label class="f"><span>平均库存金额</span><input id="ivv-inv" type="number" inputmode="decimal" min="0" step="100000" value="2000000"></label>
+        <span class="row">
+          <label class="f"><span>第 1 期盘亏</span><input id="ivv-d1" type="number" inputmode="decimal" min="0" step="1000" value="12000"></label>
+          <label class="f"><span>第 2 期盘亏</span><input id="ivv-d2" type="number" inputmode="decimal" min="0" step="1000" value="9500"></label>
+        </span>
+        <span class="row">
+          <label class="f"><span>第 3 期盘亏</span><input id="ivv-d3" type="number" inputmode="decimal" min="0" step="1000" value="15000"></label>
+          <label class="f"><span>第 4 期盘亏</span><input id="ivv-d4" type="number" inputmode="decimal" min="0" step="1000" value="8200"></label>
+        </span>
+        <span class="row">
+          <label class="f"><span>第 5 期盘亏</span><input id="ivv-d5" type="number" inputmode="decimal" min="0" step="1000" value="18000"></label>
+          <label class="f"><span>第 6 期盘亏</span><input id="ivv-d6" type="number" inputmode="decimal" min="0" step="1000" value="21000"></label>
+        </span>
+        <label class="f"><span>差异率警戒线 %</span><input id="ivv-line" type="number" inputmode="decimal" min="0" step="0.1" value="0.8"></label>
+        <em>口径：差异率 = 盘亏 ÷ 平均库存。单期数字有偶然性，看趋势：最近 3 期均值比前 3 期高，说明账实管理水平在变差，要查收发存流程、出入库单据与盘点方法。</em>
+      </div>
+      <div class="card res">
+        <h2>结果：差异率趋势预警</h2>
+        <div class="big"><span class="k">平均差异率</span><strong id="ivv-big">—</strong><span class="unit">%</span></div>
+        <ul class="kv">
+          <li><span>累计盘亏</span><b id="ivv-total">—</b></li>
+          <li><span>前 3 期 vs 后 3 期均值</span><b id="ivv-trend">—</b></li>
+          <li><span>趋势判定</span><b id="ivv-verdict">—</b></li>
+          <li><span>超警戒线期数</span><b id="ivv-over">—</b></li>
+        </ul>
+        <div class="tablebox">
+          <table>
+            <thead><tr><th class="tal">期次</th><th>盘亏</th><th>差异率</th><th class="tal">是否超线</th></tr></thead>
+            <tbody id="ivv-body"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="ivv-note"></p>
+      </div>
+    </div>
+  </section>

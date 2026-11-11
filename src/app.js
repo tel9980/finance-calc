@@ -10073,6 +10073,171 @@
     $("bga-note").textContent = "执行率 = 已发生 ÷ 全年预算，对拍时间进度 " + fmt(time * 100, 2) + "%。" + tips.join("；")
       + "。费用执行率 " + fmt(expRate * 100, 2) + "% 若是因为「提前付年费/备货」这类一次性支出，看口径时要把它们剔掉再比，否则会误报。";
   }
+  /* ===== 现金周转天数拆解 ===== */
+  function calcCashCycle() {
+    var sales = Math.max(0, num($("cc-sales"), 0));
+    var cogs = Math.max(0, num($("cc-cogs"), 0));
+    var ar = Math.max(0, num($("cc-ar"), 0));
+    var inv = Math.max(0, num($("cc-inv"), 0));
+    var ap = Math.max(0, num($("cc-ap"), 0));
+    var target = Math.max(0, num($("cc-target"), 0));
+
+    var ds = sales / 365;
+    var dc = cogs / 365;
+    var dso = ds > 0 ? ar / ds : 0;
+    var dio = dc > 0 ? inv / dc : 0;
+    var dpo = dc > 0 ? ap / dc : 0;
+    var ccc = dso + dio - dpo;
+    var occ = dc * ccc;
+    var gap = ccc - target;
+
+    $("cc-big").textContent = fmt(ccc, 2);
+    $("cc-dso").textContent = fmt(dso, 2) + " 天（应收 " + money(ar) + "）";
+    $("cc-dio").textContent = fmt(dio, 2) + " 天（存货 " + money(inv) + "）";
+    $("cc-dpo").textContent = fmt(dpo, 2) + " 天（应付 " + money(ap) + "）";
+    $("cc-occ").textContent = money(occ) + "（日均销售成本 × " + fmt(ccc, 2) + " 天）";
+    $("cc-perday").textContent = money(dc) + "（每压 1 天周转就少占这些钱）";
+    $("cc-gap").textContent = gap > 0 ? fmt(gap, 2) + " 天（需释放 " + money(dc * gap) + "）" : "已达标（优于目标 " + fmt(Math.abs(gap), 2) + " 天）";
+
+    var rows = [
+      ["应收账款", money(ar), fmt(dso, 2), "收得越慢越占钱"],
+      ["存货", money(inv), fmt(dio, 2), "压货越多越占钱"],
+      ["应付账款", money(ap), "-" + fmt(dpo, 2), "欠得越久越省现金"],
+      ["现金周期", "—", fmt(ccc, 2), "DSO + DIO − DPO"]
+    ];
+    var html = "";
+    for (var i = 0; i < rows.length; i++) {
+      html += "<tr" + (i === 3 ? ' class="c-info"' : "") + "><td class=\"tal\">" + rows[i][0] + "</td><td>" + rows[i][1] + "</td><td>" + rows[i][2] + "</td><td class=\"tal\">" + rows[i][3] + "</td></tr>";
+    }
+    $("cc-body").innerHTML = html;
+
+    var tips = [];
+    if (dso >= dio && dso >= dpo) tips.push("应收是最大头（" + fmt(dso, 2) + " 天），先抓回款：账期谈判、催收排期、保理");
+    if (dio >= dso && dio >= dpo) tips.push("存货是最大头（" + fmt(dio, 2) + " 天），先抓库存：库龄清理、安全库存下调、以销定采");
+    if (dpo < 30) tips.push("应付只有 " + fmt(dpo, 2) + " 天，能否在不伤供应商关系的前提下谈长账期");
+    $("ccy-note").textContent = "现金周转 " + fmt(ccc, 2) + " 天，意味着从付钱进货到收回货款要压 " + money(occ) + " 在营运资金里。"
+      + tips.join("；") + "。每把周转压 1 天，就少占 " + money(dc) + "。";
+  }
+
+  /* ===== 销售费用 ROI ===== */
+  function calcSaleExp() {
+    var sales = Math.max(0, num($("se-sales"), 0));
+    var sales0 = Math.max(0, num($("se-sales0"), 0));
+    var exp = Math.max(0, num($("se-exp"), 0));
+    var exp0 = Math.max(0, num($("se-exp0"), 0));
+    var margin = Math.min(100, Math.max(0, num($("se-margin"), 30))) / 100;
+
+    var rate = sales > 0 ? exp / sales : 0;
+    var rate0 = sales0 > 0 ? exp0 / sales0 : 0;
+    var dE = exp - exp0;
+    var dS = sales - sales0;
+    var roi = dE > 0 ? dS * margin / dE : 0;
+    var elas = dS > 0 && sales0 > 0 ? (exp0 > 0 ? (exp / exp0 - 1) / (sales / sales0 - 1) : 0) : 0;
+    var newGm = dS * margin;
+    var net = newGm - dE;
+
+    $("se-big").textContent = fmt(roi, 2);
+    $("se-rate").textContent = fmt(rate * 100, 2) + "% / " + fmt(rate0 * 100, 2) + "%";
+    $("se-elas").textContent = fmt(elas, 2) + "（" + (elas < 1 ? "费效改善" : "费效变差") + "）";
+    $("se-newgm").textContent = money(newGm) + "（增量收入 " + money(dS) + " × 毛利率 " + pct(margin, 0) + "）";
+    $("se-net").textContent = money(net) + "（增量毛利 − 增量费用）";
+
+    var rows = [
+      ["销售收入", money(sales0), money(sales), (dS >= 0 ? "+" : "") + money(dS)],
+      ["销售费用", money(exp0), money(exp), (dE >= 0 ? "+" : "") + money(dE)],
+      ["销售费用率", fmt(rate0 * 100, 2) + "%", fmt(rate * 100, 2) + "%", (rate - rate0 >= 0 ? "+" : "") + fmt((rate - rate0) * 100, 2) + " 点"],
+      ["边际毛利", "—", money(newGm), "增量收入 × 毛利率"]
+    ];
+    var html = "";
+    for (var i = 0; i < rows.length; i++) {
+      html += "<tr><td class=\"tal\">" + rows[i][0] + "</td><td>" + rows[i][1] + "</td><td>" + rows[i][2] + "</td><td>" + rows[i][3] + "</td></tr>";
+    }
+    $("se-body").innerHTML = html;
+
+    $("se-note").textContent = "边际 ROI " + fmt(roi, 2) + " 倍，即本期多花的 " + money(dE) + " 销售费用换回 " + money(newGm) + " 毛利，净赚 " + money(net) + "。"
+      + (roi >= 1 ? "ROI &gt; 1，这波投入划算；" : "ROI &lt; 1，多花的费用连毛利都没赚回来，先停一停；")
+      + "费用弹性 " + fmt(elas, 2) + (elas < 1 ? "（&lt;1，费用涨得比收入慢，方向健康）。" : "（&gt;1，费用跑得比收入快，要盯）。") + "不同渠道分开算，别让高效渠道补贴低效渠道。";
+  }
+
+  /* ===== 多部门费用分摊与考核 ===== */
+  function calcDeptCost() {
+    var names = ["销售部", "生产部", "管理部", "研发部"];
+    var b = [], a = [];
+    for (var i = 1; i <= 4; i++) {
+      b.push(Math.max(0, num($("dc-b" + i), 0)));
+      a.push(Math.max(0, num($("dc-a" + i), 0)));
+    }
+    var tb = 0, ta = 0;
+    for (var j = 0; j < 4; j++) { tb += b[j]; ta += a[j]; }
+    var diff = ta - tb;
+    var rate = tb > 0 ? diff / tb : 0;
+
+    function judge(r) {
+      if (r > 0.10) return "🔴 超支";
+      if (r > 0.05) return "🟡 超支";
+      if (r < -0.10) return "🟢 大额节约";
+      if (r < -0.05) return "🟢 节约";
+      return "正常";
+    }
+
+    $("dc-big").textContent = (diff >= 0 ? "+" : "") + money(diff);
+    $("dc-total").textContent = money(tb) + " / " + money(ta);
+    $("dc-rate").textContent = (rate >= 0 ? "超支 " : "节约 ") + fmt(Math.abs(rate) * 100, 2) + "%";
+
+    var worst = 0, worstR = -1;
+    for (var k = 0; k < 4; k++) {
+      var r = b[k] > 0 ? (a[k] - b[k]) / b[k] : 0;
+      if (r > worstR) { worstR = r; worst = k; }
+    }
+    $("dc-worst").textContent = worstR > 0 ? names[worst] + "（超支 " + fmt(worstR * 100, 2) + "%）" : "都在预算内";
+
+    var html = "";
+    for (var p = 0; p < 4; p++) {
+      var d = a[p] - b[p];
+      var rr = b[p] > 0 ? d / b[p] : 0;
+      html += "<tr><td class=\"tal\">" + names[p] + "</td><td>" + money(b[p]) + "</td><td>" + money(a[p]) + "</td><td>" + (d >= 0 ? "+" : "") + money(d) + "</td><td>" + (rr >= 0 ? "+" : "") + fmt(rr * 100, 2) + "%</td><td class=\"tal\">" + judge(rr) + "</td></tr>";
+    }
+    html += "<tr class=\"c-info\"><td class=\"tal\">合计</td><td>" + money(tb) + "</td><td>" + money(ta) + "</td><td>" + (diff >= 0 ? "+" : "") + money(diff) + "</td><td>" + (rate >= 0 ? "+" : "") + fmt(rate * 100, 2) + "%</td><td class=\"tal\">" + judge(rate) + "</td></tr>";
+    $("dc-body").innerHTML = html;
+
+    $("dcx-note").textContent = "总差异 " + (diff >= 0 ? "超支 " : "节约 ") + money(Math.abs(diff)) + "（" + fmt(Math.abs(rate) * 100, 2) + "%）。"
+      + "费用中心考核看差异率不看绝对值：最该先问的是「" + names[worst] + "」——超支 " + fmt(worstR * 100, 2) + "%，要它说清是业务量涨了还是花冒了。"
+      + "节约部门也要确认：是提效，还是没干活或把费用挂到了别的部门。";
+  }
+
+  /* ===== 存货盘点差异率趋势 ===== */
+  function calcInvVar() {
+    var inv = Math.max(0, num($("ivv-inv"), 0));
+    var line = Math.max(0, num($("ivv-line"), 0.8));
+    var d = [];
+    for (var i = 1; i <= 6; i++) d.push(Math.max(0, num($("ivv-d" + i), 0)));
+    var rates = d.map(function (x) { return inv > 0 ? x / inv * 100 : 0; });
+    var total = 0;
+    for (var j = 0; j < 6; j++) total += d[j];
+    var avg = rates.reduce(function (s, x) { return s + x; }, 0) / 6;
+    var f3 = (rates[0] + rates[1] + rates[2]) / 3;
+    var l3 = (rates[3] + rates[4] + rates[5]) / 3;
+    var over = 0;
+    for (var k = 0; k < 6; k++) if (rates[k] > line) over++;
+
+    $("ivv-big").textContent = fmt(avg, 2);
+    $("ivv-total").textContent = money(total) + "（6 期累计）";
+    $("ivv-trend").textContent = fmt(f3, 2) + "% vs " + fmt(l3, 2) + "%";
+    var up = l3 - f3;
+    $("ivv-verdict").textContent = up > 0.05 ? "🟡 上升（后 3 期高 " + fmt(up, 2) + " 点）" : up < -0.05 ? "🟢 下降" : "平稳";
+    $("ivv-over").textContent = over + " 期（警戒线 " + fmt(line, 2) + "%）";
+
+    var html = "";
+    for (var p = 0; p < 6; p++) {
+      var isOver = rates[p] > line;
+      html += "<tr" + (isOver ? ' class="c-warn"' : "") + "><td class=\"tal\">第 " + (p + 1) + " 期</td><td>" + money(d[p]) + "</td><td>" + fmt(rates[p], 2) + "%</td><td class=\"tal\">" + (isOver ? "超线" : "正常") + "</td></tr>";
+    }
+    $("ivv-body").innerHTML = html;
+
+    $("ivv-note").textContent = "平均差异率 " + fmt(avg, 2) + "%，累计盘亏 " + money(total) + "。趋势：前 3 期均值 " + fmt(f3, 2) + "% → 后 3 期 " + fmt(l3, 2) + "%（"
+      + (up >= 0 ? "+" : "") + fmt(up, 2) + " 点）。" + (up > 0.05 ? "差异率在爬坡，别只看金额——先查出入库单据是否及时、盘点方法是否一致、监控有没有盲区。" : "趋势平稳，维持现有流程即可。")
+      + "盘亏要在审批后做账务处理，人为损耗、失窃与自然损耗的账务和税务处理不一样。";
+  }
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
@@ -10125,7 +10290,8 @@
     bundle: calcBundle, monthly: calcMonthly, yearcmp: calcYearCmp, yearreport: calcYearReport,
     fifocost: calcFifoCost, hlcost: calcHlCost, trialbal: calcTrialBal, citprep: calcCitPrep,
     rollbudget: calcRollBudget, csladv: calcCslAdv, taxwarn: calcTaxWarn, loanledger: calcLoanLedger,
-    expcheck: calcExpCheck, dtax: calcDTax, invimpair: calcInvImpair, budgetalert: calcBudgetAlert
+    expcheck: calcExpCheck, dtax: calcDTax, invimpair: calcInvImpair, budgetalert: calcBudgetAlert,
+    cashcycle: calcCashCycle, saleexp: calcSaleExp, deptcost: calcDeptCost, invvar: calcInvVar
   };
 
   var curCat = "hot", curSub = "";
@@ -10580,9 +10746,13 @@
     "ec-total", "ec-special", "ec-vatrate", "ec-noticket", "ec-receipt", "ec-over", "ec-personal", "ec-tax",
     "dtx-unreal", "dtx-buy", "dtx-sell",
     "ivm-sales", "ivm-cogs", "ivm-a1", "ivm-p1", "ivm-a2", "ivm-p2", "ivm-a3", "ivm-p3",
-    "bga-budinc", "bga-budexp", "bga-months", "bga-actinc", "bga-actexp"
+    "bga-budinc", "bga-budexp", "bga-months", "bga-actinc", "bga-actexp",
+    "cc-sales", "cc-cogs", "cc-ar", "cc-inv", "cc-ap", "cc-target",
+    "se-sales", "se-sales0", "se-exp", "se-exp0", "se-margin",
+    "dc-b1", "dc-a1", "dc-b2", "dc-a2", "dc-b3", "dc-a3", "dc-b4", "dc-a4",
+    "ivv-inv", "ivv-d1", "ivv-d2", "ivv-d3", "ivv-d4", "ivv-d5", "ivv-d6", "ivv-line"
 ];
-  var KEY = "finance-calc-v56";
+  var KEY = "finance-calc-v57";
   var CAT_KEY = "finance-calc-cat";
 
   /* ---------------- 现金流月历 ---------------- */
