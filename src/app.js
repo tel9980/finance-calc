@@ -11608,15 +11608,29 @@
       h.parentNode.insertBefore(det, h);
       det.appendChild(sum); det.appendChild(h);
     }
+  }
+
+  /* 表格工具栏只挂在「真正长」的明细表上（≥10 行），短对比表不再多出两个按钮 */
+  function refreshTableTools(el) {
+    if (!el) return;
     var tbox = el.querySelector(".tablebox table");
-    if (tbox && !el.querySelector(".tbtools")) {
-      var tbw = document.createElement("div");
-      tbw.className = "tbtools";
-      var b1 = document.createElement("button"); b1.type = "button"; b1.className = "ghost sm"; b1.setAttribute("data-act", "copy-table"); b1.textContent = "复制表格";
-      var b2 = document.createElement("button"); b2.type = "button"; b2.className = "ghost sm"; b2.setAttribute("data-act", "print-table"); b2.textContent = "打印";
-      tbw.appendChild(b1); tbw.appendChild(b2);
-      var hb = el.querySelector(".tablebox");
-      if (hb && hb.parentNode) hb.parentNode.insertBefore(tbw, hb);
+    if (!tbox) return;
+    var n = 0;
+    var tb = tbox.tBodies && tbox.tBodies.length ? tbox.tBodies[0] : null;
+    if (tb) n = tb.rows.length;
+    var ex = el.querySelector(".tbtools");
+    if (n >= 10) {
+      if (!ex) {
+        var tbw = document.createElement("div");
+        tbw.className = "tbtools";
+        var b1 = document.createElement("button"); b1.type = "button"; b1.className = "ghost sm"; b1.setAttribute("data-act", "copy-table"); b1.textContent = "复制表格";
+        var b2 = document.createElement("button"); b2.type = "button"; b2.className = "ghost sm"; b2.setAttribute("data-act", "print-table"); b2.textContent = "打印";
+        tbw.appendChild(b1); tbw.appendChild(b2);
+        var hb = el.querySelector(".tablebox");
+        if (hb && hb.parentNode) hb.parentNode.insertBefore(tbw, hb);
+      }
+    } else if (ex) {
+      ex.parentNode.removeChild(ex);
     }
   }
 
