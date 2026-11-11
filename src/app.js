@@ -10238,6 +10238,111 @@
       + (up >= 0 ? "+" : "") + fmt(up, 2) + " 点）。" + (up > 0.05 ? "差异率在爬坡，别只看金额——先查出入库单据是否及时、盘点方法是否一致、监控有没有盲区。" : "趋势平稳，维持现有流程即可。")
       + "盘亏要在审批后做账务处理，人为损耗、失窃与自然损耗的账务和税务处理不一样。";
   }
+  function calcAroverdue() {
+    var rows = [], i;
+    for (i = 1; i <= 4; i++) rows.push({
+      amt: Math.max(0, num($("arv-a" + i), 0)),
+      cr: Math.max(0, num($("arv-c" + i), 0)),
+      dy: Math.max(0, num($("arv-d" + i), 0))
+    });
+    var rate = Math.min(100, Math.max(0, num($("arv-rate"), 6))) / 100;
+    var tot = 0, od = 0, wd = 0, wc = 0, wov = 0, worst = null, worstScore = -1;
+    for (i = 0; i < rows.length; i++) {
+      var r = rows[i];
+      var ov = Math.max(0, r.dy - r.cr);
+      tot += r.amt;
+      wd += r.dy * r.amt;
+      wc += r.cr * r.amt;
+      if (ov > 0) {
+        od += r.amt;
+        wov += ov * r.amt;
+        var s = ov * r.amt;
+        if (s > worstScore) { worstScore = s; worst = i; }
+      }
+    }
+    var wAvgOd = od > 0 ? wov / od : 0;
+    var wAvgD = tot > 0 ? wd / tot : 0;
+    var wAvgC = tot > 0 ? wc / tot : 0;
+    var cost = od > 0 ? od * (wAvgOd / 365) * rate : 0;
+    $("arv-big").textContent = fmt(tot > 0 ? od / tot * 100 : 0, 2);
+    $("arv-k1").textContent = money(tot) + " / " + money(od);
+    $("arv-k2").textContent = fmt(wAvgOd, 2) + " 天";
+    $("arv-k3").textContent = fmt(wAvgD, 2) + " 天";
+    $("arv-k4").textContent = fmt(wAvgC, 2) + " 天";
+    $("arv-k5").textContent = money(cost);
+    $("arv-k6").textContent = worst === null ? "无逾期" : ("第 " + (worst + 1) + " 笔（逾期 " + fmt(rows[worst].dy - rows[worst].cr, 0) + " 天，金额 × 天数最大）");
+    var tb = "";
+    for (i = 0; i < rows.length; i++) {
+      var r2 = rows[i], ov2 = Math.max(0, r2.dy - r2.cr);
+      var cls = ov2 > 0 ? ' class="c-warn"' : "";
+      tb += "<tr" + cls + "><td>" + (i + 1) + "</td><td>" + money(r2.amt) + "</td><td>" + fmt(r2.cr, 0) + "</td><td>" + fmt(r2.dy, 0) + "</td><td>" + fmt(ov2, 0) + "</td><td>" + (ov2 > 0 ? "逾期" : "按期") + "</td></tr>";
+    }
+    $("arv-body").innerHTML = tb;
+    $("arv-note").textContent = "逾期金额占 " + fmt(tot > 0 ? od / tot * 100 : 0, 2) + "%，平均逾期 " + fmt(wAvgOd, 2) + " 天，DSO " + fmt(wAvgD, 2) + " 天。逾期不只是坏账风险，还按年化 " + pct(rate, 1) + " 吃掉资金收益；先催金额 × 逾期天数最大的那笔。";
+  }
+  function calcPayterms() {
+    var amt = Math.max(0, num($("ppt-amount"), 1000000));
+    var term = Math.max(0, num($("ppt-terms"), 30));
+    var disc = Math.min(100, Math.max(0, num($("ppt-discount"), 2))) / 100;
+    var dterm = Math.max(0, num($("ppt-discterms"), 10));
+    var ext = Math.max(term, num($("ppt-extend"), 60));
+    var rate = Math.min(100, Math.max(0, num($("ppt-rate"), 6))) / 100;
+    var dd = amt * disc;
+    var gap = Math.max(1, term - dterm);
+    var ann = disc / (1 - disc) * 365 / gap;
+    var gain20 = amt * gap / 365 * rate;
+    var net = dd - gain20;
+    var gain30 = amt * Math.max(0, ext - term) / 365 * rate;
+    $("ppt-big").textContent = fmt(ann * 100, 2);
+    $("ppt-k1").textContent = money(dd);
+    $("ppt-k2").textContent = money(gain20);
+    $("ppt-k3").textContent = money(net) + (net >= 0 ? "（拿折扣划算）" : "（拖账期划算）");
+    $("ppt-k4").textContent = money(gain30);
+    $("ppt-k5").textContent = net >= 0 ? (dterm + " 天内付款拿 " + pct(disc, 1) + " 折扣") : ("拖到 " + term + " 天账期更划算");
+    $("ppt-note").textContent = "放弃折扣的真实代价 = " + pct(disc, 1) + " ÷ (1 − " + pct(disc, 1) + ") × 365 ÷ " + fmt(gap, 0) + " 天 = " + fmt(ann * 100, 2) + "%，远高于资金成本。延期付款能省利息但可能伤供应商关系与断供，只在现金紧张时用。";
+  }
+  function calcFxar() {
+    var names = ["美元", "欧元", "港币", "日元"];
+    var i, pls = [], end = 0, book = 0, tb = "";
+    for (i = 1; i <= 4; i++) {
+      var a = Math.max(0, num($("fxr-a" + i), 0));
+      var r = Math.max(0, num($("fxr-r" + i), 0));
+      var e = Math.max(0, num($("fxr-e" + i), 0));
+      var pl = a * (e - r);
+      pls.push(pl);
+      end += a * e;
+      book += a * r;
+      tb += "<tr" + (pl < 0 ? ' class="c-warn"' : "") + "><td>" + names[i - 1] + "</td><td>" + fmt(a, 0) + "</td><td>" + fmt(r, 4) + "</td><td>" + fmt(e, 4) + "</td><td>" + money(pl) + "</td></tr>";
+    }
+    var net = 0; for (i = 0; i < 4; i++) net += pls[i];
+    $("fxr-big").textContent = money(net);
+    $("fxr-k1").textContent = money(end);
+    $("fxr-k2").textContent = money(book);
+    $("fxr-k3").textContent = money(pls[0]) + " / " + money(pls[1]);
+    $("fxr-k4").textContent = money(pls[2]) + " / " + money(pls[3]);
+    $("fxr-body").innerHTML = tb;
+    $("fxr-note").textContent = "月末按期末汇率重估：净损益 " + money(net) + (net >= 0 ? "（收益）" : "（损失）") + "，进「财务费用——汇兑损益」。这是未实现损益，下月会随汇率转回；超毛利一半的单子建议锁汇。";
+  }
+  function calcFaimpair() {
+    var cost = Math.max(0, num($("fai-cost"), 1000000));
+    var dep = Math.max(0, num($("fai-dep"), 400000));
+    var rec = Math.max(0, num($("fai-recover"), 550000));
+    var had = Math.max(0, num($("fai-had"), 0));
+    var years = Math.max(1, num($("fai-years"), 5));
+    var tax = Math.min(100, Math.max(0, num($("fai-tax"), 25))) / 100;
+    var bv = cost - dep;
+    var imp = Math.max(0, bv - rec);
+    var add = Math.max(0, imp - had);
+    var after = bv - Math.max(imp, had);
+    $("fai-big").textContent = money(add);
+    $("fai-k1").textContent = money(bv);
+    $("fai-k2").textContent = money(after);
+    $("fai-k3").textContent = fmt(bv > 0 ? Math.max(imp, had) / bv * 100 : 0, 2) + "%";
+    $("fai-k4").textContent = money(after / years) + "/年";
+    $("fai-k5").textContent = money(add);
+    $("fai-k6").textContent = money(-add * (1 - tax));
+    $("fai-note").textContent = add > 0 ? ("可收回金额 " + money(rec) + " 低于账面 " + money(bv) + "，补提减值 " + money(add) + "。固定资产减值一经计提不得转回；会计减值当期纳税调增 " + money(add) + "，税后净利减少 " + money(add * (1 - tax)) + "。") : "未发生减值（可收回金额 ≥ 账面价值），无需计提。";
+  }
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
@@ -10291,7 +10396,8 @@
     fifocost: calcFifoCost, hlcost: calcHlCost, trialbal: calcTrialBal, citprep: calcCitPrep,
     rollbudget: calcRollBudget, csladv: calcCslAdv, taxwarn: calcTaxWarn, loanledger: calcLoanLedger,
     expcheck: calcExpCheck, dtax: calcDTax, invimpair: calcInvImpair, budgetalert: calcBudgetAlert,
-    cashcycle: calcCashCycle, saleexp: calcSaleExp, deptcost: calcDeptCost, invvar: calcInvVar
+    cashcycle: calcCashCycle, saleexp: calcSaleExp, deptcost: calcDeptCost, invvar: calcInvVar,
+    aroverdue: calcAroverdue, payterms: calcPayterms, fxar: calcFxar, faimpair: calcFaimpair
   };
 
   var curCat = "hot", curSub = "";
@@ -10750,9 +10856,13 @@
     "cc-sales", "cc-cogs", "cc-ar", "cc-inv", "cc-ap", "cc-target",
     "se-sales", "se-sales0", "se-exp", "se-exp0", "se-margin",
     "dc-b1", "dc-a1", "dc-b2", "dc-a2", "dc-b3", "dc-a3", "dc-b4", "dc-a4",
-    "ivv-inv", "ivv-d1", "ivv-d2", "ivv-d3", "ivv-d4", "ivv-d5", "ivv-d6", "ivv-line"
+    "ivv-inv", "ivv-d1", "ivv-d2", "ivv-d3", "ivv-d4", "ivv-d5", "ivv-d6", "ivv-line",
+    "arv-a1", "arv-c1", "arv-d1", "arv-a2", "arv-c2", "arv-d2", "arv-a3", "arv-c3", "arv-d3", "arv-a4", "arv-c4", "arv-d4", "arv-rate",
+    "ppt-amount", "ppt-terms", "ppt-discount", "ppt-discterms", "ppt-extend", "ppt-rate",
+    "fxr-a1", "fxr-r1", "fxr-e1", "fxr-a2", "fxr-r2", "fxr-e2", "fxr-a3", "fxr-r3", "fxr-e3", "fxr-a4", "fxr-r4", "fxr-e4",
+    "fai-cost", "fai-dep", "fai-recover", "fai-had", "fai-years", "fai-tax"
 ];
-  var KEY = "finance-calc-v57";
+  var KEY = "finance-calc-v58";
   var CAT_KEY = "finance-calc-cat";
 
   /* ---------------- 现金流月历 ---------------- */

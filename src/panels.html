@@ -8960,3 +8960,108 @@
       </div>
     </div>
   </section>
+  <section class="panel" id="panel-aroverdue">
+    <div class="cols">
+      <div class="card">
+        <h2>输入 · 回款记录（4 笔）</h2>
+        <span class="row"><label class="f"><span>第1笔 金额</span><input id="arv-a1" type="number" inputmode="decimal" min="0" step="1000" value="300000"></label><label class="f"><span>信用期(天)</span><input id="arv-c1" type="number" inputmode="decimal" min="0" step="5" value="30"></label><label class="f"><span>实际回款(天)</span><input id="arv-d1" type="number" inputmode="decimal" min="0" step="5" value="25"></label></span>
+        <span class="row"><label class="f"><span>第2笔 金额</span><input id="arv-a2" type="number" inputmode="decimal" min="0" step="1000" value="200000"></label><label class="f"><span>信用期(天)</span><input id="arv-c2" type="number" inputmode="decimal" min="0" step="5" value="30"></label><label class="f"><span>实际回款(天)</span><input id="arv-d2" type="number" inputmode="decimal" min="0" step="5" value="40"></label></span>
+        <span class="row"><label class="f"><span>第3笔 金额</span><input id="arv-a3" type="number" inputmode="decimal" min="0" step="1000" value="150000"></label><label class="f"><span>信用期(天)</span><input id="arv-c3" type="number" inputmode="decimal" min="0" step="5" value="60"></label><label class="f"><span>实际回款(天)</span><input id="arv-d3" type="number" inputmode="decimal" min="0" step="5" value="75"></label></span>
+        <span class="row"><label class="f"><span>第4笔 金额</span><input id="arv-a4" type="number" inputmode="decimal" min="0" step="1000" value="100000"></label><label class="f"><span>信用期(天)</span><input id="arv-c4" type="number" inputmode="decimal" min="0" step="5" value="45"></label><label class="f"><span>实际回款(天)</span><input id="arv-d4" type="number" inputmode="decimal" min="0" step="5" value="90"></label></span>
+        <label class="f"><span>资金成本(年化%)</span><input id="arv-rate" type="number" inputmode="decimal" min="0" step="0.1" value="6"></label>
+        <em>口径：逾期天数 = 实际回款天数 − 信用期（负数算按期）；加权按金额。</em>
+      </div>
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">逾期金额占比</span><strong id="arv-big">—</strong><span class="unit">%</span></div>
+        <ul class="kv">
+          <li><span>应收总额 / 逾期金额</span><b id="arv-k1">—</b></li>
+          <li><span>加权平均逾期天数</span><b id="arv-k2">—</b></li>
+          <li><span>加权回款天数（DSO）</span><b id="arv-k3">—</b></li>
+          <li><span>加权平均信用期</span><b id="arv-k4">—</b></li>
+          <li><span>逾期资金成本</span><b id="arv-k5">—</b></li>
+          <li><span>最该先催的一笔</span><b id="arv-k6">—</b></li>
+        </ul>
+        <div class="tablebox"><table><thead><tr><th>笔</th><th>金额</th><th>信用期</th><th>实际</th><th>逾期</th><th>判定</th></tr></thead><tbody id="arv-body"></tbody></table></div>
+        <p class="hint" id="arv-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-payterms">
+    <div class="cols">
+      <div class="card">
+        <h2>输入 · 供应商付款条款</h2>
+        <label class="f"><span>采购金额</span><input id="ppt-amount" type="number" inputmode="decimal" min="0" step="10000" value="1000000"></label>
+        <label class="f"><span>标准账期(天)</span><input id="ppt-terms" type="number" inputmode="decimal" min="0" step="5" value="30"></label>
+        <span class="row"><label class="f"><span>折扣率(%)</span><input id="ppt-discount" type="number" inputmode="decimal" min="0" step="0.5" value="2"></label><label class="f"><span>折扣期(天)</span><input id="ppt-discterms" type="number" inputmode="decimal" min="0" step="5" value="10"></label></span>
+        <label class="f"><span>可延期至(天，无折扣)</span><input id="ppt-extend" type="number" inputmode="decimal" min="0" step="5" value="60"></label>
+        <label class="f"><span>资金成本(年化%)</span><input id="ppt-rate" type="number" inputmode="decimal" min="0" step="0.5" value="6"></label>
+        <em>口径：在「拿折扣」与「拖到账期/延期」之间选净收益大的；延期无折扣。</em>
+      </div>
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">放弃折扣的年化成本</span><strong id="ppt-big">—</strong><span class="unit">%</span></div>
+        <ul class="kv">
+          <li><span>折扣金额</span><b id="ppt-k1">—</b></li>
+          <li><span>拖满 20 天的资金收益</span><b id="ppt-k2">—</b></li>
+          <li><span>拿折扣净赚</span><b id="ppt-k3">—</b></li>
+          <li><span>再延期 30 天多省利息</span><b id="ppt-k4">—</b></li>
+          <li><span>最优策略</span><b id="ppt-k5">—</b></li>
+        </ul>
+        <p class="hint" id="ppt-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-fxar">
+    <div class="cols">
+      <div class="card">
+        <h2>输入 · 外币应收（月末重估）</h2>
+        <span class="row"><label class="f"><span>美元余额</span><input id="fxr-a1" type="number" inputmode="decimal" min="0" step="1000" value="500000"></label><label class="f"><span>记账汇率</span><input id="fxr-r1" type="number" inputmode="decimal" min="0" step="0.01" value="7.10"></label><label class="f"><span>期末汇率</span><input id="fxr-e1" type="number" inputmode="decimal" min="0" step="0.01" value="7.25"></label></span>
+        <span class="row"><label class="f"><span>欧元余额</span><input id="fxr-a2" type="number" inputmode="decimal" min="0" step="1000" value="300000"></label><label class="f"><span>记账汇率</span><input id="fxr-r2" type="number" inputmode="decimal" min="0" step="0.01" value="7.70"></label><label class="f"><span>期末汇率</span><input id="fxr-e2" type="number" inputmode="decimal" min="0" step="0.01" value="7.55"></label></span>
+        <span class="row"><label class="f"><span>港币余额</span><input id="fxr-a3" type="number" inputmode="decimal" min="0" step="1000" value="1000000"></label><label class="f"><span>记账汇率</span><input id="fxr-r3" type="number" inputmode="decimal" min="0" step="0.001" value="0.91"></label><label class="f"><span>期末汇率</span><input id="fxr-e3" type="number" inputmode="decimal" min="0" step="0.001" value="0.92"></label></span>
+        <span class="row"><label class="f"><span>日元余额</span><input id="fxr-a4" type="number" inputmode="decimal" min="0" step="10000" value="20000000"></label><label class="f"><span>记账汇率</span><input id="fxr-r4" type="number" inputmode="decimal" min="0" step="0.001" value="0.047"></label><label class="f"><span>期末汇率</span><input id="fxr-e4" type="number" inputmode="decimal" min="0" step="0.001" value="0.046"></label></span>
+        <em>口径：汇兑损益 = 余额 ×（期末汇率 − 记账汇率）；正为收益、负为损失，属未实现损益。</em>
+      </div>
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">汇兑净损益</span><strong id="fxr-big">—</strong><span class="unit">元</span></div>
+        <ul class="kv">
+          <li><span>期末应收折人民币</span><b id="fxr-k1">—</b></li>
+          <li><span>记账人民币</span><b id="fxr-k2">—</b></li>
+          <li><span>美元 / 欧元</span><b id="fxr-k3">—</b></li>
+          <li><span>港币 / 日元</span><b id="fxr-k4">—</b></li>
+        </ul>
+        <div class="tablebox"><table><thead><tr><th>币种</th><th>余额</th><th>记账</th><th>期末</th><th>损益</th></tr></thead><tbody id="fxr-body"></tbody></table></div>
+        <p class="hint" id="fxr-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-faimpair">
+    <div class="cols">
+      <div class="card">
+        <h2>输入 · 固定资产减值测试</h2>
+        <label class="f"><span>原值</span><input id="fai-cost" type="number" inputmode="decimal" min="0" step="10000" value="1000000"></label>
+        <label class="f"><span>累计折旧</span><input id="fai-dep" type="number" inputmode="decimal" min="0" step="10000" value="400000"></label>
+        <label class="f"><span>可收回金额</span><input id="fai-recover" type="number" inputmode="decimal" min="0" step="10000" value="550000"></label>
+        <label class="f"><span>已提减值</span><input id="fai-had" type="number" inputmode="decimal" min="0" step="10000" value="0"></label>
+        <span class="row"><label class="f"><span>剩余年限(年)</span><input id="fai-years" type="number" inputmode="decimal" min="0" step="1" value="5"></label><label class="f"><span>所得税率(%)</span><input id="fai-tax" type="number" inputmode="decimal" min="0" step="5" value="25"></label></span>
+        <em>口径：可收回金额 = max(公允价值 − 处置费用, 预计未来现金流量现值)；会计减值不得税前扣除。</em>
+      </div>
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">应补提减值</span><strong id="fai-big">—</strong><span class="unit">元</span></div>
+        <ul class="kv">
+          <li><span>账面价值</span><b id="fai-k1">—</b></li>
+          <li><span>减值后账面价值</span><b id="fai-k2">—</b></li>
+          <li><span>减值率</span><b id="fai-k3">—</b></li>
+          <li><span>减值后年折旧</span><b id="fai-k4">—</b></li>
+          <li><span>当期纳税调增</span><b id="fai-k5">—</b></li>
+          <li><span>税后净利影响</span><b id="fai-k6">—</b></li>
+        </ul>
+        <p class="hint" id="fai-note"></p>
+      </div>
+    </div>
+  </section>
