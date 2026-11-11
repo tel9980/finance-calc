@@ -10998,6 +10998,8 @@
 ];
   var KEY = "finance-calc-v58";
   var CAT_KEY = "finance-calc-cat";
+  /* 构建时由 build.mjs 注入为 "v<内容哈希>"，页脚展示，方便核对版本 */
+  var BUILD_TAG = "";
 
   /* ---------------- 现金流月历 ---------------- */
   function calcCashflow() {
@@ -12591,5 +12593,5 @@
     }
   } catch (e) {}
   if (typeof bindPrefetch === "function") bindPrefetch();
-  $("ver").textContent = "财务计算器 · 纯前端 · 更新于 " + new Date().toISOString().slice(0, 10);
+  $("ver").textContent = "财务计算器 · 纯前端 · 更新于 " + new Date().toISOString().slice(0, 10) + (BUILD_TAG ? " · " + BUILD_TAG : "");
 })();

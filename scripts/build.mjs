@@ -352,17 +352,20 @@ const bootMark = '  /* ---------------- 启动 ---------------- */';
 if (!core.includes(bootMark)) throw new Error('boot marker not found');
 core = core.replace(bootMark, '  /* chunk 里要用到的工具函数，统一挂到 window.FC */\n  window.FC = { ' + fcNames + ' };\n\n' + bootMark);
 
-const coreHash = hash8(core);
-const coreName = 'app.' + coreHash + '.js';
-fs.writeFileSync(path.join(ASSETS, coreName), core);
-written.push(coreName);
-
-/* ---------- 8. CSS 指纹 ---------- */
+/* ---------- 8. CSS 指纹（先算，好把 css 也计入全站版本） ---------- */
 const css = read(path.join(PUB, 'style.css'));
 const cssHash = hash8(css);
 const cssName = 'style.' + cssHash + '.css';
 fs.writeFileSync(path.join(ASSETS, cssName), css);
 written.push(cssName);
+
+const coreHash = hash8(core);
+/* 全站内容版本：chunks + css + core 一起算，页脚展示，和 sw.js 的 VERSION 一致 */
+const ver = hash8(written.join('|') + '|' + coreHash);
+core = core.replace('var BUILD_TAG = "";', 'var BUILD_TAG = "v' + ver + '";');
+const coreName = 'app.' + coreHash + '.js';
+fs.writeFileSync(path.join(ASSETS, coreName), core);
+written.push(coreName);
 
 /* ---------- 9. 重写 index.html（标签块从 src/tabs.html 写回，单一来源） ---------- */
 html = html.replace(/<nav class="tabs" id="tabs" role="tablist">[\s\S]*?<\/nav>/, '<nav class="tabs" id="tabs" role="tablist">\n' + tabsSrc.trim() + '\n    </nav>');
@@ -382,10 +385,17 @@ out = out.replace(/<button class="tab([^"]*)"([^>]*)>/g, (all, cls, attrs) => {
   return '<button class="tab' + cls + '"' + a + '>';
 });
 if (!out.includes('./assets/' + coreName) || !out.includes('./assets/' + cssName)) throw new Error('index.html 引用未替换');
+/* 产物 HTML 轻量压缩：去掉注释（先保护 PANELS-CORE 构建标记，下次构建还要用）、压掉行首缩进 */
+out = out
+  .replace(/<!--\s*PANELS-CORE:START\s*-->/g, '\u0000S\u0000')
+  .replace(/<!--\s*PANELS-CORE:END\s*-->/g, '\u0000E\u0000')
+  .replace(/<!--[\s\S]*?-->/g, '')
+  .replace(/\u0000S\u0000/g, '<!-- PANELS-CORE:START -->')
+  .replace(/\u0000E\u0000/g, '<!-- PANELS-CORE:END -->')
+  .replace(/^\s+/gm, '');
 fs.writeFileSync(path.join(PUB, 'index.html'), out);
 
 /* ---------- 10. sw.js ---------- */
-const ver = hash8(written.join('|'));
 const shell = ['/', './assets/' + coreName, './assets/' + cssName, './manifest.webmanifest', './icon-192.png'];
 const sw = '/* 自动生成，勿手改 */\nconst VERSION = "fc-' + ver + '";\n'
   + 'const SHELL = ' + JSON.stringify(shell, null, 0) + ';\n'
