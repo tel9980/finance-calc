@@ -271,6 +271,12 @@
     }
     var list = NEXT_OF[name];
     if (!list || !list.length) { box.hidden = true; box.innerHTML = ""; return; }
+    /* 按最近使用排序：最近用过的排最前，其余保持默认顺序 */
+    list = list.slice().sort(function (a, b) {
+      var ia = recentList.indexOf(a[0]), ib = recentList.indexOf(b[0]);
+      if (ia < 0) ia = 1e6; if (ib < 0) ib = 1e6;
+      return ia - ib;
+    });
     var html = [];
     for (var i = 0; i < list.length; i++) html.push('<a href="#' + list[i][0] + '">' + list[i][1] + "</a>");
     box.hidden = false;
@@ -1698,7 +1704,13 @@ undefined
     }
     document.addEventListener("pointerdown", onDown, { passive: true });
     var idle = window.requestIdleCallback || function (f) { return setTimeout(f, 1800); };
-    idle(function () { prefetch("deposit"); prefetch("loan"); });
+    idle(function () {
+      prefetch("deposit");
+      prefetch("loan");
+      var _rec = [];
+      try { _rec = JSON.parse(localStorage.getItem("finance-calc-recent") || "[]") || []; } catch (e) {}
+      for (var _ri = 0; _ri < _rec.length && _ri < 3; _ri++) prefetch(_rec[_ri]);
+    });
   }
   function runCalc(name) {
     if (calcMap[name]) { calcMap[name](); return Promise.resolve(); }
@@ -1777,7 +1789,11 @@ undefined
     var tb = document.querySelectorAll(".tab"), shown = 0;
     for (var t = 0; t < tb.length; t++) {
       var el = tb[t], cat = el.dataset.cat || "", ok;
-      if (q) {
+      if (qcat === "fav") {
+        ok = isFav(el.dataset.tab) && (!q || matchQ(el, q));
+      } else if (qcat === "recent") {
+        ok = recentList.indexOf(el.dataset.tab) >= 0 && (!q || matchQ(el, q));
+      } else if (q) {
         ok = matchQ(el, q);                    /* 一搜索就跨分类找，不用先切分类 */
         if (ok && qcat) ok = cat.split(/\s+/).indexOf(qcat) >= 0;
       } else if (qcat) {
@@ -1827,14 +1843,14 @@ undefined
     var qb = $("q");
     if (qb && qb.value) { qb.value = ""; applyFilter(); }
     if (self && self.hidden) setCat(self.dataset.cat.split(/\s+/)[0]);
-    var tabs = document.querySelectorAll(".tab");
-    for (var i = 0; i < tabs.length; i++) {
-      var on = tabs[i].dataset.tab === name;
-      tabs[i].classList.toggle("is-on", on);
-      tabs[i].setAttribute("aria-selected", on ? "true" : "false");
-    }
-    var panels = document.querySelectorAll(".panel");
-    for (var j = 0; j < panels.length; j++) panels[j].classList.toggle("is-on", panels[j].id === "panel-" + name);
+    /* O(1) 切页：只把上一个激活的标签/面板摘掉、给新的加上，不再每次扫 188 个节点 */
+    var prevTab = document.querySelector(".tab.is-on");
+    var prevPanel = document.querySelector(".panel.is-on");
+    if (prevTab) { prevTab.classList.remove("is-on"); prevTab.setAttribute("aria-selected", "false"); }
+    if (prevPanel && prevPanel.id !== "panel-" + name) prevPanel.classList.remove("is-on");
+    if (self) { self.classList.add("is-on"); self.setAttribute("aria-selected", "true"); }
+    var panelEl = document.getElementById("panel-" + name);
+    if (panelEl) panelEl.classList.add("is-on");
     runCalc(name);
     if (location.hash !== "#" + name) history.replaceState(null, "", "#" + name);
     var onTab = document.querySelector(".tab.is-on");
