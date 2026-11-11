@@ -261,6 +261,9 @@ html[data-theme="dark"] .ghost{background:#16212f;color:#9fc0ff}
 .cmphead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
 .cmphead b{font-size:15px;color:var(--accent)}
 .ghost.sm{padding:3px 10px;font-size:12.5px;border-radius:8px}
+.cmpmod{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink2);white-space:nowrap}
+.cmpmod select{max-width:180px}
+@media(max-width:660px){.cmpmod select{max-width:120px}}
 .cmpbox .tablebox{max-height:360px}
 .cmpbox .hint{margin-top:10px}
 

@@ -1,7 +1,7 @@
-<!-- 184 个模块标签（构建时内联到核心 JS，运行时 renderTabs 渲染，省首屏 HTML）
-     新增模块：在这里加一行 <button class="tab" data-tab="xx" data-cat="分类" role="tab">名称</button>
-     然后 node scripts/build.mjs -->
+<!-- 模块标签（构建时写回 public/index.html 的 #tabs）
+     新增模块：在这里加一行按钮标签，然后 node scripts/build.mjs -->
       <button class="tab" data-tab="healthcheck" data-cat="hot" role="tab">家庭财务体检</button>
+      <button class="tab" data-tab="workflow" data-cat="hot life" role="tab">财务工作流</button>
         <button class="tab" data-tab="housecash" data-cat="house family" role="tab">购房一次性支出</button>
         <button class="tab" data-tab="planner" data-cat="family hot" role="tab">组合规划·买房后</button>
       <button class="tab" data-tab="report" data-cat="hot family" role="tab">一页体检报告</button>
@@ -152,22 +152,22 @@
       <button class="tab" data-tab="invstock" data-cat="acct" data-grp="bd" role="tab">存货周转与库龄</button>
       <button class="tab" data-tab="exportrebate" data-cat="acct" data-grp="tax" role="tab">出口退税免抵退</button>
       <button class="tab" data-tab="tieout" data-cat="acct" data-grp="bd" role="tab">往来对账差额</button>
-      <button class="tab" data-tab="feetrend" data-cat="acct" data-grp="report" role="tab">三费趋势（6期）</button>
-      <button class="tab" data-tab="contractperf" data-cat="acct" data-grp="report" role="tab">合同履约进度</button>
-      <button class="tab" data-tab="projrev" data-cat="acct" data-grp="report" role="tab">工程收入确认</button>
+      <button class="tab" data-tab="feetrend" data-cat="acct" data-grp="report2" role="tab">三费趋势（6期）</button>
+      <button class="tab" data-tab="contractperf" data-cat="acct" data-grp="report2" role="tab">合同履约进度</button>
+      <button class="tab" data-tab="projrev" data-cat="acct" data-grp="report2" role="tab">工程收入确认</button>
       <button class="tab" data-tab="creditpolicy" data-cat="acct" data-grp="bd" role="tab">信用政策组合</button>
       <button class="tab" data-tab="rateadj" data-cat="tax" role="tab">社保调基</button>
       <button class="tab" data-tab="invfund" data-cat="acct" data-grp="bd" role="tab">存货资金占用</button>
       <button class="tab" data-tab="machrate" data-cat="acct" data-grp="cost" role="tab">工厂小时费率</button>
       <button class="tab" data-tab="govgrant" data-cat="acct" data-grp="tax" role="tab">政府补助</button>
-      <button class="tab" data-tab="fxtranslate" data-cat="acct" data-grp="report" role="tab">外币报表折算</button>
+      <button class="tab" data-tab="fxtranslate" data-cat="acct" data-grp="report2" role="tab">外币报表折算</button>
       <button class="tab" data-tab="rebateacc" data-cat="acct" data-grp="perf" role="tab">销售返利与渠道费</button>
       <button class="tab" data-tab="pledgeloan" data-cat="acct" data-grp="cash" role="tab">应收质押融资</button>
       <button class="tab" data-tab="labvar" data-cat="acct" data-grp="cost" role="tab">人工效率与产能</button>
       <button class="tab" data-tab="rdcap" data-cat="acct" data-grp="tax" role="tab">研发资本化</button>
       <button class="tab" data-tab="salesallow" data-cat="acct" data-grp="tax" role="tab">销售折让与赠品</button>
-      <button class="tab" data-tab="lease" data-cat="acct" data-grp="report" role="tab">经营租赁入表</button>
-      <button class="tab" data-tab="gpmix" data-cat="acct" data-grp="report" role="tab">毛利率变动归因</button>
+      <button class="tab" data-tab="lease" data-cat="acct" data-grp="report2" role="tab">经营租赁入表</button>
+      <button class="tab" data-tab="gpmix" data-cat="acct" data-grp="report2" role="tab">毛利率变动归因</button>
       <button class="tab" data-tab="vatchoose" data-cat="acct" data-grp="tax" role="tab">一般纳税人 vs 小规模</button>
       <button class="tab" data-tab="processcost" data-cat="acct" data-grp="cost" role="tab">分步法成本还原</button>
       <button class="tab" data-tab="makeoroutsource" data-cat="acct" data-grp="cost" role="tab">委外还是自制</button>
@@ -181,24 +181,24 @@
       <button class="tab" data-tab="markroi" data-cat="acct" data-grp="perf" role="tab">市场投入产出</button>
       <button class="tab" data-tab="rdproject" data-cat="acct" data-grp="cost" role="tab">研发项目预算</button>
       <button class="tab" data-tab="intsvc" data-cat="acct" data-grp="tax" role="tab">内部服务费分摊</button>
-      <button class="tab" data-tab="accrual" data-cat="acct" data-grp="report" role="tab">跨期费用与预提</button>
-      <button class="tab" data-tab="cfconsol" data-cat="acct" data-grp="report" role="tab">合并现金流抵销</button>
+      <button class="tab" data-tab="accrual" data-cat="acct" data-grp="report2" role="tab">跨期费用与预提</button>
+      <button class="tab" data-tab="cfconsol" data-cat="acct" data-grp="report2" role="tab">合并现金流抵销</button>
       <button class="tab" data-tab="exportcheck" data-cat="acct" data-grp="tax" role="tab">出口退税勾稽</button>
       <button class="tab" data-tab="vatcheck" data-cat="acct" data-grp="tax" role="tab">增值税申报勾稽</button>
     
       <button class="tab" data-tab="fifocost" data-cat="acct" data-grp="cost" role="tab">存货计价对比</button>
       <button class="tab" data-tab="hlcost" data-cat="acct" data-grp="cost" role="tab">成本性态·高低点</button>
-      <button class="tab" data-tab="trialbal" data-cat="acct" data-grp="report" role="tab">试算平衡表</button>
+      <button class="tab" data-tab="trialbal" data-cat="acct" data-grp="report2" role="tab">试算平衡表</button>
       <button class="tab" data-tab="citprep" data-cat="acct" data-grp="tax" role="tab">季度所得税预缴</button>
-      <button class="tab" data-tab="rollbudget" data-cat="acct" data-grp="report" role="tab">预算滚动预测</button>
-      <button class="tab" data-tab="csladv" data-cat="acct" data-grp="report" role="tab">合并抵销进阶</button>
+      <button class="tab" data-tab="rollbudget" data-cat="acct" data-grp="report2" role="tab">预算滚动预测</button>
+      <button class="tab" data-tab="csladv" data-cat="acct" data-grp="report2" role="tab">合并抵销进阶</button>
       <button class="tab" data-tab="taxwarn" data-cat="acct" data-grp="tax" role="tab">综合税负预警</button>
       <button class="tab" data-tab="loanledger" data-cat="acct" data-grp="cash" role="tab">借款台账与利息测算</button>
-      <button class="tab" data-tab="expcheck" data-cat="acct" data-grp="report" role="tab">费用报销合规自查</button>
+      <button class="tab" data-tab="expcheck" data-cat="acct" data-grp="report2" role="tab">费用报销合规自查</button>
       <button class="tab" data-tab="dtax" data-cat="acct" data-grp="tax" role="tab">合并报表递延所得税</button>
       <button class="tab" data-tab="invimpair" data-cat="acct" data-grp="cost" role="tab">存货减值与毛利联动</button>
-      <button class="tab" data-tab="budgetalert" data-cat="acct" data-grp="report" role="tab">预算执行偏差预警</button>
-      <button class="tab" data-tab="cashcycle" data-cat="acct" data-grp="report" role="tab">现金周转天数拆解</button>
+      <button class="tab" data-tab="budgetalert" data-cat="acct" data-grp="report2" role="tab">预算执行偏差预警</button>
+      <button class="tab" data-tab="cashcycle" data-cat="acct" data-grp="report2" role="tab">现金周转天数拆解</button>
       <button class="tab" data-tab="saleexp" data-cat="acct" data-grp="perf" role="tab">销售费用 ROI</button>
       <button class="tab" data-tab="deptcost" data-cat="acct" data-grp="cost" role="tab">多部门费用考核</button>
       <button class="tab" data-tab="invvar" data-cat="acct" data-grp="bd" role="tab">存货盘点差异率趋势</button>

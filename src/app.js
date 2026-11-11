@@ -10468,6 +10468,10 @@
       + " 结论只在「账期长短不影响销量」的假设下成立；靠放账期换订单时，要把多卖的边际贡献一起算进去。";
   }
 
+  function calcWorkflow() {
+    var n = $("wf-note");
+    if (n) n.textContent = "五条常用岗位路径，点任意一步直接跳到对应模块；每个模块都自带「下一步常用」，算完顺着点就能走完整条流程。";
+  }
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
@@ -10523,7 +10527,8 @@
     expcheck: calcExpCheck, dtax: calcDTax, invimpair: calcInvImpair, budgetalert: calcBudgetAlert,
     cashcycle: calcCashCycle, saleexp: calcSaleExp, deptcost: calcDeptCost, invvar: calcInvVar,
     aroverdue: calcAroverdue, payterms: calcPayterms, fxar: calcFxar, faimpair: calcFaimpair,
-    costbehav: calcCostbehav, profitcenter: calcProfitcenter, invorder: calcInvorder, creditterm: calcCreditterm
+    costbehav: calcCostbehav, profitcenter: calcProfitcenter, invorder: calcInvorder, creditterm: calcCreditterm,
+    workflow: calcWorkflow
   };
 
   var curCat = "hot", curSub = "";
@@ -10656,7 +10661,7 @@
         ok = recentList.indexOf(el.dataset.tab) >= 0;
       } else {
         ok = cat.split(/\s+/).indexOf(curCat) >= 0;
-        if (ok && curCat === "acct" && curSub) ok = (el.dataset.grp || "") === curSub;
+        if (ok && curCat === "acct" && curSub) ok = (el.dataset.grp || "") === curSub || (curSub === "report" && (el.dataset.grp || "") === "report2");
       }
       el.hidden = !ok;
       if (ok) shown++;
@@ -11774,39 +11779,67 @@
     panelEls().forEach(function (el) { params[el.id] = el.value; });
     return { mod: tab ? tab.dataset.tab : "", name: snap.name, rows: snap.rows, params: params };
   }
+  function cmpTabName(mod) {
+    var t = document.querySelector('.tab[data-tab="' + mod + '"]');
+    return t ? t.textContent.replace(/\s+/g, "") : mod;
+  }
+  function fillCmpMod() {
+    var sel = $("cmp-mod");
+    if (!sel || sel.options.length) return;
+    var tabs = document.querySelectorAll(".tab[data-tab]");
+    for (var i = 0; i < tabs.length; i++) {
+      var o = document.createElement("option");
+      o.value = tabs[i].dataset.tab;
+      o.textContent = tabs[i].textContent.replace(/\s+/g, "");
+      sel.appendChild(o);
+    }
+  }
+  if ($("cmp-mod")) $("cmp-mod").addEventListener("change", function () {
+    if (this.value) { try { location.hash = this.value; } catch (e) {} }
+  });
   if ($("btn-cmp")) $("btn-cmp").addEventListener("click", function () {
     var btn = this, cur = currentSnap(), A = loadCmpA();
-    if (!A || A.mod !== cur.mod) {
-      saveCmpA(cur);
+    if (!A) {
+      saveCmpA(cur); fillCmpMod();
+      if ($("cmp-mod")) $("cmp-mod").value = cur.mod;
       if ($("cmpbox")) $("cmpbox").hidden = true;
-      flash(btn, "已存 A");
+      flash(btn, "已存 A：" + cur.name);
       return;
     }
-    var mapA = {};
+    fillCmpMod();
+    var keys = [], seen = {};
+    A.rows.forEach(function (r) { if (seen[r[0]] === undefined) { seen[r[0]] = true; keys.push(r[0]); } });
+    cur.rows.forEach(function (r) { if (seen[r[0]] === undefined) { seen[r[0]] = true; keys.push(r[0]); } });
+    var mapA = {}, mapB = {};
     A.rows.forEach(function (r) { mapA[r[0]] = r[1]; });
+    cur.rows.forEach(function (r) { mapB[r[0]] = r[1]; });
     var html = [], diffN = 0;
-    cur.rows.forEach(function (r) {
-      var av = mapA[r[0]] !== undefined ? mapA[r[0]] : "—";
-      var na = numOf(av), nb = numOf(r[1]);
+    keys.forEach(function (k) {
+      var av = mapA[k] !== undefined ? mapA[k] : "—";
+      var bv = mapB[k] !== undefined ? mapB[k] : "—";
+      var na = numOf(av), nb = numOf(bv);
       var d = (isFinite(na) && isFinite(nb)) ? nb - na : NaN;
       var changed = isFinite(d) && Math.abs(d) > 0.005;
-      if (changed) diffN++;
-      html.push("<tr" + (changed ? ' class="c-info"' : "") + '><td class="tal">' + r[0] + "</td><td>" + av
-        + "</td><td>" + r[1] + "</td><td>" + (isFinite(d) ? (d > 0 ? "+" : "") + fmt(d, 2) : "—") + "</td></tr>");
+      var onlyOne = (av === "—") !== (bv === "—");
+      if (changed || onlyOne) diffN++;
+      html.push("<tr" + ((changed || onlyOne) ? ' class="c-info"' : "") + '><td class="tal">' + k + "</td><td>" + av
+        + "</td><td>" + bv + "</td><td>" + (isFinite(d) ? (d > 0 ? "+" : "") + fmt(d, 2) : "—") + "</td></tr>");
     });
     var pd = [];
     Object.keys(cur.params).forEach(function (k) {
       if (A.params && A.params[k] !== undefined && A.params[k] !== cur.params[k]) pd.push(k + "：" + A.params[k] + " → " + cur.params[k]);
     });
-    if ($("cmp-title")) $("cmp-title").textContent = cur.name + " · 前后对比";
+    var cross = A.mod !== cur.mod;
+    if ($("cmp-title")) $("cmp-title").textContent = cross ? "A「" + cmpTabName(A.mod) + "」 vs B「" + cmpTabName(cur.mod) + "」 · 跨模块对比" : cur.name + " · 前后对比";
     if ($("cmp-body")) $("cmp-body").innerHTML = html.join("");
     if ($("cmp-note")) $("cmp-note").textContent =
-      (pd.length ? "改动的参数：" + pd.join("；") + "。" : "参数没有改动。")
-      + (diffN ? "结果有 " + diffN + " 项变化（蓝色行）。" : "所有结果完全一致。")
-      + " A 是上一次点这里时的快照，B 是现在；再点一次会把当前结果存成新的 A。浏览器关了也不丢。";
+      (cross ? "这是两个不同模块的并排对比，只在一侧有的指标显示「—」。A 是上次点这里时存的快照，B 是现在这个模块。" : "同模块前后对比。")
+      + (pd.length ? "改动的参数：" + pd.join("；") + "。" : "")
+      + (diffN ? "有 " + diffN + " 项变化/差异（蓝色行）。" : "所有结果完全一致。")
+      + " 再点一次会把当前结果存成新的 A。浏览器关了也不丢。";
     if ($("cmpbox")) { $("cmpbox").hidden = false; $("cmpbox").scrollIntoView({ block: "nearest" }); }
     saveCmpA(cur);
-    flash(btn, "已对比");
+    flash(btn, cross ? "已跨模块对比" : "已对比");
   });
   if ($("cmp-close")) $("cmp-close").addEventListener("click", function () { $("cmpbox").hidden = true; });
 
