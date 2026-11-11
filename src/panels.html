@@ -9238,11 +9238,11 @@
       </div>
       <div class="card res">
         <h2>说明</h2>
-        <div class="big"><span class="k">路径</span><strong>5 条</strong><span class="unit">常用流程</span></div>
+        <div class="big"><span class="k">完成进度</span><strong id="wf-big">0/22</strong><span class="unit">步</span></div>
         <ul class="kv">
-          <li><span>覆盖模块</span><b>约 20 个</b></li>
-          <li><span>顺序</span><b>报销 → 记账 → 报表 → 报税 → 预算</b></li>
-          <li><span>用法</span><b>点任意一步直接跳到对应模块</b></li>
+          <li><span>已点开</span><b id="wf-donekv">0 步</b></li>
+          <li><span>完成率</span><b id="wf-pctkv">0.0%</b></li>
+          <li><span>用法</span><b>点任意一步跳到对应模块，点过自动打勾</b></li>
         </ul>
         <p class="hint">每一步跳到模块后，都能继续用模块底部的「下一步常用」往下走；这条面板只是把整条岗位路径先串起来。</p>
       </div>
@@ -9478,6 +9478,106 @@
           <li><span>剩余待摊</span><b id="shp-rem">—</b></li>
         </ul>
         <p class="hint" id="shp-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-vatrefund">
+    <div class="cols">
+      <div class="card">
+        <h2>留抵退税测算</h2>
+        <label class="f"><span>期末留抵税额</span><input id="vrf-credit" type="number" inputmode="decimal" min="0" step="1000" value="200000"></label>
+        <label class="f"><span>进项构成比例 %</span><input id="vrf-ratio" type="number" inputmode="decimal" min="0" max="100" value="100"></label>
+        <label class="f"><span>退税比例 %</span><input id="vrf-refund" type="number" inputmode="decimal" min="0" max="100" value="60"></label>
+        <label class="f"><span>已退税额</span><input id="vrf-had" type="number" inputmode="decimal" min="0" step="1000" value="0"></label>
+      </div>
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">本次可退税</span><strong id="vrf-big">—</strong><span class="unit">元</span></div>
+        <ul class="kv">
+          <li><span>退税后留抵</span><b id="vrf-left">—</b></li>
+          <li><span>进项构成比例</span><b id="vrf-ratiokv">—</b></li>
+          <li><span>退税比例</span><b id="vrf-refundkv">—</b></li>
+          <li><span>相当于提前回笼现金</span><b id="vrf-cash">—</b></li>
+        </ul>
+        <p class="hint" id="vrf-note"></p>
+      </div>
+    </div>
+  </section>
+  <section class="panel" id="panel-smallmicro">
+    <div class="cols">
+      <div class="card">
+        <h2>小型微利企业判定与税负</h2>
+        <label class="f"><span>年应纳税所得额</span><input id="smm-income" type="number" inputmode="decimal" min="0" step="10000" value="2000000"></label>
+        <span class="row">
+          <label class="f"><span>从业人数</span><input id="smm-people" type="number" inputmode="decimal" min="0" value="80"></label>
+          <label class="f"><span>资产总额</span><input id="smm-assets" type="number" inputmode="decimal" min="0" step="10000" value="10000000"></label>
+        </span>
+        <span class="row">
+          <label class="f"><span>所得额上限</span><input id="smm-cap" type="number" inputmode="decimal" min="0" step="10000" value="3000000"></label>
+          <label class="f"><span>人数上限</span><input id="smm-peoplecap" type="number" inputmode="decimal" min="0" value="300"></label>
+        </span>
+        <span class="row">
+          <label class="f"><span>资产上限</span><input id="smm-assetcap" type="number" inputmode="decimal" min="0" step="10000" value="50000000"></label>
+          <label class="f"><span>所得税税率 %</span><input id="smm-rate" type="number" inputmode="decimal" min="0" value="25"></label>
+        </span>
+      </div>
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">应纳所得税</span><strong id="smm-big">—</strong><span class="unit">元</span></div>
+        <ul class="kv">
+          <li><span>判定</span><b id="smm-verdict">—</b></li>
+          <li><span>实际税负率</span><b id="smm-ratekv">—</b></li>
+          <li><span>与一般税率比省</span><b id="smm-save">—</b></li>
+          <li><span>未达标项</span><b id="smm-fail">—</b></li>
+        </ul>
+        <p class="hint" id="smm-note"></p>
+      </div>
+    </div>
+  </section>
+  <section class="panel" id="panel-addcredit">
+    <div class="cols">
+      <div class="card">
+        <h2>增值税加计抵减</h2>
+        <label class="f"><span>当期进项税额</span><input id="acd-input" type="number" inputmode="decimal" min="0" step="1000" value="100000"></label>
+        <label class="f"><span>加计抵减比例 %</span><input id="acd-plus" type="number" inputmode="decimal" min="0" max="100" value="10"></label>
+        <label class="f"><span>上期结转可抵减余额</span><input id="acd-brought" type="number" inputmode="decimal" min="0" step="1000" value="15000"></label>
+        <span class="row">
+          <label class="f"><span>当期应纳税额（未加计）</span><input id="acd-tax" type="number" inputmode="decimal" min="0" step="1000" value="50000"></label>
+          <label class="f"><span>已计提额</span><input id="acd-taken" type="number" inputmode="decimal" min="0" step="1000" value="0"></label>
+        </span>
+      </div>
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">实际应纳税</span><strong id="acd-big">—</strong><span class="unit">元</span></div>
+        <ul class="kv">
+          <li><span>本期计提额</span><b id="acd-accrue">—</b></li>
+          <li><span>本期可抵减</span><b id="acd-avail">—</b></li>
+          <li><span>比不加计少缴</span><b id="acd-save">—</b></li>
+          <li><span>结转下期余额</span><b id="acd-carry">—</b></li>
+        </ul>
+        <p class="hint" id="acd-note"></p>
+      </div>
+    </div>
+  </section>
+  <section class="panel" id="panel-losscontract">
+    <div class="cols">
+      <div class="card">
+        <h2>亏损合同预计负债</h2>
+        <label class="f"><span>合同总价</span><input id="lc-price" type="number" inputmode="decimal" min="0" step="10000" value="1000000"></label>
+        <label class="f"><span>预计总成本</span><input id="lc-cost" type="number" inputmode="decimal" min="0" step="10000" value="1200000"></label>
+        <label class="f"><span>已发生成本</span><input id="lc-incurred" type="number" inputmode="decimal" min="0" step="10000" value="300000"></label>
+      </div>
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">本期计提预计负债</span><strong id="lc-big">—</strong><span class="unit">元</span></div>
+        <ul class="kv">
+          <li><span>预计总损失</span><b id="lc-total">—</b></li>
+          <li><span>履约进度（成本比例）</span><b id="lc-progress">—</b></li>
+          <li><span>已确认亏损</span><b id="lc-recognized">—</b></li>
+          <li><span>合同毛利率</span><b id="lc-margin">—</b></li>
+        </ul>
+        <p class="hint" id="lc-note"></p>
       </div>
     </div>
   </section>

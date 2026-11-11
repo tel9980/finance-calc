@@ -10468,9 +10468,50 @@
       + " 结论只在「账期长短不影响销量」的假设下成立；靠放账期换订单时，要把多卖的边际贡献一起算进去。";
   }
 
+  var WF_KEY = "finance-calc-wfdone";
+  var WF_DONE = {};
+  function loadWfDone() { try { WF_DONE = JSON.parse(localStorage.getItem(WF_KEY) || "{}"); } catch (e) { WF_DONE = {}; } }
+  function wfSave() { try { localStorage.setItem(WF_KEY, JSON.stringify(WF_DONE)); } catch (e) {} }
+  function getWfDone() { return WF_DONE; }
+  function recordWf(name) {
+    var links = document.querySelectorAll("#panel-workflow a[href^='#']");
+    var known = {};
+    for (var i = 0; i < links.length; i++) {
+      var h = (links[i].getAttribute("href") || "").replace(/^#/, "").split("?")[0];
+      known[h] = 1;
+    }
+    if (known[name] && !WF_DONE[name]) { WF_DONE[name] = 1; wfSave(); }
+  }
   function calcWorkflow() {
+    loadWfDone();
+    var wfDone = getWfDone();
+    var links = document.querySelectorAll("#panel-workflow a[href^='#']");
+    var total = links.length, done = 0;
+    for (var i = 0; i < links.length; i++) {
+      var h = (links[i].getAttribute("href") || "").replace(/^#/, "").split("?")[0];
+      if (wfDone[h]) { links[i].classList.add("wf-done"); done++; } else { links[i].classList.remove("wf-done"); }
+    }
+    var dets = document.querySelectorAll("#panel-workflow .card:not(.res) details");
+    for (var j = 0; j < dets.length; j++) {
+      var al = dets[j].querySelectorAll("a[href^='#']");
+      var dt = 0;
+      for (var k = 0; k < al.length; k++) {
+        var hh = (al[k].getAttribute("href") || "").replace(/^#/, "").split("?")[0];
+        if (wfDone[hh]) dt++;
+      }
+      var sum = dets[j].querySelector("summary");
+      var oldB = sum.querySelector(".wfp");
+      if (oldB) oldB.remove();
+      var b = document.createElement("span");
+      b.className = "wfp" + (dt === al.length && al.length > 0 ? " wfp-full" : "");
+      b.textContent = dt + "/" + al.length;
+      sum.appendChild(b);
+    }
+    if ($("wf-big")) $("wf-big").textContent = done + "/" + total;
+    if ($("wf-donekv")) $("wf-donekv").textContent = done + " 步";
+    if ($("wf-pctkv")) $("wf-pctkv").textContent = (total ? pct(done / total, 1) : "0.0%");
     var n = $("wf-note");
-    if (n) n.textContent = "五条常用岗位路径，点任意一步直接跳到对应模块；每个模块都自带「下一步常用」，算完顺着点就能走完整条流程。";
+    if (n) n.textContent = done === 0 ? "五条常用岗位路径，点任意一步开始；点开过的模块会自动在这里打勾，进度只存在本机浏览器。" : (done >= total ? "五条路径全部走完一遍了。日常可以按岗位重复走，打勾不会自动清空。" : "五条常用岗位路径；已点开 " + done + "/" + total + " 个，点任意一步继续。进度只存在本机浏览器。");
   }
   function calcExcoll() {
     var fob = num($("exr-fob"), 500000);
@@ -10697,6 +10738,90 @@
     $("shp-note").textContent = (mode === "rs" ? "限制性股票" : "股票期权") + "：按授予日公允价值在等待期内直线摊销（累计确认=每年分摊×已过月数/12）。权益结算的股份支付费用在等待期内税前不得扣除，汇算清缴要调增；可行权比例按最佳估计，后续变了要调整。";
   }
 
+  function calcVatrefund() {
+    var credit = num($("vrf-credit"), 200000);
+    var ratio = num($("vrf-ratio"), 100) / 100;
+    var refund = num($("vrf-refund"), 60) / 100;
+    var had = num($("vrf-had"), 0);
+    var refundable = credit * ratio * refund - had;
+    if (refundable < 0) refundable = 0;
+    var left = credit - refundable;
+    $("vrf-big").textContent = money(refundable);
+    $("vrf-left").textContent = money(left);
+    $("vrf-ratiokv").textContent = pct(ratio, 2);
+    $("vrf-refundkv").textContent = pct(refund, 0);
+    $("vrf-cash").textContent = money(refundable);
+    $("vrf-note").textContent = "可退税额 = 期末留抵 × 进项构成比例 × 退税比例 − 已退。比例可改：先进制造业等行业用 100%，一般行业 60%（以当期政策为准）。退税是拿回自己垫的钱，不是利润；退税后留抵 = 期末留抵 − 退税额。申请条件（连续六个月增量留抵 >0、纳税信用等级等）以主管税务机关口径为准。";
+  }
+
+  function calcSmallmicro() {
+    var income = num($("smm-income"), 2000000);
+    var people = num($("smm-people"), 80);
+    var assets = num($("smm-assets"), 10000000);
+    var cap = num($("smm-cap"), 3000000);
+    var peoplecap = num($("smm-peoplecap"), 300);
+    var assetcap = num($("smm-assetcap"), 50000000);
+    var rate = num($("smm-rate"), 25) / 100;
+    var ok = income <= cap && people <= peoplecap && assets <= assetcap;
+    var tax, ratekv, save, fails = [];
+    if (ok) {
+      tax = income * 0.05;
+      ratekv = 5;
+      save = income * rate - tax;
+    } else {
+      tax = income * rate;
+      ratekv = rate * 100;
+      save = 0;
+      if (income > cap) fails.push("所得额超 " + money(cap));
+      if (people > peoplecap) fails.push("人数超 " + peoplecap);
+      if (assets > assetcap) fails.push("资产超 " + money(assetcap));
+    }
+    $("smm-big").textContent = money(tax);
+    $("smm-verdict").textContent = ok ? "符合小型微利（减按 25% 计入、按 20% 征收，实际 5%）" : "不符合小型微利";
+    $("smm-ratekv").textContent = ratekv + "%";
+    $("smm-save").textContent = ok ? yuan(save) : "0.00 元";
+    $("smm-fail").textContent = fails.length ? fails.join("；") : "无";
+    $("smm-note").textContent = "三条件同时满足：应纳税所得额 ≤ " + money(cap) + "、从业人数 ≤ " + peoplecap + "、资产总额 ≤ " + money(assetcap) + "。从业人数与资产总额取全年季度平均值（不是期末数）。上限与优惠口径可改（以当期政策为准，历史上一度 100 万以内再减半）。";
+  }
+
+  function calcAddcredit() {
+    var input = num($("acd-input"), 100000);
+    var plus = num($("acd-plus"), 10) / 100;
+    var brought = num($("acd-brought"), 15000);
+    var tax = num($("acd-tax"), 50000);
+    var taken = num($("acd-taken"), 0);
+    var accrue = input * plus - taken;
+    if (accrue < 0) accrue = 0;
+    var avail = accrue + brought;
+    var used = Math.min(avail, tax);
+    var finalTax = tax - used;
+    var carry = avail - used;
+    $("acd-big").textContent = money(finalTax);
+    $("acd-accrue").textContent = money(accrue);
+    $("acd-avail").textContent = money(avail);
+    $("acd-save").textContent = money(used);
+    $("acd-carry").textContent = money(carry);
+    $("acd-note").textContent = "加计抵减计提额 = 当期进项税额 × 加计比例（生产性服务业 10%/15%、先进制造业 5%，可改）；本期可抵减 = 计提 + 上期结转；实际应纳税 = 未加计应纳税 − 抵减额（抵不完的结转下期，不加计部分不足抵时不计提不结转）。政策执行期以当期公告为准。";
+  }
+
+  function calcLosscontract() {
+    var price = num($("lc-price"), 1000000);
+    var cost = num($("lc-cost"), 1200000);
+    var incurred = num($("lc-incurred"), 300000);
+    var totalLoss = Math.max(0, cost - price);
+    var progress = cost > 0 ? incurred / cost : 0;
+    if (progress > 1) progress = 1;
+    var recognized = totalLoss * progress;
+    var provision = totalLoss - recognized;
+    var margin = price > 0 ? (price - cost) / price : 0;
+    $("lc-big").textContent = money(provision);
+    $("lc-total").textContent = money(totalLoss);
+    $("lc-progress").textContent = pct(progress, 2);
+    $("lc-recognized").textContent = money(recognized);
+    $("lc-margin").textContent = pct(margin, 2);
+    $("lc-note").textContent = "预计总成本 > 合同总价即为亏损合同：已发生部分按进度进损益，未发生部分计提预计负债（本期计提 = 总损失 − 已确认亏损）。有标的资产的，先做减值测试再计提预计负债，不得重复。可撤结合同不确认损失（只有当义务不可撤销时才计提）。";
+  }
+
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
@@ -10755,7 +10880,8 @@
     costbehav: calcCostbehav, profitcenter: calcProfitcenter, invorder: calcInvorder, creditterm: calcCreditterm,
     workflow: calcWorkflow,
     excoll: calcExcoll, assetdisptax: calcAssetDispTax, tpdocs: calcTpdocs, fxhedge: calcFxhedge,
-    unbilled: calcUnbilled, deferred: calcDeferred, interco: calcInterco, sharepay: calcSharepay
+    unbilled: calcUnbilled, deferred: calcDeferred, interco: calcInterco, sharepay: calcSharepay,
+    vatrefund: calcVatrefund, smallmicro: calcSmallmicro, addcredit: calcAddcredit, losscontract: calcLosscontract
   };
 
   var curCat = "hot", curSub = "";
@@ -10943,6 +11069,7 @@
     if (panelEl) panelEl.classList.add("is-on");
     if (calcMap[name]) calcMap[name]();
     if (location.hash !== "#" + name) history.replaceState(null, "", "#" + name);
+    if (name !== "workflow") recordWf(name);
     var onTab = document.querySelector(".tab.is-on");
     /* 只有用户主动切页时才把标签滚到中间；首屏自动激活不滚，避免把浏览器的
        「顺序焦点起点」钉在标签上，导致键盘用户第一次按 Tab 跳过「跳到计算区」 */
@@ -11234,10 +11361,14 @@
     "unb-rev","unb-inv","unb-cash","unb-days","unb-rate","unb-vat",
     "dfr-mode","dfr-amt","dfr-months","dfr-elapsed","dfr-tax",
     "ico-a1","ico-a2","ico-a3","ico-a4","ico-b1","ico-b2","ico-b3","ico-b4",
-    "shp-mode","shp-shares","shp-fv","shp-vest","shp-elapsed","shp-fee"
+    "shp-mode","shp-shares","shp-fv","shp-vest","shp-elapsed","shp-fee",
+    "vrf-credit","vrf-ratio","vrf-refund","vrf-had",
+    "smm-income","smm-people","smm-assets","smm-cap","smm-peoplecap","smm-assetcap","smm-rate",
+    "acd-input","acd-plus","acd-brought","acd-tax","acd-taken",
+    "lc-price","lc-cost","lc-incurred"
 
 ];
-  var KEY = "finance-calc-v60";
+  var KEY = "finance-calc-v61";
   var CAT_KEY = "finance-calc-cat";
   /* 构建时由 build.mjs 注入为 "v<内容哈希>"，页脚展示，方便核对版本 */
   var BUILD_TAG = "";
@@ -12843,6 +12974,7 @@
   var st0 = hashTarget();
   var lastName = "";
   try { lastName = localStorage.getItem(LAST_KEY) || ""; } catch (e) {}
+  loadWfDone();
   var startName = TABS[st0.name] ? st0.name : (TABS[lastName] ? lastName : "deposit");
   activate(startName);
   if (st0.params) { applyParams(st0.params); if (calcMap[startName]) calcMap[startName](); }

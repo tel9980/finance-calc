@@ -456,3 +456,12 @@ html[data-theme="dark"] .tab::after{background:rgba(147,180,247,.18);color:#c7d2
 .totop[hidden]{display:none}
 html[data-theme="dark"] .totop{background:#131b2e;border-color:#253252}
 @media print{.totop{display:none}}
+
+/* 工作流路径进度 */
+#panel-workflow details summary { display: flex; align-items: center; gap: 8px; }
+.wfp { margin-left: auto; font-size: 12px; color: var(--ink3); background: var(--soft, #eef2ff); border-radius: 999px; padding: 2px 9px; white-space: nowrap; }
+.wfp-full { background: #dcfce7; color: #15803d; }
+#panel-workflow a.wf-done::before { content: "✓ "; color: #15803d; font-weight: 700; }
+#panel-workflow a.wf-done { color: #15803d; }
+html[data-theme="dark"] #panel-workflow a.wf-done { color: #4ade80; }
+html[data-theme="dark"] .wfp-full { background: #14532d; color: #86efac; }
