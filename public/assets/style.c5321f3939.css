@@ -416,3 +416,26 @@ html[data-theme="dark"] .num.bad{border-color:#f87171;background:#2a1520}
 .next{margin:12px 0 0;padding:9px 12px;background:var(--soft);border:1px solid var(--line);border-radius:10px;font-size:13px;color:var(--ink2);line-height:1.9}
 .next a{color:var(--accent);margin:0 3px;white-space:nowrap;font-weight:600}
 .next[hidden]{display:none}
+
+/* 表格工具栏（长列表面板自动注入） */
+.tbtools{display:flex;gap:8px;margin:10px 0 4px}
+.tbtools .ghost.sm{padding:3px 10px}
+
+/* 结果卡「假设说明」折叠 */
+.hintd{margin:10px 0 0;border:1px solid var(--line);border-radius:10px;background:var(--soft);padding:0 12px}
+.hintd summary{cursor:pointer;padding:8px 0;font-size:13px;font-weight:650;color:var(--ink2);list-style:none;display:flex;align-items:center;gap:6px}
+.hintd summary::before{content:"▸";transition:transform .12s;font-size:11px;color:var(--ink3)}
+.hintd[open] summary::before{transform:rotate(90deg)}
+.hintd .hint{margin:0;padding:0 0 10px;border:none;background:none;box-shadow:none}
+html[data-theme="dark"] .hintd{background:#131b2e;border-color:#253252}
+
+/* 搜索时每个标签显示所属分类徽标（内容来自 data-tbadge，不进文字、不影响搜索） */
+.tab{position:relative}
+.tab::after{content:attr(data-tbadge);display:none;margin-left:6px;padding:0 7px;border-radius:999px;background:rgba(30,58,138,.12);color:var(--accent);font-size:11px;line-height:17px;vertical-align:1px;white-space:nowrap}
+#tabs.searching .tab::after{display:inline-block}
+html[data-theme="dark"] .tab::after{background:rgba(147,180,247,.18);color:#c7d2fe}
+
+/* 结果数字可点击复制 */
+.big strong, ul.kv li b{cursor:pointer}
+.big strong:hover, ul.kv li b:hover{color:var(--accent)}
+@media print{.tbtools,.hintd summary{display:none}}

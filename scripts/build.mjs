@@ -243,6 +243,7 @@ const runtime = [
   '      host.appendChild(el);',
   '      applyStoredTo(el);',
   '      enhanceNums(el);',
+  '      enhancePanelUi(el);',
   '      var bgl = el.querySelector(".big");',
   '      if (bgl && !bgl.getAttribute("aria-live")) { bgl.setAttribute("aria-live", "polite"); bgl.setAttribute("aria-atomic", "true"); }',
   '      if (el.id === "panel-" + ACTIVE) el.classList.add("is-on");',

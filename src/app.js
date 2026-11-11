@@ -9735,6 +9735,28 @@
     try { localStorage.setItem(RECENT_KEY, JSON.stringify(recentList)); } catch (e) {}
     if (typeof refreshCounts === "function") refreshCounts();
   }
+  var CAT_LABEL = {};
+  function tabCatLabel(tab) {
+    var toks = (tab.dataset.cat || "").split(/\s+/);
+    for (var i = 0; i < toks.length; i++) {
+      if (toks[i] === "hot" || toks[i] === "fav" || toks[i] === "recent") continue;
+      return CAT_LABEL[toks[i]] || toks[i];
+    }
+    return CAT_LABEL[toks[0]] || toks[0];
+  }
+  function buildTabBadges() {
+    var chips = document.querySelectorAll(".cat");
+    for (var c = 0; c < chips.length; c++) {
+      var ch = chips[c];
+      var lab = (ch.dataset.label || "").trim();
+      if (lab && ch.dataset.cat) CAT_LABEL[ch.dataset.cat] = lab;
+    }
+    var tb = document.querySelectorAll(".tab");
+    for (var t = 0; t < tb.length; t++) {
+      var el = tb[t];
+      el.setAttribute("data-tbadge", tabCatLabel(el));
+    }
+  }
   var FAV_KEY = "finance-calc-fav";
   var favList = [];
   try { favList = JSON.parse(localStorage.getItem(FAV_KEY) || "[]") || []; } catch (e) { favList = []; }
@@ -9808,6 +9830,7 @@
     if (subs) subs.hidden = curCat !== "acct" || !!q;
     var tn = $("tabs");
     if (tn) tn.classList.toggle("tall", curCat === "acct" && !curSub && !q);
+    if (tn) tn.classList.toggle("searching", !!q);
     var qc = $("qcount");
     if (qc) {
       qc.hidden = !q;
@@ -11479,9 +11502,67 @@
   });
   if ($("btn-palette")) $("btn-palette").addEventListener("click", function () { openPalette(); });
 
+  /* 面板级 UI 增强：hint 可折叠 + 长列表表格工具栏（懒加载面板与核心面板共用） */
+  function enhancePanelUi(el) {
+    var hints = el.querySelectorAll(".card.res p.hint");
+    for (var h0 = 0; h0 < hints.length; h0++) {
+      var h = hints[h0];
+      if (h.closest("details")) continue;
+      var det = document.createElement("details");
+      det.className = "hintd"; det.open = true;
+      var sum = document.createElement("summary");
+      sum.textContent = "假设说明";
+      h.parentNode.insertBefore(det, h);
+      det.appendChild(sum); det.appendChild(h);
+    }
+    var tbox = el.querySelector(".tablebox table");
+    if (tbox && !el.querySelector(".tbtools")) {
+      var tbw = document.createElement("div");
+      tbw.className = "tbtools";
+      var b1 = document.createElement("button"); b1.type = "button"; b1.className = "ghost sm"; b1.setAttribute("data-act", "copy-table"); b1.textContent = "复制表格";
+      var b2 = document.createElement("button"); b2.type = "button"; b2.className = "ghost sm"; b2.setAttribute("data-act", "print-table"); b2.textContent = "打印";
+      tbw.appendChild(b1); tbw.appendChild(b2);
+      var hb = el.querySelector(".tablebox");
+      if (hb && hb.parentNode) hb.parentNode.insertBefore(tbw, hb);
+    }
+  }
+
+  /* 长列表表格工具栏 + 点击结果数字复制 */
+  document.addEventListener("click", function (ev) {
+    var b = ev.target && ev.target.closest ? ev.target.closest("[data-act]") : null;
+    if (b) {
+      var act = b.getAttribute("data-act");
+      var card = b.closest(".card");
+      var table = card ? card.querySelector(".tablebox table") : null;
+      if (act === "copy-table" && table) {
+        var lines = [], hd = table.querySelector("thead");
+        if (hd) {
+          var hr = []; hd.querySelectorAll("th").forEach(function (th) { hr.push(th.textContent.trim()); });
+          if (hr.join("").length) lines.push(hr.join("\t"));
+        }
+        table.querySelectorAll("tbody tr").forEach(function (tr) {
+          var rr = []; tr.querySelectorAll("td").forEach(function (td) { rr.push(td.textContent.trim()); });
+          lines.push(rr.join("\t"));
+        });
+        copyText(lines.join("\n")).then(function () { toast("表格已复制（可直接粘进 Excel）"); }).catch(function () { toast("复制失败，请手动选择"); });
+      } else if (act === "print-table") {
+        doPrint(snapshot().name);
+      }
+      return;
+    }
+    var t = ev.target && ev.target.closest ? ev.target.closest(".big strong, ul.kv li b") : null;
+    if (!t) return;
+    var v = (t.textContent || "").trim();
+    if (!v || v === "—" || v === "载入中…") return;
+    copyText(v).then(function () { toast("已复制：" + v); }).catch(function () {});
+  });
+
   /* ---------------- 启动 ---------------- */
   enhanceNums(document);
+  var prePanels = document.querySelectorAll(".panel");
+  for (var pp = 0; pp < prePanels.length; pp++) enhancePanelUi(prePanels[pp]);
   restore();
+  buildTabBadges();
   refreshCounts();
   renderPresets();
   var savedCat = "hot";
