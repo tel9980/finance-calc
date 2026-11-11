@@ -10471,6 +10471,13 @@
   var WF_KEY = "finance-calc-wfdone";
   var WF_DONE = {};
   function loadWfDone() { try { WF_DONE = JSON.parse(localStorage.getItem(WF_KEY) || "{}"); } catch (e) { WF_DONE = {}; } }
+  function refreshWfBadge() {
+    var tab = document.querySelector('.tab[data-tab="workflow"]');
+    if (!tab) return;
+    var man = 0;
+    try { man = Object.keys(JSON.parse(localStorage.getItem(WF_MAN_KEY) || "{}")).length; } catch (e) {}
+    tab.setAttribute("data-wfbadge", man > 0 ? "本月 " + man : "");
+  }
   function wfSave() { try { localStorage.setItem(WF_KEY, JSON.stringify(WF_DONE)); } catch (e) {} }
   function getWfDone() { return WF_DONE; }
   function recordWf(name) {
@@ -10496,8 +10503,23 @@
     var wfMan = getWfMan();
     var links = document.querySelectorAll("#panel-workflow a[href^='#']");
     var total = links.length, done = 0, man = 0;
+    var carry = {
+      budgetalert: [["bpl-rev", "bga-budinc"], ["bpl-opex", "bga-budexp"]],
+      vatcheck: [["vd-out", "vchk-out"], ["vd-in", "vchk-in"]],
+      ratios: [["pl-rev", "rt-rev"], ["pl-cogs", "rt-cogs"]],
+      rollbudget: [["bga-budinc", "rbg-budinc"], ["bga-budexp", "rbg-budexp"]]
+    };
+    var st = window.FC ? (window.FC.STORED || {}) : {};
     for (var i = 0; i < links.length; i++) {
       var h = (links[i].getAttribute("href") || "").replace(/^#/, "").split("?")[0];
+      var c = carry[h], qs = [];
+      if (c) {
+        for (var ci = 0; ci < c.length; ci++) {
+          var sv = st[c[ci][0]];
+          if (sv !== undefined && sv !== null && sv !== "") qs.push(encodeURIComponent(c[ci][1]) + "=" + encodeURIComponent(String(sv)));
+        }
+      }
+      links[i].setAttribute("href", "#" + h + (qs.length ? "?" + qs.join("&") : ""));
       if (wfDone[h]) { links[i].classList.add("wf-done"); done++; } else { links[i].classList.remove("wf-done"); }
     }
     var dets = document.querySelectorAll("#panel-workflow .card:not(.res) details");
@@ -10541,6 +10563,24 @@
     if ($("wf-donekv")) $("wf-donekv").textContent = done + " 步";
     if ($("wf-pctkv")) $("wf-pctkv").textContent = (total ? pct(done / total, 1) : "0.0%");
     if ($("wf-mankv")) $("wf-mankv").textContent = man + "/" + total;
+    var nextA = null;
+    for (var j2 = 0; j2 < dets.length && !nextA; j2++) {
+      var al2 = dets[j2].querySelectorAll("a[href^='#']");
+      for (var k2 = 0; k2 < al2.length; k2++) {
+        if (!wfMan[j2 + "-" + k2]) { nextA = al2[k2]; break; }
+      }
+    }
+    if ($("wf-next")) {
+      $("wf-next").textContent = "";
+      if (nextA) {
+        var na = document.createElement("a");
+        na.setAttribute("href", nextA.getAttribute("href"));
+        na.textContent = nextA.textContent.trim() + "（本月还没勾）";
+        $("wf-next").appendChild(na);
+      } else {
+        $("wf-next").textContent = "本月全部勾完 ✓";
+      }
+    }
     var n = $("wf-note");
     if (n) n.textContent = done === 0 ? "五条常用岗位路径，点任意一步开始；点开过的模块会自动打勾，「✓」按钮手动标记本月已完成（月底点「清空本月手动打勾」重来）。" : (done >= total ? "五条路径全部走完一遍了。日常可以按岗位重复走：自动打勾不会清空，手动「✓」每月点一次、月底清空。" : "五条常用岗位路径；已点开 " + done + "/" + total + " 个。绿色✓＝自动（点开过），深色✓＝本月手动完成。");
   }
@@ -10548,11 +10588,13 @@
     var t = e.target && e.target.closest ? e.target.closest(".wf-tick") : null;
     if (t) {
       toggleWfMan(t.getAttribute("data-step") || "");
+      if (typeof refreshWfBadge === "function") refreshWfBadge();
       if (typeof runCalc === "function") runCalc("workflow");
       return;
     }
     if (e.target && e.target.closest && e.target.closest("#wf-clear")) {
       clearWfMan();
+      if (typeof refreshWfBadge === "function") refreshWfBadge();
       if (typeof runCalc === "function") runCalc("workflow");
       toast("已清空本月手动打勾");
     }
@@ -13154,6 +13196,7 @@
   var lastName = "";
   try { lastName = localStorage.getItem(LAST_KEY) || ""; } catch (e) {}
   loadWfDone();
+  refreshWfBadge();
   var startName = TABS[st0.name] ? st0.name : (TABS[lastName] ? lastName : "deposit");
   activate(startName);
   if (st0.params) { applyParams(st0.params); if (calcMap[startName]) calcMap[startName](); }

@@ -474,3 +474,9 @@ html[data-theme="dark"] .wf-tick.on { background: #7c93e6; border-color: #7c93e6
 .wfpm-full { background: #bbf7d0; color: #15803d; }
 html[data-theme="dark"] .wfpm-full { background: #14532d; color: #86efac; }
 .wfctl { margin: 10px 0 0; }
+
+/* 工作流 tab 本月角标 + 下一步建议链接 */
+.tab[data-tab="workflow"]::after { content: attr(data-wfbadge); display: inline-block; margin-left: 6px; font-size: 11px; font-weight: 700; background: #1e3a8a; color: #fff; border-radius: 999px; padding: 1px 8px; vertical-align: 1px; }
+.tab[data-tab="workflow"]::after:empty { display: none; }
+#panel-workflow .kv a { color: #1e3a8a; text-decoration: underline; }
+html[data-theme="dark"] #panel-workflow .kv a { color: #93b4f7; }
