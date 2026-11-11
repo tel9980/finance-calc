@@ -9371,3 +9371,113 @@
       </div>
     </div>
   </section>
+
+  <section class="panel" id="panel-unbilled">
+    <div class="cols">
+      <div class="card">
+        <h2>未开票收入与账期差异</h2>
+        <span class="row">
+          <label class="f"><span>本期履约收入（不含税）</span><input id="unb-rev" type="number" inputmode="decimal" min="0" step="10000" value="1000000"></label>
+          <label class="f"><span>本期已开票（不含税）</span><input id="unb-inv" type="number" inputmode="decimal" min="0" step="10000" value="600000"></label>
+        </span>
+        <label class="f"><span>已收款</span><input id="unb-cash" type="number" inputmode="decimal" min="0" step="10000" value="450000"></label>
+        <span class="row">
+          <label class="f"><span>账期（天）</span><input id="unb-days" type="number" inputmode="decimal" min="0" value="60"></label>
+          <label class="f"><span>资金成本（年 %）</span><input id="unb-rate" type="number" inputmode="decimal" min="0" step="0.1" value="6"></label>
+        </span>
+        <label class="f"><span>增值税率 %</span><input id="unb-vat" type="number" inputmode="decimal" min="0" value="13"></label>
+      </div>
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">未开票收入</span><strong id="unb-big">—</strong><span class="unit">元</span></div>
+        <ul class="kv">
+          <li><span>应收余额（已开票未收）</span><b id="unb-ar">—</b></li>
+          <li><span>开票率</span><b id="unb-invrate">—</b></li>
+          <li><span>回款率</span><b id="unb-cashrate">—</b></li>
+          <li><span>账期资金成本</span><b id="unb-occ">—</b></li>
+          <li><span>未开票暂缓销项</span><b id="unb-vatdefer">—</b></li>
+        </ul>
+        <p class="hint" id="unb-note"></p>
+      </div>
+    </div>
+  </section>
+  <section class="panel" id="panel-deferred">
+    <div class="cols">
+      <div class="card">
+        <h2>递延收益与预收款确认</h2>
+        <label class="f"><span>类型</span><select id="dfr-mode"><option value="prepay" selected>预收账款（按服务期确认）</option><option value="grant">政府补助（递延收益）</option></select></label>
+        <label class="f"><span>已收 / 收到总额</span><input id="dfr-amt" type="number" inputmode="decimal" min="0" step="10000" value="1200000"></label>
+        <span class="row">
+          <label class="f"><span>分摊期数（月）</span><input id="dfr-months" type="number" inputmode="decimal" min="1" value="12"></label>
+          <label class="f"><span>已过月数</span><input id="dfr-elapsed" type="number" inputmode="decimal" min="0" value="3"></label>
+        </span>
+        <label class="f"><span>所得税税率 %（政府补助用）</span><input id="dfr-tax" type="number" inputmode="decimal" min="0" value="25"></label>
+      </div>
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">递延余额</span><strong id="dfr-big">—</strong><span class="unit">元</span></div>
+        <ul class="kv">
+          <li><span>每月确认</span><b id="dfr-mo">—</b></li>
+          <li><span>已确认</span><b id="dfr-rec">—</b></li>
+          <li><span>确认进度</span><b id="dfr-pct">—</b></li>
+          <li><span>递延余额</span><b id="dfr-bal">—</b></li>
+          <li><span>税务提示</span><b id="dfr-taxline">—</b></li>
+        </ul>
+        <p class="hint" id="dfr-note"></p>
+      </div>
+    </div>
+  </section>
+  <section class="panel" id="panel-interco">
+    <div class="cols">
+      <div class="card">
+        <h2>集团内部往来抵销明细</h2>
+        <div class="tablebox"><table><thead><tr><th>往来组</th><th>应收方</th><th>应付方</th></tr></thead><tbody>
+          <tr><td>1</td><td><input id="ico-a1" type="number" inputmode="decimal" min="0" value="1200000"></td><td><input id="ico-b1" type="number" inputmode="decimal" min="0" value="1200000"></td></tr>
+          <tr><td>2</td><td><input id="ico-a2" type="number" inputmode="decimal" min="0" value="800000"></td><td><input id="ico-b2" type="number" inputmode="decimal" min="0" value="800000"></td></tr>
+          <tr><td>3</td><td><input id="ico-a3" type="number" inputmode="decimal" min="0" value="500000"></td><td><input id="ico-b3" type="number" inputmode="decimal" min="0" value="480000"></td></tr>
+          <tr><td>4</td><td><input id="ico-a4" type="number" inputmode="decimal" min="0" value="300000"></td><td><input id="ico-b4" type="number" inputmode="decimal" min="0" value="300000"></td></tr>
+        </tbody></table></div>
+        <p class="hint" id="ico-note"></p>
+      </div>
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">抵销差异</span><strong id="ico-big">—</strong><span class="unit">元</span></div>
+        <ul class="kv">
+          <li><span>应收方合计</span><b id="ico-atot">—</b></li>
+          <li><span>应付方合计</span><b id="ico-btot">—</b></li>
+          <li><span>可抵销额（取小）</span><b id="ico-offset">—</b></li>
+          <li><span>差异笔数</span><b id="ico-n">—</b></li>
+        </ul>
+        <div class="tablebox"><table><thead><tr><th>组</th><th>应收方</th><th>应付方</th><th>差异</th><th>状态</th></tr></thead><tbody id="ico-body"></tbody></table></div>
+        <p class="hint" id="ico-note2"></p>
+      </div>
+    </div>
+  </section>
+  <section class="panel" id="panel-sharepay">
+    <div class="cols">
+      <div class="card">
+        <h2>股份支付费用分摊</h2>
+        <label class="f"><span>类型</span><select id="shp-mode"><option value="rs" selected>限制性股票</option><option value="option">股票期权</option></select></label>
+        <span class="row">
+          <label class="f"><span>授予数量（股）</span><input id="shp-shares" type="number" inputmode="decimal" min="0" step="10000" value="1000000"></label>
+          <label class="f"><span>授予日公允价值（元/股）</span><input id="shp-fv" type="number" inputmode="decimal" min="0" step="0.1" value="5"></label>
+        </span>
+        <span class="row">
+          <label class="f"><span>等待期（年）</span><input id="shp-vest" type="number" inputmode="decimal" min="0.5" value="3"></label>
+          <label class="f"><span>已过月数</span><input id="shp-elapsed" type="number" inputmode="decimal" min="0" value="12"></label>
+        </span>
+        <label class="f"><span>预计可行权比例 %</span><input id="shp-fee" type="number" inputmode="decimal" min="0" max="100" value="100"></label>
+      </div>
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">累计已确认</span><strong id="shp-big">—</strong><span class="unit">元</span></div>
+        <ul class="kv">
+          <li><span>费用总额</span><b id="shp-tot">—</b></li>
+          <li><span>每年分摊</span><b id="shp-per">—</b></li>
+          <li><span>累计已确认</span><b id="shp-acc">—</b></li>
+          <li><span>剩余待摊</span><b id="shp-rem">—</b></li>
+        </ul>
+        <p class="hint" id="shp-note"></p>
+      </div>
+    </div>
+  </section>

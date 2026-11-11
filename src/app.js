@@ -10596,6 +10596,107 @@
     $("fxh-note").textContent = "净收益 = 套保多收（锁汇部分按远期、未锁按情景即期）− 贴水成本（即期与远期的价差×锁汇额）− 手续费。盈亏平衡汇率 = 远期 − 手续费/锁汇额，情景即期低于它套保就赚。套保目的是锁定成本，不是博方向。";
   }
 
+  function calcUnbilled() {
+    var rev = num($("unb-rev"), 1000000);
+    var inv = num($("unb-inv"), 600000);
+    var cash = num($("unb-cash"), 450000);
+    var days = num($("unb-days"), 60);
+    var rate = num($("unb-rate"), 6) / 100;
+    var vat = num($("unb-vat"), 13) / 100;
+    var unb = Math.max(0, rev - inv);
+    var ar = inv - cash;
+    var invRate = rev > 0 ? inv / rev : 0;
+    var cashRate = inv > 0 ? cash / inv : 0;
+    var occ = ar * rate * days / 360;
+    var vatDefer = unb * vat;
+    $("unb-big").textContent = money(unb);
+    $("unb-ar").textContent = money(ar);
+    $("unb-invrate").textContent = pct(invRate, 2);
+    $("unb-cashrate").textContent = pct(cashRate, 2);
+    $("unb-occ").textContent = money(occ);
+    $("unb-vatdefer").textContent = money(vatDefer);
+    $("unb-note").textContent = "未开票收入 = 履约已确认 − 已开票（权责发生 vs 开票时点差）。应收余额只算「已开票未收款」，账期资金成本 = 应收 × 资金成本 × 账期 ÷ 360。未开票部分销项暂缓，但开票义务与纳税义务时点要按合同与增值税纳税义务发生时间判断，不能长期挂账。";
+  }
+
+  function calcDeferred() {
+    var mode = $("dfr-mode").value;
+    var amt = num($("dfr-amt"), 1200000);
+    var months = Math.max(1, num($("dfr-months"), 12));
+    var el = Math.max(0, num($("dfr-elapsed"), 3));
+    var tax = num($("dfr-tax"), 25) / 100;
+    var mo = amt / months;
+    var rec = mo * Math.min(el, months);
+    var bal = amt - rec;
+    var p = amt > 0 ? rec / amt : 0;
+    $("dfr-big").textContent = money(bal);
+    $("dfr-mo").textContent = money(mo);
+    $("dfr-rec").textContent = money(rec);
+    $("dfr-pct").textContent = pct(p, 2);
+    $("dfr-bal").textContent = money(bal);
+    if (mode === "grant") {
+      $("dfr-taxline").textContent = "不征税收入：对应支出不得税前扣除（只影响时间价值），5 年未使用要缴回";
+      $("dfr-note").textContent = "政府补助走「递延收益」，与资产相关按资产寿命、与收益相关按期间摊销；作不征税收入处理时，对应的折旧/支出不得税前扣除，只是推迟不是免税。";
+    } else {
+      $("dfr-taxline").textContent = "预收账款先挂负债，按履约进度转收入，不提前缴增值税";
+      $("dfr-note").textContent = "预收账款按服务期/履约进度逐月确认收入；确认节奏与增值税纳税义务发生时间可能不同（预收时点 vs 服务完成时点），以合同和税法规定为准。";
+    }
+  }
+
+  function calcInterco() {
+    var pairs = [];
+    for (var i = 1; i <= 4; i++) {
+      pairs.push([num($("ico-a" + i), 0), num($("ico-b" + i), 0)]);
+    }
+    var atot = 0, btot = 0, n = 0;
+    for (var i = 0; i < pairs.length; i++) {
+      atot += pairs[i][0];
+      btot += pairs[i][1];
+      if (Math.abs(pairs[i][0] - pairs[i][1]) > 0.005) n++;
+    }
+    var offset = Math.min(atot, btot);
+    var diff = atot - btot;
+    $("ico-big").textContent = money(diff);
+    $("ico-atot").textContent = money(atot);
+    $("ico-btot").textContent = money(btot);
+    $("ico-offset").textContent = money(offset);
+    $("ico-n").textContent = n + " 笔";
+    var tb = $("ico-body");
+    tb.innerHTML = "";
+    for (var i = 0; i < pairs.length; i++) {
+      var d = pairs[i][0] - pairs[i][1];
+      var tr = document.createElement("tr");
+      var st = Math.abs(d) <= 0.005 ? "平" : (d > 0 ? "应收多" : "应付多");
+      [i + 1, money(pairs[i][0]), money(pairs[i][1]), money(d), st].forEach(function (v) {
+        var td = document.createElement("td");
+        td.textContent = v;
+        tr.appendChild(td);
+      });
+      if (Math.abs(d) > 0.005) tr.className = "c-warn";
+      tb.appendChild(tr);
+    }
+    $("ico-note").textContent = "表内逐组填集团内部往来（应收方挂账 vs 应付方挂账），两边一致才可抵销。";
+    $("ico-note2").textContent = "合并报表抵销分录：借「应付账款」" + money(offset) + "、贷「应收账款」" + money(offset) + "；差异 " + money(diff) + " 单独挂账查明（未达账项/入账时点/科目错挂），不能直接冲平。";
+  }
+
+  function calcSharepay() {
+    var mode = $("shp-mode").value;
+    var shares = num($("shp-shares"), 1000000);
+    var fv = num($("shp-fv"), 5);
+    var vest = Math.max(0.5, num($("shp-vest"), 3));
+    var el = Math.max(0, num($("shp-elapsed"), 12));
+    var fee = num($("shp-fee"), 100) / 100;
+    var tot = shares * fv * fee;
+    var per = tot / vest;
+    var acc = per * Math.min(el / 12, vest);
+    var rem = Math.max(0, tot - acc);
+    $("shp-big").textContent = money(acc);
+    $("shp-tot").textContent = money(tot);
+    $("shp-per").textContent = money(per);
+    $("shp-acc").textContent = money(acc);
+    $("shp-rem").textContent = money(rem);
+    $("shp-note").textContent = (mode === "rs" ? "限制性股票" : "股票期权") + "：按授予日公允价值在等待期内直线摊销（累计确认=每年分摊×已过月数/12）。权益结算的股份支付费用在等待期内税前不得扣除，汇算清缴要调增；可行权比例按最佳估计，后续变了要调整。";
+  }
+
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
@@ -10653,7 +10754,8 @@
     aroverdue: calcAroverdue, payterms: calcPayterms, fxar: calcFxar, faimpair: calcFaimpair,
     costbehav: calcCostbehav, profitcenter: calcProfitcenter, invorder: calcInvorder, creditterm: calcCreditterm,
     workflow: calcWorkflow,
-    excoll: calcExcoll, assetdisptax: calcAssetDispTax, tpdocs: calcTpdocs, fxhedge: calcFxhedge
+    excoll: calcExcoll, assetdisptax: calcAssetDispTax, tpdocs: calcTpdocs, fxhedge: calcFxhedge,
+    unbilled: calcUnbilled, deferred: calcDeferred, interco: calcInterco, sharepay: calcSharepay
   };
 
   var curCat = "hot", curSub = "";
@@ -11128,10 +11230,14 @@
     "exr-fob","exr-collect","exr-rate","exr-rateset","exr-spot","exr-terms","exr-over","exr-warn",
     "adt-mode","adt-price","adt-net","adt-fee","adt-vat","adt-add","adt-rate",
     "tpd-related","tpd-revenue","tpd-threshold","tpd-group","tpd-master","tpd-cbr",
-    "fxh-expo","fxh-spot","fxh-fwd","fxh-ratio","fxh-fee","fxh-down"
+    "fxh-expo","fxh-spot","fxh-fwd","fxh-ratio","fxh-fee","fxh-down",
+    "unb-rev","unb-inv","unb-cash","unb-days","unb-rate","unb-vat",
+    "dfr-mode","dfr-amt","dfr-months","dfr-elapsed","dfr-tax",
+    "ico-a1","ico-a2","ico-a3","ico-a4","ico-b1","ico-b2","ico-b3","ico-b4",
+    "shp-mode","shp-shares","shp-fv","shp-vest","shp-elapsed","shp-fee"
 
 ];
-  var KEY = "finance-calc-v59";
+  var KEY = "finance-calc-v60";
   var CAT_KEY = "finance-calc-cat";
   /* 构建时由 build.mjs 注入为 "v<内容哈希>"，页脚展示，方便核对版本 */
   var BUILD_TAG = "";
