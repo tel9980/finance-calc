@@ -5,11 +5,47 @@
   var $ = function (id) { return document.getElementById(id); };
 
   /* 数字解析：允许千分位、空格，以及 1.5万 / 2k / 3千 / 1亿 这类简写 */
+  /* 极简四则运算求值（递归下降，不用 eval/Function——线上 CSP 禁 unsafe-eval）。
+     支持 + - * / 与括号，数字允许小数；不支持 万/亿 与运算符混写。 */
+  function evalExpr(src) {
+    var s = String(src).replace(/[\s,，_]/g, "");
+    var i = 0, n = s.length;
+    if (!n) return NaN;
+    function peek() { return i < n ? s.charAt(i) : ""; }
+    function expr() {
+      var v = term();
+      while (peek() === "+" || peek() === "-") { var op = s.charAt(i++); var r = term(); v = op === "+" ? v + r : v - r; }
+      return v;
+    }
+    function term() {
+      var v = factor();
+      while (peek() === "*" || peek() === "/") {
+        var op = s.charAt(i++); var r = factor();
+        if (!isFinite(r)) return NaN;
+        if (op === "*") v = v * r;
+        else { if (r === 0) return NaN; v = v / r; }
+      }
+      return v;
+    }
+    function factor() {
+      if (peek() === "-") { i++; var v = factor(); return isFinite(v) ? -v : NaN; }
+      if (peek() === "(") { i++; var v = expr(); if (peek() === ")") i++; return v; }
+      var m = /^(\d+(\.\d+)?|\.\d+)/.exec(s.slice(i));
+      if (!m) return NaN;
+      i += m[0].length;
+      return parseFloat(m[0]);
+    }
+    var r = expr();
+    return (i === n && isFinite(r)) ? r : NaN;
+  }
+
   function parseNum(v) {
     if (v === null || v === undefined) return NaN;
     if (typeof v === "number") return v;
     var s = String(v).replace(/[\s,，_]/g, "");
     if (!s) return NaN;
+    /* 含运算符/括号 → 走四则运算（-5 这类纯负数也走这里，等价） */
+    if (/[+\-*/()]/.test(s)) return evalExpr(s);
     var mul = 1;
     var m = /^(-?(?:\d+(?:\.\d+)?|\.\d+))(万|亿|千|[kKwW])$/.exec(s);
     if (m) {
@@ -31,8 +67,9 @@
     for (var i = 0; i < list.length; i++) {
       var el = list[i];
       var s = String(el.value || "").replace(/[\s,，_]/g, "");
-      /* 非空但不满足「数字[万/亿/千/k/w]」的严格格式就标红（如 1..2、-、1.2.3） */
-      el.classList.toggle("bad", s !== "" && !/^-?(\d+(\.\d+)?|\.\d+)(万|亿|千|[kKwW])?$/.test(s));
+      /* 合法 = 严格数字（可带 万/亿/千/k/w）或 能求值的四则表达式；否则标红（如 1..2、-、1.2.3） */
+      var ok = /^-?(\d+(\.\d+)?|\.\d+)(万|亿|千|[kKwW])?$/.test(s) || (/[+\-*/()]/.test(s) && isFinite(evalExpr(s)));
+      el.classList.toggle("bad", s !== "" && !ok);
     }
   }
 
@@ -75,7 +112,7 @@
   function numInput(e) {
     var el = e.target;
     if (!el || !el.classList || !el.classList.contains("num")) return;
-    var clean = el.value.replace(/[^0-9.\-万千亿kKwW,，\s]/g, "");
+    var clean = el.value.replace(/[^0-9.\-+*/()万千亿kKwW,，\s]/g, "");
     if (clean !== el.value) el.value = clean;
   }
   /* 哪些输入框带内嵌单位（% / 年 / 月 / 天 / 岁 / 公里…）。金额框不在这张表里，保持干净。 */
@@ -9757,6 +9794,36 @@
       el.setAttribute("data-tbadge", tabCatLabel(el));
     }
   }
+  var SEARCH_KEY = "finance-calc-search";
+  var searchHist = [];
+  try { searchHist = JSON.parse(localStorage.getItem(SEARCH_KEY) || "[]") || []; } catch (e) { searchHist = []; }
+  function pushSearch(q) {
+    if (!q) return;
+    var i = searchHist.indexOf(q);
+    if (i >= 0) searchHist.splice(i, 1);
+    searchHist.unshift(q);
+    if (searchHist.length > 5) searchHist = searchHist.slice(0, 5);
+    try { localStorage.setItem(SEARCH_KEY, JSON.stringify(searchHist)); } catch (e) {}
+    renderSearchHist();
+  }
+  function renderSearchHist() {
+    var d = $("searchhist");
+    if (!d) return;
+    d.innerHTML = "";
+    if (!searchHist.length) { d.hidden = true; return; }
+    d.hidden = false;
+    var lab = document.createElement("span");
+    lab.className = "sh-label"; lab.textContent = "搜过：";
+    d.appendChild(lab);
+    for (var i = 0; i < searchHist.length; i++) {
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "sh-item"; b.textContent = searchHist[i]; b.setAttribute("data-sh", searchHist[i]);
+      d.appendChild(b);
+    }
+    var clr = document.createElement("button");
+    clr.type = "button"; clr.className = "sh-item sh-clear"; clr.textContent = "清空"; clr.setAttribute("data-sh-clear", "1");
+    d.appendChild(clr);
+  }
   var FAV_KEY = "finance-calc-fav";
   var favList = [];
   try { favList = JSON.parse(localStorage.getItem(FAV_KEY) || "[]") || []; } catch (e) { favList = []; }
@@ -9905,13 +9972,32 @@
   });
 
   if ($("q")) {
-    $("q").addEventListener("input", function () { applyFilter(); });
+    $("q").addEventListener("input", function () {
+      applyFilter();
+      var h = $("searchhist");
+      if (h) h.hidden = !!$("q").value;
+    });
     $("q").addEventListener("keydown", function (e) {
       if (e.key !== "Enter") return;
       var first = document.querySelector(".tab:not([hidden])");
-      if (first) { activate(first.dataset.tab); flash($("q"), "跳到「" + first.textContent.trim() + "」"); }
+      if (first) { pushSearch($("q").value.trim()); activate(first.dataset.tab); flash($("q"), "跳到「" + first.textContent.trim() + "」"); }
     });
+    $("q").addEventListener("focus", function () { if (!$("q").value) renderSearchHist(); });
+    $("q").addEventListener("blur", function () { setTimeout(function () { var h = $("searchhist"); if (h) h.hidden = true; }, 180); });
   }
+  if ($("searchhist")) $("searchhist").addEventListener("mousedown", function (e) {
+    var b = e.target.closest ? e.target.closest(".sh-item") : null;
+    if (!b) return;
+    e.preventDefault();
+    if (b.getAttribute("data-sh-clear")) {
+      searchHist = [];
+      try { localStorage.removeItem(SEARCH_KEY); } catch (e2) {}
+      renderSearchHist();
+      return;
+    }
+    var w = b.getAttribute("data-sh");
+    if (w) { $("q").value = w; applyFilter(); $("q").focus(); }
+  });
   if ($("subs")) $("subs").addEventListener("click", function (e) {
     var s = e.target.closest(".sub");
     if (!s) return;
@@ -11501,6 +11587,13 @@
     if ((e.ctrlKey || e.metaKey) && (e.key === "k" || e.key === "K")) { e.preventDefault(); openPalette(); }
   });
   if ($("btn-palette")) $("btn-palette").addEventListener("click", function () { openPalette(); });
+  if ($("totop")) {
+    window.addEventListener("scroll", function () {
+      var t = $("totop");
+      if (t) t.hidden = window.scrollY < 400;
+    }, { passive: true });
+    $("totop").addEventListener("click", function () { window.scrollTo({ top: 0, behavior: "smooth" }); });
+  }
 
   /* 面板级 UI 增强：hint 可折叠 + 长列表表格工具栏（懒加载面板与核心面板共用） */
   function enhancePanelUi(el) {

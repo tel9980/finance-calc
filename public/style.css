@@ -439,3 +439,17 @@ html[data-theme="dark"] .tab::after{background:rgba(147,180,247,.18);color:#c7d2
 .big strong, ul.kv li b{cursor:pointer}
 .big strong:hover, ul.kv li b:hover{color:var(--accent)}
 @media print{.tbtools,.hintd summary{display:none}}
+
+/* 搜索历史 chips */
+.searchhist{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;align-items:center}
+.searchhist[hidden]{display:none}
+.sh-label{font-size:12px;color:rgba(255,255,255,.72)}
+.sh-item{appearance:none;border:1px solid rgba(255,255,255,.42);background:rgba(255,255,255,.12);color:#eef4ff;padding:3px 11px;border-radius:999px;font-size:12.5px;cursor:pointer;white-space:nowrap}
+.sh-item:hover{background:rgba(255,255,255,.24)}
+.sh-clear{border-style:dashed;opacity:.75}
+
+/* 回到顶部悬浮钮 */
+.totop{position:fixed;right:14px;bottom:16px;z-index:30;appearance:none;border:1px solid var(--line);background:var(--card);color:var(--accent);padding:8px 12px;border-radius:999px;font-size:13px;cursor:pointer;box-shadow:0 6px 18px rgba(15,23,42,.18)}
+.totop[hidden]{display:none}
+html[data-theme="dark"] .totop{background:#131b2e;border-color:#253252}
+@media print{.totop{display:none}}
