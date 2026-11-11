@@ -10022,6 +10022,21 @@
     markBadInputs(panel);
   });
 
+  /* 粘贴自动清洗：从 Excel/票据粘进来的「1,234,567」或「¥100,000 元」直接可用 */
+  document.addEventListener("paste", function (e) {
+    var el = e.target && e.target.closest ? e.target.closest("input.num") : null;
+    if (!el) return;
+    var txt = "";
+    try { txt = (e.clipboardData || window.clipboardData).getData("text"); } catch (e2) {}
+    if (!txt) return;
+    var clean = txt.replace(/[,\s，、　]/g, "").replace(/[￥¥$€£]/g, "").replace(/元/g, "");
+    clean = clean.replace(/[^0-9.\-+*/()万千亿kKwW]/g, "");
+    if (!clean) return;
+    e.preventDefault();
+    el.value = clean;
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+
   /* 记住上次填写（本机 localStorage，不上传） */
   var FIELDS = [
     "dp-principal", "dp-rate", "dp-term", "dp-unit", "dp-mode",
@@ -10630,6 +10645,12 @@
     return location.origin + location.pathname + "#" + name + (qs ? "?" + qs : "");
   }
 
+  function scrollResultIfDeepLink() {
+    if (window.innerWidth < 820) return;                 // 手机上结果在输入下方，不滚动跳过输入
+    var res = document.querySelector(".panel.is-on .card.res");
+    if (res && res.scrollIntoView) res.scrollIntoView({ block: "start", behavior: "auto" });
+  }
+
   function applyParams(str, replay) {
     if (!str) return;
     if (!replay) PENDING_PARAMS = PENDING_PARAMS ? PENDING_PARAMS + "&" + str : str;
@@ -10640,6 +10661,7 @@
       if (!el || !el.tagName) return;
       el.value = decodeURIComponent(kv.slice(i + 1));
     });
+    scrollResultIfDeepLink();
   }
 
   if ($("btn-fav")) $("btn-fav").addEventListener("click", function () {
@@ -10733,6 +10755,27 @@
     var btn = this;
     copyText(buildShare()).then(function () { flash(btn, "链接已复制"); })
       .catch(function () { flash(btn, "复制失败，请手动复制地址栏"); });
+  });
+
+  if ($("btn-reset")) $("btn-reset").addEventListener("click", function () {
+    var btn = this, panel = document.querySelector(".panel.is-on");
+    if (!panel) return;
+    var els = panel.querySelectorAll("input,select,textarea");
+    for (var i = 0; i < els.length; i++) {
+      var el = els[i];
+      if (el.type === "search" || el.id.indexOf("snap-") === 0) continue;   // 面板自身的控件不动
+      if (el.tagName === "SELECT") {
+        var def = -1;
+        for (var o = 0; o < el.options.length; o++) { if (el.options[o].defaultSelected) { def = o; break; } }
+        el.selectedIndex = def >= 0 ? def : 0;
+      } else if (el.defaultValue != null) {
+        el.value = el.defaultValue;
+      }
+    }
+    var name = panel.id.replace("panel-", "");
+    runCalc(name);
+    save();
+    flash(btn, "已恢复默认示例");
   });
 
   if ($("btn-md")) $("btn-md").addEventListener("click", function () {
@@ -11683,6 +11726,15 @@
   activate(startName);
   if (st0.params) { applyParams(st0.params); if (calcMap[startName]) calcMap[startName](); }
   FIRST_ACTIVATE = false;
+  /* 首次使用引导：只提示一次 */
+  try {
+    if (!localStorage.getItem("finance-calc-hello")) {
+      localStorage.setItem("finance-calc-hello", "1");
+      setTimeout(function () {
+        toast("提示：按 Ctrl/Cmd+K 或点「⌘K 搜模块」快速找功能；点结果数字可复制；所有数据只存本机浏览器，不上传。", 5600);
+      }, 900);
+    }
+  } catch (e) {}
   if (typeof bindPrefetch === "function") bindPrefetch();
   $("ver").textContent = "财务计算器 · 纯前端 · 更新于 " + new Date().toISOString().slice(0, 10);
 })();
