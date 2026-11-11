@@ -10615,12 +10615,62 @@
       n.textContent = done === 0 ? "五条常用岗位路径，点任意一步开始；点开过的模块会自动打勾，「✓」按钮手动标记本月已完成（月底点「清空本月手动打勾」重来）。" + scoped : (done >= total ? "当前路径全部走完一遍了。日常可以按岗位重复走：自动打勾不会清空，手动「✓」每月点一次、月底清空。" : "五条常用岗位路径；已点开 " + done + "/" + total + " 个。绿色✓＝自动（点开过），深色✓＝本月手动完成。" + scoped);
     }
   }
+  var WF_AUTO_TIMER = null;
+  var WF_AUTO_LIST = [];
+  var WF_AUTO_IDX = 0;
+  function wfAutoStop() {
+    if (WF_AUTO_TIMER) { clearTimeout(WF_AUTO_TIMER); WF_AUTO_TIMER = null; }
+    WF_AUTO_LIST = [];
+    WF_AUTO_IDX = 0;
+    var b = $("wf-auto");
+    if (b) b.textContent = "一键走完本岗位";
+  }
+  function wfAutoWalk() {
+    if (WF_AUTO_TIMER) { wfAutoStop(); toast("已停止自动走流程"); return; }
+    var roleEl = $("wf-role");
+    var role = roleEl ? roleEl.value : "0";
+    var dets = document.querySelectorAll("#panel-workflow .card:not(.res) details");
+    var list = [];
+    for (var j = 0; j < dets.length; j++) {
+      var rr = (dets[j].getAttribute("data-role") || "").split(/\s+/);
+      if (role !== "0" && rr.indexOf(role) < 0) continue;
+      var al = dets[j].querySelectorAll("a[href^='#']");
+      for (var k = 0; k < al.length; k++) list.push(al[k].getAttribute("href"));
+    }
+    if (!list.length) { toast("这条路径没有步骤"); return; }
+    WF_AUTO_LIST = list;
+    WF_AUTO_IDX = 0;
+    var b = $("wf-auto");
+    if (b) b.textContent = "停止走完（" + list.length + " 步）";
+    var step = function () {
+      if (WF_AUTO_IDX >= WF_AUTO_LIST.length) {
+        var n = WF_AUTO_LIST.length;
+        wfAutoStop();
+        var bb = $("wf-auto");
+        if (bb) bb.textContent = "一键走完本岗位";
+        toast("已按顺序走完 " + n + " 步，可逐个回看结果");
+        return;
+      }
+      var href = WF_AUTO_LIST[WF_AUTO_IDX];
+      WF_AUTO_IDX++;
+      if (location.hash !== href) location.hash = href;
+      WF_AUTO_TIMER = setTimeout(step, 1100);
+    };
+    step();
+  }
   document.addEventListener("click", function (e) {
+    if (WF_AUTO_TIMER && e.target && e.target.closest && e.target.closest(".tab, .cat")) {
+      wfAutoStop();
+    }
     var t = e.target && e.target.closest ? e.target.closest(".wf-tick") : null;
     if (t) {
       toggleWfMan(t.getAttribute("data-step") || "");
       if (typeof refreshWfBadge === "function") refreshWfBadge();
       if (typeof runCalc === "function") runCalc("workflow");
+      return;
+    }
+    if (e.target && e.target.closest && e.target.closest("#wf-auto")) {
+      wfAutoWalk();
       return;
     }
     if (e.target && e.target.closest && e.target.closest("#wf-clear")) {
