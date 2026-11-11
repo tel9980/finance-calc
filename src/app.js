@@ -10472,6 +10472,130 @@
     var n = $("wf-note");
     if (n) n.textContent = "五条常用岗位路径，点任意一步直接跳到对应模块；每个模块都自带「下一步常用」，算完顺着点就能走完整条流程。";
   }
+  function calcExcoll() {
+    var fob = num($("exr-fob"), 500000);
+    var coll = num($("exr-collect"), 460000);
+    var rate = num($("exr-rate"), 7.1);
+    var rset = num($("exr-rateset"), 7.08);
+    var spot = num($("exr-spot"), 7.05);
+    var over = num($("exr-over"), 30);
+    var warn = num($("exr-warn"), 6) / 100;
+    var un = Math.max(0, fob - coll);
+    var fxt = (rset - rate) * coll + (spot - rate) * un;
+    var cny = un * spot;
+    var occ = cny * warn / 365 * over;
+    var cr = fob > 0 ? coll / fob : 0;
+    $("exr-big").textContent = fmt(un, 2);
+    $("exr-cr").textContent = pct(cr, 2);
+    $("exr-fx").textContent = yuan(fxt);
+    $("exr-cny").textContent = money(cny);
+    $("exr-occ").textContent = money(occ);
+    $("exr-verdict").textContent = cr >= 0.95 ? "收汇率正常（≥95%）" : (cr >= 0.9 ? "收汇率偏低，要盯紧（90%–95%）" : "收汇率风险（<90%），该催收了");
+    $("exr-note").textContent = "汇兑损益 = 已收汇按收汇日汇率重估 + 未收汇按期末即期重估；逾期成本只算未收汇部分的资金占用（年化 " + (warn * 100) + "%，按 " + over + " 天）。报关（FOB）与收汇要逐笔核销，差 4,000 美元以上让单证查核销单。";
+  }
+
+  function calcAssetDispTax() {
+    var mode = $("adt-mode").value;
+    var price = num($("adt-price"), 452000);
+    var net = num($("adt-net"), 400000);
+    var fee = num($("adt-fee"), 5000);
+    var vat = num($("adt-vat"), 13);
+    var add = num($("adt-add"), 12) / 100;
+    var tr = num($("adt-rate"), 25) / 100;
+    var ni, vt, ad, pl, af, be;
+    if (mode === "simple") {
+      ni = price / 1.03;
+      vt = ni * 0.02;
+      ad = vt * add;
+      pl = ni - net - fee;
+      af = pl * (1 - tr);
+      be = (net + fee) * 1.03 / 0.98;
+      $("adt-modekv").textContent = "简易计税（3% 减按 2%）";
+    } else {
+      ni = price / (1 + vat / 100);
+      vt = price - ni;
+      ad = vt * add;
+      pl = ni - net - fee;
+      af = pl * (1 - tr);
+      be = (net + fee) * (1 + vat / 100);
+      $("adt-modekv").textContent = "一般计税（" + vat + "%）";
+    }
+    var altAf = mode === "simple" ? ((price / (1 + vat / 100)) - net - fee) * (1 - tr) : ((price / 1.03) - net - fee) * (1 - tr);
+    $("adt-big").textContent = yuan(af);
+    $("adt-ni").textContent = money(ni);
+    $("adt-vt").textContent = money(vt);
+    $("adt-ad").textContent = money(ad);
+    $("adt-pl").textContent = yuan(pl);
+    $("adt-be").textContent = money(be);
+    $("adt-cmp").textContent = mode === "simple" ? "一般计税税后 " + yuan(altAf) : "简易计税税后 " + yuan(altAf) + "（若适用）";
+    $("adt-note").textContent = "一般计税：销项 13%，进项可抵；简易计税 3% 减按 2%（限于 2016 年 4 月 30 日前取得或不得抵扣进项的资产）。保本售价 =（净值+清理费）×（1+税率）[简易为 ×1.03/0.98]，低于它卖就是亏。";
+  }
+
+  function calcTpdocs() {
+    var rel = num($("tpd-related"), 30000000);
+    var rev = num($("tpd-revenue"), 100000000);
+    var thr = num($("tpd-threshold"), 25000000);
+    var grp = num($("tpd-group"), 6000000000);
+    var mthr = num($("tpd-master"), 1000000000);
+    var cbr = num($("tpd-cbr"), 5500000000);
+    var ratio = rev > 0 ? rel / rev : 0;
+    var local = rel > thr;
+    var master = grp > mthr;
+    var cbrNeed = grp > cbr;
+    $("tpd-big").textContent = pct(ratio, 2);
+    $("tpd-local").textContent = local ? "需要准备（关联交易额超门槛）" : "未达门槛";
+    $("tpd-masterkv").textContent = master ? "需要（集团合并收入超门槛）" : "不需要";
+    $("tpd-cbrkv").textContent = cbrNeed ? "需要（集团合并收入超门槛）" : "不需要";
+    $("tpd-risk").textContent = local ? "未按期准备的，税务机关可核定应纳税所得额、补税并加收利息" : "当前未达本地文档门槛，但定价仍需符合独立交易原则";
+    var rows = [
+      ["本地文档", money(thr), money(rel), local ? "需要" : "不需要"],
+      ["主体文档", money(mthr), money(grp), master ? "需要" : "不需要"],
+      ["国别报告", money(cbr), money(grp), cbrNeed ? "需要" : "不需要"]
+    ];
+    var tb = $("tpd-body");
+    tb.innerHTML = "";
+    for (var i = 0; i < rows.length; i++) {
+      var tr = document.createElement("tr");
+      for (var j = 0; j < rows[i].length; j++) {
+        var td = document.createElement("td");
+        td.textContent = rows[i][j];
+        tr.appendChild(td);
+      }
+      tb.appendChild(tr);
+    }
+    $("tpd-note").textContent = "三个门槛互不替代：本地文档看「本企业关联交易额」，主体文档和国别报告看「集团合并收入」。门槛数字可改（各地/每年调整以主管税务机关口径为准），符合独立交易原则是根本。";
+  }
+
+  function calcFxhedge() {
+    var expo = num($("fxh-expo"), 1000000);
+    var spot = num($("fxh-spot"), 7.1);
+    var fwd = num($("fxh-fwd"), 7.05);
+    var ratio = num($("fxh-ratio"), 80) / 100;
+    var fee = num($("fxh-fee"), 0.1) / 100;
+    var down = num($("fxh-down"), 6.9);
+    var locked = expo * ratio;
+    var unlocked = expo - locked;
+    var lockcny = locked * fwd;
+    var unlockcny = unlocked * down;
+    var hedged = lockcny + unlockcny;
+    var noh = expo * down;
+    var diff = hedged - noh;
+    var cost = (spot - fwd) * locked;
+    var feec = lockcny * fee;
+    var net = diff - cost - feec;
+    var be = locked > 0 ? fwd - feec / locked : fwd;
+    $("fxh-big").textContent = yuan(net);
+    $("fxh-locked").textContent = money(locked) + " 美元";
+    $("fxh-unlocked").textContent = money(unlocked) + " 美元";
+    $("fxh-hedged").textContent = money(hedged);
+    $("fxh-noh").textContent = money(noh);
+    $("fxh-diff").textContent = yuan(diff);
+    $("fxh-cost").textContent = money(cost);
+    $("fxh-feekv").textContent = money(feec);
+    $("fxh-be").textContent = fmt(be, 5);
+    $("fxh-note").textContent = "净收益 = 套保多收（锁汇部分按远期、未锁按情景即期）− 贴水成本（即期与远期的价差×锁汇额）− 手续费。盈亏平衡汇率 = 远期 − 手续费/锁汇额，情景即期低于它套保就赚。套保目的是锁定成本，不是博方向。";
+  }
+
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
@@ -10528,7 +10652,8 @@
     cashcycle: calcCashCycle, saleexp: calcSaleExp, deptcost: calcDeptCost, invvar: calcInvVar,
     aroverdue: calcAroverdue, payterms: calcPayterms, fxar: calcFxar, faimpair: calcFaimpair,
     costbehav: calcCostbehav, profitcenter: calcProfitcenter, invorder: calcInvorder, creditterm: calcCreditterm,
-    workflow: calcWorkflow
+    workflow: calcWorkflow,
+    excoll: calcExcoll, assetdisptax: calcAssetDispTax, tpdocs: calcTpdocs, fxhedge: calcFxhedge
   };
 
   var curCat = "hot", curSub = "";
@@ -10999,9 +11124,14 @@
     "cbh-qty","cbh-cm","cbh-f1","cbh-v1","cbh-f2","cbh-v2","cbh-f3","cbh-v3","cbh-f4","cbh-v4",
     "pc-a1","pc-b1","pc-c1","pc-d1","pc-a2","pc-b2","pc-c2","pc-d2",
     "ivo-demand","ivo-safety","ivo-price","ivo-s1","ivo-p1","ivo-s2","ivo-p2","ivo-s3","ivo-p3",
-    "ct-sales","ct-vc","ct-rate","ct-bad30","ct-bad60"
+    "ct-sales","ct-vc","ct-rate","ct-bad30","ct-bad60",
+    "exr-fob","exr-collect","exr-rate","exr-rateset","exr-spot","exr-terms","exr-over","exr-warn",
+    "adt-mode","adt-price","adt-net","adt-fee","adt-vat","adt-add","adt-rate",
+    "tpd-related","tpd-revenue","tpd-threshold","tpd-group","tpd-master","tpd-cbr",
+    "fxh-expo","fxh-spot","fxh-fwd","fxh-ratio","fxh-fee","fxh-down"
+
 ];
-  var KEY = "finance-calc-v58";
+  var KEY = "finance-calc-v59";
   var CAT_KEY = "finance-calc-cat";
   /* 构建时由 build.mjs 注入为 "v<内容哈希>"，页脚展示，方便核对版本 */
   var BUILD_TAG = "";

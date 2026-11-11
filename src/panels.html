@@ -9248,3 +9248,126 @@
       </div>
     </div>
   </section>
+
+  <section class="panel" id="panel-excoll">
+    <div class="cols">
+      <div class="card">
+        <h2>出口收汇核销</h2>
+        <label class="f"><span>报关金额 FOB（美元）</span><input id="exr-fob" type="number" inputmode="decimal" min="0" step="1000" value="500000"></label>
+        <label class="f"><span>已收汇（美元）</span><input id="exr-collect" type="number" inputmode="decimal" min="0" step="1000" value="460000"></label>
+        <span class="row">
+          <label class="f"><span>记账汇率</span><input id="exr-rate" type="number" inputmode="decimal" step="0.01" value="7.10"></label>
+          <label class="f"><span>收汇时汇率</span><input id="exr-rateset" type="number" inputmode="decimal" step="0.01" value="7.08"></label>
+        </span>
+        <label class="f"><span>期末即期汇率</span><input id="exr-spot" type="number" inputmode="decimal" step="0.01" value="7.05"></label>
+        <span class="row">
+          <label class="f"><span>收汇期限（天）</span><input id="exr-terms" type="number" inputmode="decimal" min="0" value="90"></label>
+          <label class="f"><span>逾期天数</span><input id="exr-over" type="number" inputmode="decimal" min="0" value="30"></label>
+        </span>
+        <label class="f"><span>逾期资金成本（年 %）</span><input id="exr-warn" type="number" inputmode="decimal" min="0" step="0.1" value="6"></label>
+      </div>
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">未收汇</span><strong id="exr-big">—</strong><span class="unit">美元</span></div>
+        <ul class="kv">
+          <li><span>收汇率</span><b id="exr-cr">—</b></li>
+          <li><span>汇兑损益</span><b id="exr-fx">—</b></li>
+          <li><span>期末应收折算</span><b id="exr-cny">—</b></li>
+          <li><span>逾期资金成本</span><b id="exr-occ">—</b></li>
+          <li><span>判定</span><b id="exr-verdict">—</b></li>
+        </ul>
+        <p class="hint" id="exr-note"></p>
+      </div>
+    </div>
+  </section>
+  <section class="panel" id="panel-assetdisptax">
+    <div class="cols">
+      <div class="card">
+        <h2>固定资产处置税务</h2>
+        <label class="f"><span>计税方式</span><select id="adt-mode"><option value="gen" selected>一般计税 13%</option><option value="simple">简易计税 3% 减按 2%</option></select></label>
+        <span class="row">
+          <label class="f"><span>含税售价</span><input id="adt-price" type="number" inputmode="decimal" min="0" value="452000"></label>
+          <label class="f"><span>账面净值</span><input id="adt-net" type="number" inputmode="decimal" min="0" value="400000"></label>
+        </span>
+        <label class="f"><span>清理费</span><input id="adt-fee" type="number" inputmode="decimal" min="0" value="5000"></label>
+        <span class="row">
+          <label class="f"><span>增值税税率 %</span><input id="adt-vat" type="number" inputmode="decimal" min="0" value="13"></label>
+          <label class="f"><span>附加税费 %</span><input id="adt-add" type="number" inputmode="decimal" min="0" value="12"></label>
+        </span>
+        <label class="f"><span>所得税税率 %</span><input id="adt-rate" type="number" inputmode="decimal" min="0" value="25"></label>
+      </div>
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">税后影响</span><strong id="adt-big">—</strong><span class="unit">元</span></div>
+        <ul class="kv">
+          <li><span>计税方式</span><b id="adt-modekv">—</b></li>
+          <li><span>不含税收入</span><b id="adt-ni">—</b></li>
+          <li><span>应纳增值税</span><b id="adt-vt">—</b></li>
+          <li><span>附加税费</span><b id="adt-ad">—</b></li>
+          <li><span>处置损益</span><b id="adt-pl">—</b></li>
+          <li><span>含税保本售价</span><b id="adt-be">—</b></li>
+          <li><span>另一口径税后</span><b id="adt-cmp">—</b></li>
+        </ul>
+        <p class="hint" id="adt-note"></p>
+      </div>
+    </div>
+  </section>
+  <section class="panel" id="panel-tpdocs">
+    <div class="cols">
+      <div class="card">
+        <h2>关联交易同期资料</h2>
+        <span class="row">
+          <label class="f"><span>关联交易额</span><input id="tpd-related" type="number" inputmode="decimal" min="0" step="10000" value="30000000"></label>
+          <label class="f"><span>本公司收入</span><input id="tpd-revenue" type="number" inputmode="decimal" min="0" step="10000" value="100000000"></label>
+        </span>
+        <label class="f"><span>同期资料门槛（本地文档）</span><input id="tpd-threshold" type="number" inputmode="decimal" min="0" step="10000" value="25000000"></label>
+        <label class="f"><span>集团合并收入</span><input id="tpd-group" type="number" inputmode="decimal" min="0" step="1000000" value="6000000000"></label>
+        <span class="row">
+          <label class="f"><span>主体文档门槛</span><input id="tpd-master" type="number" inputmode="decimal" min="0" step="1000000" value="1000000000"></label>
+          <label class="f"><span>国别报告门槛</span><input id="tpd-cbr" type="number" inputmode="decimal" min="0" step="1000000" value="5500000000"></label>
+        </span>
+      </div>
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">关联交易占比</span><strong id="tpd-big">—</strong><span class="unit">%</span></div>
+        <ul class="kv">
+          <li><span>本地文档</span><b id="tpd-local">—</b></li>
+          <li><span>主体文档</span><b id="tpd-masterkv">—</b></li>
+          <li><span>国别报告</span><b id="tpd-cbrkv">—</b></li>
+          <li><span>风险提示</span><b id="tpd-risk">—</b></li>
+        </ul>
+        <div class="tablebox"><table><thead><tr><th>资料</th><th>门槛</th><th>你方金额</th><th>是否需要</th></tr></thead><tbody id="tpd-body"></tbody></table></div>
+        <p class="hint" id="tpd-note"></p>
+      </div>
+    </div>
+  </section>
+  <section class="panel" id="panel-fxhedge">
+    <div class="cols">
+      <div class="card">
+        <h2>外汇套期保值</h2>
+        <label class="f"><span>外汇敞口（美元）</span><input id="fxh-expo" type="number" inputmode="decimal" min="0" step="10000" value="1000000"></label>
+        <span class="row">
+          <label class="f"><span>即期汇率</span><input id="fxh-spot" type="number" inputmode="decimal" step="0.01" value="7.10"></label>
+          <label class="f"><span>远期汇率</span><input id="fxh-fwd" type="number" inputmode="decimal" step="0.01" value="7.05"></label>
+        </span>
+        <label class="f"><span>套保比例 %</span><input id="fxh-ratio" type="number" inputmode="decimal" min="0" max="100" value="80"></label>
+        <label class="f"><span>手续费率 %</span><input id="fxh-fee" type="number" inputmode="decimal" min="0" step="0.01" value="0.1"></label>
+        <label class="f"><span>到期情景即期</span><input id="fxh-down" type="number" inputmode="decimal" step="0.01" value="6.90"></label>
+      </div>
+      <div class="card res">
+        <h2>结果</h2>
+        <div class="big"><span class="k">净套保收益</span><strong id="fxh-big">—</strong><span class="unit">元</span></div>
+        <ul class="kv">
+          <li><span>锁汇金额</span><b id="fxh-locked">—</b></li>
+          <li><span>未锁敞口</span><b id="fxh-unlocked">—</b></li>
+          <li><span>套保后合计</span><b id="fxh-hedged">—</b></li>
+          <li><span>全不锁（情景）</span><b id="fxh-noh">—</b></li>
+          <li><span>套保多收</span><b id="fxh-diff">—</b></li>
+          <li><span>贴水成本</span><b id="fxh-cost">—</b></li>
+          <li><span>手续费</span><b id="fxh-feekv">—</b></li>
+          <li><span>盈亏平衡汇率</span><b id="fxh-be">—</b></li>
+        </ul>
+        <p class="hint" id="fxh-note"></p>
+      </div>
+    </div>
+  </section>
