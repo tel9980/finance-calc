@@ -10490,6 +10490,7 @@
     if (known[name] && !WF_DONE[name]) { WF_DONE[name] = 1; wfSave(); }
   }
   var WF_MAN_KEY = "finance-calc-wfman";
+  var WF_ROLE_KEY = "finance-calc-wfrole";
   var WF_MAN = {};
   function loadWfMan() { try { WF_MAN = JSON.parse(localStorage.getItem(WF_MAN_KEY) || "{}"); } catch (e) { WF_MAN = {}; } }
   function wfManSave() { try { localStorage.setItem(WF_MAN_KEY, JSON.stringify(WF_MAN)); } catch (e) {} }
@@ -10501,8 +10502,22 @@
     loadWfMan();
     var wfDone = getWfDone();
     var wfMan = getWfMan();
+    var roleEl = $("wf-role");
+    if (roleEl) {
+      var savedRole = "";
+      try { savedRole = localStorage.getItem(WF_ROLE_KEY) || ""; } catch (err) {}
+      if (savedRole) roleEl.value = savedRole;
+    }
+    var role = roleEl ? roleEl.value : "0";
+    var dets = document.querySelectorAll("#panel-workflow .card:not(.res) details");
+    var vis = [];
+    for (var vj = 0; vj < dets.length; vj++) {
+      var rr = (dets[vj].getAttribute("data-role") || "").split(/\s+/);
+      var visible = role === "0" || rr.indexOf(role) >= 0;
+      vis.push(visible);
+      dets[vj].classList.toggle("wf-hide", !visible);
+    }
     var links = document.querySelectorAll("#panel-workflow a[href^='#']");
-    var total = links.length, done = 0, man = 0;
     var carry = {
       mgmtpack: [["finreport", "pl-rev", "pk-rev"]],
       bplan: [["mgmtpack", "pk-rev", "bpl-rev"]],
@@ -10532,10 +10547,9 @@
       for (var qk in qm) { if (Object.prototype.hasOwnProperty.call(qm, qk)) qs.push(encodeURIComponent(qk) + "=" + encodeURIComponent(qm[qk])); }
       if (qs.length && srcMods.length) qs.push("_src=" + encodeURIComponent(srcMods.join(",")));
       links[i].setAttribute("href", "#" + h + (qs.length ? "?" + qs.join("&") : ""));
-      if (wfDone[h]) { links[i].classList.add("wf-done"); done++; } else { links[i].classList.remove("wf-done"); }
+      if (wfDone[h]) { links[i].classList.add("wf-done"); } else { links[i].classList.remove("wf-done"); }
     }
-    var dets = document.querySelectorAll("#panel-workflow .card:not(.res) details");
-    var stepSeq = 0;
+    var total = 0, done = 0, man = 0;
     for (var j = 0; j < dets.length; j++) {
       var al = dets[j].querySelectorAll("a[href^='#']");
       var dt = 0, mt = 0;
@@ -10554,9 +10568,9 @@
           al[k].parentNode.insertBefore(tickEl, al[k].nextSibling);
         }
         tickEl.setAttribute("data-step", key);
-        if (wfMan[key]) { tickEl.classList.add("on"); mt++; man++; } else { tickEl.classList.remove("on"); }
-        stepSeq++;
+        if (wfMan[key]) { tickEl.classList.add("on"); mt++; } else { tickEl.classList.remove("on"); }
       }
+      if (vis[j]) { total += al.length; done += dt; man += mt; }
       var sum = dets[j].querySelector("summary");
       var oldB = sum.querySelector(".wfp");
       if (oldB) oldB.remove();
@@ -10577,6 +10591,7 @@
     if ($("wf-mankv")) $("wf-mankv").textContent = man + "/" + total;
     var nextA = null;
     for (var j2 = 0; j2 < dets.length && !nextA; j2++) {
+      if (!vis[j2]) continue;
       var al2 = dets[j2].querySelectorAll("a[href^='#']");
       for (var k2 = 0; k2 < al2.length; k2++) {
         if (!wfMan[j2 + "-" + k2]) { nextA = al2[k2]; break; }
@@ -10594,7 +10609,11 @@
       }
     }
     var n = $("wf-note");
-    if (n) n.textContent = done === 0 ? "五条常用岗位路径，点任意一步开始；点开过的模块会自动打勾，「✓」按钮手动标记本月已完成（月底点「清空本月手动打勾」重来）。" : (done >= total ? "五条路径全部走完一遍了。日常可以按岗位重复走：自动打勾不会清空，手动「✓」每月点一次、月底清空。" : "五条常用岗位路径；已点开 " + done + "/" + total + " 个。绿色✓＝自动（点开过），深色✓＝本月手动完成。");
+    if (n) {
+      var roleName = roleEl && roleEl.options && roleEl.selectedIndex >= 0 ? roleEl.options[roleEl.selectedIndex].textContent : "";
+      var scoped = role !== "0" ? "（当前只看「" + roleName + "」这条）" : "";
+      n.textContent = done === 0 ? "五条常用岗位路径，点任意一步开始；点开过的模块会自动打勾，「✓」按钮手动标记本月已完成（月底点「清空本月手动打勾」重来）。" + scoped : (done >= total ? "当前路径全部走完一遍了。日常可以按岗位重复走：自动打勾不会清空，手动「✓」每月点一次、月底清空。" : "五条常用岗位路径；已点开 " + done + "/" + total + " 个。绿色✓＝自动（点开过），深色✓＝本月手动完成。" + scoped);
+    }
   }
   document.addEventListener("click", function (e) {
     var t = e.target && e.target.closest ? e.target.closest(".wf-tick") : null;
@@ -11395,6 +11414,14 @@
     e.preventDefault();
     el.value = clean;
     el.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+
+  /* 工作流岗位切换：记住选择并刷新面板 */
+  document.addEventListener("change", function (e) {
+    if (e.target && e.target.id === "wf-role") {
+      try { localStorage.setItem(WF_ROLE_KEY, e.target.value); } catch (err) {}
+      runCalc("workflow");
+    }
   });
 
   /* 记住上次填写（本机 localStorage，不上传） */

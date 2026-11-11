@@ -480,3 +480,8 @@ html[data-theme="dark"] .wfpm-full { background: #14532d; color: #86efac; }
 .tab[data-tab="workflow"]::after:empty { display: none; }
 #panel-workflow .kv a { color: #1e3a8a; text-decoration: underline; }
 html[data-theme="dark"] #panel-workflow .kv a { color: #93b4f7; }
+
+/* 工作流岗位筛选 + 角色下拉 */
+.card details.wf-hide { display: none; }
+.wfctl { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 4px 0 6px; }
+.wfctl select { background: var(--field); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font-size: 13px; max-width: 100%; }
