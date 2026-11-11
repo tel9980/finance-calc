@@ -8491,3 +8491,173 @@
       </div>
     </div>
   </section>
+  <section class="panel" id="panel-rollbudget">
+    <div class="cols">
+      <div class="card">
+        <h2>输入：全年预算与已发生实际</h2>
+        <span class="row">
+          <label class="f"><span>全年预算收入</span><input id="rbg-budinc" type="number" inputmode="decimal" min="0" step="100000" value="12000000"></label>
+          <label class="f"><span>全年预算费用</span><input id="rbg-budexp" type="number" inputmode="decimal" min="0" step="100000" value="9000000"></label>
+        </span>
+        <span class="row">
+          <label class="f"><span>已过月份</span><input id="rbg-months" type="number" inputmode="decimal" min="1" max="11" step="1" value="6"></label>
+          <label class="f"><span>剩余月份修正系数 %</span><input id="rbg-adj" type="number" inputmode="decimal" min="0" step="5" value="100"></label>
+        </span>
+        <span class="row">
+          <label class="f"><span>已发生收入</span><input id="rbg-actinc" type="number" inputmode="decimal" min="0" step="100000" value="5400000"></label>
+          <label class="f"><span>已发生费用</span><input id="rbg-actexp" type="number" inputmode="decimal" min="0" step="100000" value="4800000"></label>
+        </span>
+        <em>口径：已过月份用实际数，剩余月份用全年预算月均 × 修正系数外推，得出「全年预测」。修正系数 100% = 保持预算节奏，低于 100% 表示预计后几个月会收缩。</em>
+      </div>
+      <div class="card res">
+        <h2>结果：滚动预测到年底</h2>
+        <div class="big"><span class="k">全年预测利润</span><strong id="rbg-big">—</strong><span class="unit">元</span></div>
+        <ul class="kv">
+          <li><span>全年预测收入 / 达成率</span><b id="rbg-finc">—</b></li>
+          <li><span>全年预测费用 / 超支节约</span><b id="rbg-fexp">—</b></li>
+          <li><span>预测利润（vs 预算）</span><b id="rbg-profit">—</b></li>
+          <li><span>追平预算需月均收入</span><b id="rbg-need">—</b></li>
+          <li><span>守住费用需月均支出</span><b id="rbg-expneed">—</b></li>
+        </ul>
+        <div class="tablebox">
+          <table>
+            <thead><tr><th class="tal">项目</th><th>全年预算</th><th>已发生</th><th>剩余预测</th><th>全年预测</th></tr></thead>
+            <tbody id="rbg-body"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="rbg-note"></p>
+      </div>
+    </div>
+  </section>
+  <section class="panel" id="panel-csladv">
+    <div class="cols">
+      <div class="card">
+        <h2>输入：母子公司与内部交易</h2>
+        <span class="row">
+          <label class="f"><span>母公司收入</span><input id="csl-pinc" type="number" inputmode="decimal" min="0" step="1000000" value="50000000"></label>
+          <label class="f"><span>子公司收入</span><input id="csl-sinc" type="number" inputmode="decimal" min="0" step="1000000" value="20000000"></label>
+        </span>
+        <span class="row">
+          <label class="f"><span>内部销售收入</span><input id="csl-intra" type="number" inputmode="decimal" min="0" step="1000000" value="8000000"></label>
+          <label class="f"><span>存货中未实现利润</span><input id="csl-unreal" type="number" inputmode="decimal" min="0" step="100000" value="500000"></label>
+        </span>
+        <span class="row">
+          <label class="f"><span>内部往来余额</span><input id="csl-recv" type="number" inputmode="decimal" min="0" step="100000" value="3000000"></label>
+          <label class="f"><span>母公司长投</span><input id="csl-invest" type="number" inputmode="decimal" min="0" step="1000000" value="20000000"></label>
+        </span>
+        <span class="row">
+          <label class="f"><span>子公司净资产</span><input id="csl-net" type="number" inputmode="decimal" min="0" step="1000000" value="22000000"></label>
+          <label class="f"><span>母公司持股比例 %</span><input id="csl-own" type="number" inputmode="decimal" min="0" max="100" step="1" value="80"></label>
+        </span>
+        <span class="row">
+          <label class="f"><span>母公司净利</span><input id="csl-pni" type="number" inputmode="decimal" min="0" step="1000000" value="4000000"></label>
+          <label class="f"><span>子公司净利</span><input id="csl-sni" type="number" inputmode="decimal" min="0" step="1000000" value="1000000"></label>
+        </span>
+        <label class="f"><span>内部股利（母公司收到）</span><input id="csl-div" type="number" inputmode="decimal" min="0" step="100000" value="200000"></label>
+        <em>口径：非同一控制合并，长投与子公司净资产份额之差计商誉；同一控制合并差额进资本公积。未实现利润默认发生在子公司（上游），按少数股东比例分摊。</em>
+      </div>
+      <div class="card res">
+        <h2>结果：合并抵销工作底稿</h2>
+        <div class="big"><span class="k">合并净利</span><strong id="csl-big">—</strong><span class="unit">元</span></div>
+        <ul class="kv">
+          <li><span>合并收入</span><b id="csl-rev">—</b></li>
+          <li><span>归母净利</span><b id="csl-parent">—</b></li>
+          <li><span>少数股东损益</span><b id="csl-minorpl">—</b></li>
+          <li><span>少数股东权益</span><b id="csl-minoreq">—</b></li>
+          <li><span>商誉（非同一控制）</span><b id="csl-gw">—</b></li>
+          <li><span>合并净利率</span><b id="csl-margin">—</b></li>
+        </ul>
+        <div class="tablebox">
+          <table>
+            <thead><tr><th class="tal">抵销项目</th><th>金额</th><th class="tal">说明</th></tr></thead>
+            <tbody id="csl-body"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="csl-note"></p>
+      </div>
+    </div>
+  </section>
+  <section class="panel" id="panel-taxwarn">
+    <div class="cols">
+      <div class="card">
+        <h2>输入：税额与行业参考</h2>
+        <span class="row">
+          <label class="f"><span>不含税销售额</span><input id="tbw-sales" type="number" inputmode="decimal" min="0" step="100000" value="10000000"></label>
+          <label class="f"><span>进项税额</span><input id="tbw-input" type="number" inputmode="decimal" min="0" step="10000" value="1200000"></label>
+        </span>
+        <span class="row">
+          <label class="f"><span>增值税率 %</span><input id="tbw-vatrate" type="number" inputmode="decimal" min="0" step="1" value="13"></label>
+          <label class="f"><span>利润总额</span><input id="tbw-profit" type="number" inputmode="decimal" min="0" step="100000" value="1000000"></label>
+        </span>
+        <span class="row">
+          <label class="f"><span>所得税率 %</span><input id="tbw-itrate" type="number" inputmode="decimal" min="0" step="1" value="25"></label>
+          <label class="f"><span>已缴所得税</span><input id="tbw-paid" type="number" inputmode="decimal" min="0" step="10000" value="200000"></label>
+        </span>
+        <span class="row">
+          <label class="f"><span>行业增值税税负 %</span><input id="tbw-vatref" type="number" inputmode="decimal" min="0" step="0.1" value="3"></label>
+          <label class="f"><span>行业所得税贡献率 %</span><input id="tbw-itref" type="number" inputmode="decimal" min="0" step="0.1" value="1"></label>
+        </span>
+        <label class="f"><span>预警区间 ± 百分点</span><input id="tbw-band" type="number" inputmode="decimal" min="0" step="0.1" value="0.5"></label>
+        <em>口径：增值税税负率 = 应交增值税 ÷ 不含税销售额；所得税贡献率 = 应纳所得税 ÷ 不含税销售额。行业参考值只是示例，以当地主管机关口径为准。</em>
+      </div>
+      <div class="card res">
+        <h2>结果：综合税负预警</h2>
+        <div class="big"><span class="k">综合税负率</span><strong id="tbw-big">—</strong><span class="unit">%</span></div>
+        <ul class="kv">
+          <li><span>应交增值税 / 税负率</span><b id="tbw-vat">—</b></li>
+          <li><span>增值税判定</span><b id="tbw-vverdict">—</b></li>
+          <li><span>应纳所得税（应补）</span><b id="tbw-it">—</b></li>
+          <li><span>所得税判定</span><b id="tbw-iverdict">—</b></li>
+        </ul>
+        <div class="tablebox">
+          <table>
+            <thead><tr><th class="tal">指标</th><th>你的数</th><th>参考</th><th>预警区间</th><th class="tal">判定</th></tr></thead>
+            <tbody id="tbw-body"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="tbw-note"></p>
+      </div>
+    </div>
+  </section>
+  <section class="panel" id="panel-loanledger">
+    <div class="cols">
+      <div class="card">
+        <h2>输入：多笔借款台账</h2>
+        <span class="row">
+          <label class="f"><span>借款①金额</span><input id="lnl-a1" type="number" inputmode="decimal" min="0" step="100000" value="5000000"></label>
+          <label class="f"><span>①年利率 %</span><input id="lnl-r1" type="number" inputmode="decimal" min="0" step="0.1" value="4.2"></label>
+        </span>
+        <label class="f"><span>①剩余月数</span><input id="lnl-m1" type="number" inputmode="decimal" min="0" step="1" value="18"></label>
+        <span class="row">
+          <label class="f"><span>借款②金额</span><input id="lnl-a2" type="number" inputmode="decimal" min="0" step="100000" value="3000000"></label>
+          <label class="f"><span>②年利率 %</span><input id="lnl-r2" type="number" inputmode="decimal" min="0" step="0.1" value="3.7"></label>
+        </span>
+        <label class="f"><span>②剩余月数</span><input id="lnl-m2" type="number" inputmode="decimal" min="0" step="1" value="30"></label>
+        <span class="row">
+          <label class="f"><span>借款③金额</span><input id="lnl-a3" type="number" inputmode="decimal" min="0" step="100000" value="2000000"></label>
+          <label class="f"><span>③年利率 %</span><input id="lnl-r3" type="number" inputmode="decimal" min="0" step="0.1" value="5"></label>
+        </span>
+        <label class="f"><span>③剩余月数</span><input id="lnl-m3" type="number" inputmode="decimal" min="0" step="1" value="12"></label>
+        <label class="f"><span>资本化月数（有在建工程才填）</span><input id="lnl-cap" type="number" inputmode="decimal" min="0" step="1" value="6"></label>
+        <em>口径：一般借款资本化按加权平均利率；专门借款先资本化、其闲置收益可冲减。本表按「月利息 × 资本化月数」粗算，实际按累计资产支出加权平均。</em>
+      </div>
+      <div class="card res">
+        <h2>结果：加权成本与到期日历</h2>
+        <div class="big"><span class="k">加权平均利率</span><strong id="lnl-big">—</strong><span class="unit">%</span></div>
+        <ul class="kv">
+          <li><span>借款总额</span><b id="lnl-total">—</b></li>
+          <li><span>年利息 / 月利息</span><b id="lnl-mi">—</b></li>
+          <li><span>可资本化利息</span><b id="lnl-capint">—</b></li>
+          <li><span>费用化利息</span><b id="lnl-expint">—</b></li>
+          <li><span>最近到期</span><b id="lnl-next">—</b></li>
+        </ul>
+        <div class="tablebox">
+          <table>
+            <thead><tr><th class="tal">借款</th><th>金额</th><th>年利率</th><th>剩余月</th><th>年利息</th><th>月利息</th></tr></thead>
+            <tbody id="lnl-body"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="lnl-note"></p>
+      </div>
+    </div>
+  </section>

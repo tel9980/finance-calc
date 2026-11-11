@@ -9714,6 +9714,195 @@
     $("hlc-note").textContent = "按最高（" + money(hq) + "，成本 " + money(hc) + "）和最低（" + money(lq) + "，成本 " + money(lc) + "）两个点拆出来：单位变动成本 " + money(b) + " 元、固定成本 " + money(a) + " 元。预测 " + money(pq) + " 件的总成本 = " + money(y) + " 元。高低点法只看两头，中间月份波动被忽略，预算初筛够用，正式定价建议用回归。";
   }
 
+  /* ===== 预算滚动预测 ===== */
+  function calcRollBudget() {
+    var budInc = Math.max(0, num($("rbg-budinc"), 0));
+    var budExp = Math.max(0, num($("rbg-budexp"), 0));
+    var m = Math.min(11, Math.max(1, Math.round(num($("rbg-months"), 6))));
+    var actInc = Math.max(0, num($("rbg-actinc"), 0));
+    var actExp = Math.max(0, num($("rbg-actexp"), 0));
+    var adj = Math.max(0, num($("rbg-adj"), 100)) / 100;
+    var rem = 12 - m;
+    var bAvgI = budInc / 12, bAvgE = budExp / 12;
+    var finc = actInc + bAvgI * rem * adj;
+    var fexp = actExp + bAvgE * rem * adj;
+    var budProfit = budInc - budExp;
+    var fprofit = finc - fexp;
+    var incRate = budInc > 0 ? finc / budInc : 0;
+    var ev = fexp - budExp;
+    var needI = rem > 0 ? (budInc - actInc) / rem : 0;
+    var needE = rem > 0 ? (budExp - actExp) / rem : 0;
+
+    $("rbg-big").textContent = money(fprofit);
+    $("rbg-finc").textContent = money(finc) + "（达成 " + pct(incRate, 2) + "）";
+    $("rbg-fexp").textContent = money(fexp) + "（" + (ev >= 0 ? "超支 " : "节约 ") + money(Math.abs(ev)) + (budExp > 0 ? "，" + pct(ev / budExp, 2) : "") + "）";
+    $("rbg-profit").textContent = money(fprofit) + "（预算 " + money(budProfit) + "，差 " + (fprofit - budProfit >= 0 ? "+" : "") + money(fprofit - budProfit) + "）";
+    $("rbg-need").textContent = money(needI) + "（比预算月均高 " + pct(bAvgI > 0 ? needI / bAvgI - 1 : 0, 1) + "）";
+    $("rbg-expneed").textContent = money(needE) + "（预算月均 " + money(bAvgE) + "）";
+
+    var rows = [
+      ["收入", money(budInc), money(actInc), money(bAvgI * rem * adj), money(finc)],
+      ["费用", money(budExp), money(actExp), money(bAvgE * rem * adj), money(fexp)],
+      ["利润", money(budProfit), money(actInc - actExp), money((bAvgI - bAvgE) * rem * adj), money(fprofit)]
+    ];
+    var html = "";
+    for (var i = 0; i < rows.length; i++) {
+      html += "<tr" + (i === 2 ? ' class="c-info"' : "") + "><td class=\"tal\">" + rows[i][0] + "</td><td>" + rows[i][1] + "</td><td>" + rows[i][2] + "</td><td>" + rows[i][3] + "</td><td>" + rows[i][4] + "</td></tr>";
+    }
+    $("rbg-body").innerHTML = html;
+
+    var tips = [];
+    if (finc < budInc) tips.push("收入要追平预算，剩余 " + rem + " 个月需月均 " + money(needI) + "（当前实际月均 " + money(actInc / m) + "）");
+    else tips.push("按当前预测收入可达成预算");
+    if (fexp > budExp) tips.push("费用要守住预算，剩余月份需压到月均 " + money(needE));
+    else tips.push("费用预计控制在预算内");
+    $("rbg-note").textContent = "口径：已过 " + m + " 个月用实际数，剩余 " + rem + " 个月按全年预算月均 × 修正系数 " + pct(adj, 0) + " 外推。" + tips.join("；") + "。滚动预测是管理动作，不是审计数字，每月要更新一次实际数。";
+  }
+
+  /* ===== 合并抵销进阶 ===== */
+  function calcCslAdv() {
+    var pinc = Math.max(0, num($("csl-pinc"), 0));
+    var sinc = Math.max(0, num($("csl-sinc"), 0));
+    var intra = Math.max(0, num($("csl-intra"), 0));
+    var unreal = Math.max(0, num($("csl-unreal"), 0));
+    var recv = Math.max(0, num($("csl-recv"), 0));
+    var invest = Math.max(0, num($("csl-invest"), 0));
+    var net = Math.max(0, num($("csl-net"), 0));
+    var own = Math.min(100, Math.max(0, num($("csl-own"), 80))) / 100;
+    var pni = Math.max(0, num($("csl-pni"), 0));
+    var sni = Math.max(0, num($("csl-sni"), 0));
+    var div = Math.max(0, num($("csl-div"), 0));
+
+    var rev = pinc + sinc - intra;
+    var cni = pni + sni - unreal;
+    var share = net * own;
+    var gw = invest - share;
+    var minorPl = (sni - unreal) * (1 - own);
+    var minorEq = net * (1 - own);
+    var parent = cni - minorPl;
+
+    $("csl-big").textContent = money(cni);
+    $("csl-rev").textContent = money(rev) + "（母公司 " + money(pinc) + " + 子公司 " + money(sinc) + " − 内部 " + money(intra) + "）";
+    $("csl-parent").textContent = money(parent);
+    $("csl-minorpl").textContent = money(minorPl);
+    $("csl-minoreq").textContent = money(minorEq) + "（" + pct(1 - own, 0) + " × 子公司净资产）";
+    $("csl-gw").textContent = gw >= 0 ? money(gw) + "（商誉）" : money(Math.abs(gw)) + "（负商誉/营业外收入）";
+    $("csl-margin").textContent = pct(rev > 0 ? cni / rev : 0, 2) + "（合并净利 ÷ 合并收入）";
+
+    var rows = [
+      ["内部销售收入", "-" + money(intra), "抵消母子之间卖货"],
+      ["存货中未实现利润", "-" + money(unreal), "上游未实现，随少数股东分摊"],
+      ["内部往来", "-" + money(recv), "应收应付对冲"],
+      ["长投 vs 净资产份额", money(invest) + " − " + money(share), gw >= 0 ? "差额为商誉 " + money(gw) : "差额为负商誉"],
+      ["内部股利", "-" + money(div), "权益法下已含在长投，不再重复确认"]
+    ];
+    var html = "";
+    for (var i = 0; i < rows.length; i++) {
+      html += "<tr><td class=\"tal\">" + rows[i][0] + "</td><td>" + rows[i][1] + "</td><td class=\"tal\">" + rows[i][2] + "</td></tr>";
+    }
+    $("csl-body").innerHTML = html;
+
+    $("csl-note").textContent = "合并口径：收入/成本/往来/股利全部抵销，存货中未实现利润要从净利里挖掉——本例抵了 " + money(unreal) + "，其中少数股东摊掉 " + money(unreal * (1 - own)) + "。"
+      + "长投与净资产份额的差额在非同一控制下是商誉、同一控制下走资本公积（本例按非同一控制）。净利率 " + pct(rev > 0 ? cni / rev : 0, 2) + " 是合并层面口径，别跟单体报表比。";
+  }
+
+  /* ===== 综合税负预警 ===== */
+  function calcTaxWarn() {
+    var sales = Math.max(0, num($("tbw-sales"), 0));
+    var inVat = Math.max(0, num($("tbw-input"), 0));
+    var vatRate = Math.max(0, num($("tbw-vatrate"), 13)) / 100;
+    var profit = Math.max(0, num($("tbw-profit"), 0));
+    var itRate = Math.max(0, num($("tbw-itrate"), 25)) / 100;
+    var paid = Math.max(0, num($("tbw-paid"), 0));
+    var vatRef = Math.max(0, num($("tbw-vatref"), 3));
+    var itRef = Math.max(0, num($("tbw-itref"), 1));
+    var band = Math.max(0, num($("tbw-band"), 0.5));
+
+    var outVat = sales * vatRate;
+    var vat = outVat - inVat;
+    var it = profit * itRate;
+    var vatB = sales > 0 ? vat / sales * 100 : 0;
+    var itB = sales > 0 ? it / sales * 100 : 0;
+    var total = sales > 0 ? (vat + it) / sales * 100 : 0;
+
+    function verdict(x, ref) {
+      var lo = ref - band, hi = ref + band;
+      if (x > hi) return { t: "偏高", d: "高于参考区间" };
+      if (x < lo) return { t: "偏低", d: "低于参考区间" };
+      return { t: "在区间内", d: "在参考区间内" };
+    }
+    var vv = verdict(vatB, vatRef), iv = verdict(itB, itRef);
+
+    $("tbw-big").textContent = fmt(total, 2);
+    $("tbw-vat").textContent = money(vat) + "（" + fmt(vatB, 2) + "%，参考 " + fmt(vatRef, 2) + "%）";
+    $("tbw-vverdict").textContent = vv.t + "（" + vv.d + "）";
+    $("tbw-it").textContent = money(it) + "（已缴 " + money(paid) + "，应补 " + money(Math.max(0, it - paid)) + "）";
+    $("tbw-iverdict").textContent = iv.t + "（" + iv.d + "）";
+
+    var rows = [
+      ["增值税税负率", fmt(vatB, 2) + "%", fmt(vatRef, 2) + "%", fmt(vatRef - band, 2) + " ~ " + fmt(vatRef + band, 2) + "%", vv.t],
+      ["所得税贡献率", fmt(itB, 2) + "%", fmt(itRef, 2) + "%", fmt(itRef - band, 2) + " ~ " + fmt(itRef + band, 2) + "%", iv.t],
+      ["综合税负率", fmt(total, 2) + "%", fmt(vatRef + itRef, 2) + "%", "—", total > (vatRef + itRef + band * 2) ? "偏高" : total < (vatRef + itRef - band * 2) ? "偏低" : "在区间内"]
+    ];
+    var html = "";
+    for (var i = 0; i < rows.length; i++) {
+      html += "<tr><td class=\"tal\">" + rows[i][0] + "</td><td>" + rows[i][1] + "</td><td>" + rows[i][2] + "</td><td>" + rows[i][3] + "</td><td class=\"tal\">" + rows[i][4] + "</td></tr>";
+    }
+    $("tbw-body").innerHTML = html;
+
+    var acts = [];
+    if (vv.t === "偏低") acts.push("增值税税负率偏低——优先核对：有没有提前开票、未开票收入漏报、进项多取（备货/设备集中采购），把台账备好");
+    if (vv.t === "偏高") acts.push("增值税税负率偏高——多为有销项没进项，确认供应商发票是否足额取得、加计抵减/即征即退是否应享未享");
+    if (iv.t === "偏低") acts.push("所得税贡献率偏低——多为利润低或纳税调整不足，准备好毛利率与费用结构说明");
+    if (iv.t === "偏高") acts.push("所得税贡献率偏高——核对成本费用发票、研发加计、小微/高新优惠是否漏享");
+    if (!acts.length) acts.push("两税都在参考区间内，保持进销项与利润的匹配度即可");
+    $("tbw-note").textContent = "行业参考值（增值税 " + fmt(vatRef, 2) + "%、所得税 " + fmt(itRef, 2) + "%）只是示例，以当地主管机关口径为准。税负是比值不是税：偏低调风险，偏高调利润。" + acts.join("；") + "。";
+  }
+
+  /* ===== 借款台账与利息测算 ===== */
+  function calcLoanLedger() {
+    var loans = [];
+    for (var i = 1; i <= 3; i++) {
+      var a = Math.max(0, num($("lnl-a" + i), 0));
+      var r = Math.max(0, num($("lnl-r" + i), 0));
+      var mo = Math.max(0, num($("lnl-m" + i), 0));
+      if (a > 0) loans.push({ n: i, a: a, r: r, mo: mo });
+    }
+    var cap = Math.max(0, num($("lnl-cap"), 0));
+
+    var tot = 0, yInt = 0;
+    for (var j = 0; j < loans.length; j++) {
+      tot += loans[j].a;
+      yInt += loans[j].a * loans[j].r / 100;
+    }
+    var w = tot > 0 ? yInt / tot * 100 : 0;
+    var mInt = yInt / 12;
+    var capInt = mInt * cap;
+    var expInt = yInt - capInt;
+
+    $("lnl-big").textContent = fmt(w, 2);
+    $("lnl-total").textContent = money(tot) + "（" + loans.length + " 笔）";
+    $("lnl-mi").textContent = money(yInt) + " / " + money(mInt);
+    $("lnl-capint").textContent = money(capInt) + "（月利息 × " + cap + " 个月）";
+    $("lnl-expint").textContent = money(expInt);
+
+    var next = null;
+    for (var k = 0; k < loans.length; k++) {
+      if (!next || loans[k].mo < next.mo) next = loans[k];
+    }
+    $("lnl-next").textContent = next ? "第 " + Math.round(next.mo) + " 个月：借款" + "①②③".charAt(next.n - 1) + " " + money(next.a) : "—";
+
+    var html = "";
+    for (var p = 0; p < loans.length; p++) {
+      var L = loans[p];
+      html += "<tr><td class=\"tal\">借款" + "①②③".charAt(L.n - 1) + "</td><td>" + money(L.a) + "</td><td>" + fmt(L.r, 2) + "%</td><td>" + Math.round(L.mo) + "</td><td>" + money(L.a * L.r / 100) + "</td><td>" + money(L.a * L.r / 100 / 12) + "</td></tr>";
+    }
+    html += "<tr class=\"c-info\"><td class=\"tal\">合计</td><td>" + money(tot) + "</td><td>" + fmt(w, 2) + "%</td><td>—</td><td>" + money(yInt) + "</td><td>" + money(mInt) + "</td></tr>";
+    $("lnl-body").innerHTML = html;
+
+    $("lnl-note").textContent = "加权平均利率 " + fmt(w, 2) + "% 是所有借款按金额加权的一年成本。利息资本化：专门借款先资本化（闲置收益可冲减），一般借款按加权平均利率；"
+      + "本表按「月利息 × 资本化月数」粗算为 " + money(capInt) + "，实际要按累计资产支出加权平均。费用化部分进财务费用，直接影响当期利润。";
+  }
   var calcMap = {
     deposit: calcDeposit, loan: calcLoan, combo: calcCombo, prepay: calcPrepay,
     compound: calcCompound, goal: calcGoal, installment: calcInstallment,
@@ -9764,7 +9953,8 @@
     datemath: calcDatemath, pct3: calcPct3, xlhelp: calcXlHelp, csvrecon: calcCsvRecon,
     contractperf: calcContractPerf, projrev: calcProjRev, creditpolicy: calcCreditPolicy, rateadj: calcRateAdj,
     bundle: calcBundle, monthly: calcMonthly, yearcmp: calcYearCmp, yearreport: calcYearReport,
-    fifocost: calcFifoCost, hlcost: calcHlCost, trialbal: calcTrialBal, citprep: calcCitPrep
+    fifocost: calcFifoCost, hlcost: calcHlCost, trialbal: calcTrialBal, citprep: calcCitPrep,
+    rollbudget: calcRollBudget, csladv: calcCslAdv, taxwarn: calcTaxWarn, loanledger: calcLoanLedger
   };
 
   var curCat = "hot", curSub = "";
@@ -10211,9 +10401,13 @@
     "fifo-begq", "fifo-begp", "fifo-inq", "fifo-inp", "fifo-sold", "fifo-price",
     "tba-d1", "tba-c1", "tba-d2", "tba-c2", "tba-d3", "tba-c3", "tba-d4", "tba-c4", "tba-d5", "tba-c5", "tba-d6", "tba-c6", "tba-d7", "tba-c7", "tba-d8", "tba-c8",
     "cit-income", "cit-cost", "cit-expense", "cit-other", "cit-adjust", "cit-loss", "cit-prepaid", "cit-rate",
-    "hlc-hq", "hlc-hc", "hlc-lq", "hlc-lc", "hlc-pq"
+    "hlc-hq", "hlc-hc", "hlc-lq", "hlc-lc", "hlc-pq",
+    "rbg-budinc", "rbg-budexp", "rbg-months", "rbg-adj", "rbg-actinc", "rbg-actexp",
+    "csl-pinc", "csl-sinc", "csl-intra", "csl-unreal", "csl-recv", "csl-invest", "csl-net", "csl-own", "csl-pni", "csl-sni", "csl-div",
+    "tbw-sales", "tbw-input", "tbw-vatrate", "tbw-profit", "tbw-itrate", "tbw-paid", "tbw-vatref", "tbw-itref", "tbw-band",
+    "lnl-a1", "lnl-r1", "lnl-m1", "lnl-a2", "lnl-r2", "lnl-m2", "lnl-a3", "lnl-r3", "lnl-m3", "lnl-cap"
 ];
-  var KEY = "finance-calc-v54";
+  var KEY = "finance-calc-v55";
   var CAT_KEY = "finance-calc-cat";
 
   /* ---------------- 现金流月历 ---------------- */
