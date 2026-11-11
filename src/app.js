@@ -10699,9 +10699,13 @@
     if (self && self.hidden) setCat(self.dataset.cat.split(/\s+/)[0]);
     /* O(1) 切页：只把上一个激活的标签/面板摘掉、给新的加上，不再每次扫 188 个节点 */
     var prevTab = document.querySelector(".tab.is-on");
-    var prevPanel = document.querySelector(".panel.is-on");
     if (prevTab) { prevTab.classList.remove("is-on"); prevTab.setAttribute("aria-selected", "false"); }
-    if (prevPanel && prevPanel.id !== "panel-" + name) prevPanel.classList.remove("is-on");
+    /* 防御性清场：正常情况下最多只有一个 .panel.is-on；万一设备/缓存把两个面板同时点亮，
+       这里把除目标面板外的所有 is-on 都摘掉，保证切页后只显示一个模块 */
+    var prevPanels = document.querySelectorAll(".panel.is-on");
+    for (var _pi = 0; _pi < prevPanels.length; _pi++) {
+      if (prevPanels[_pi].id !== "panel-" + name) prevPanels[_pi].classList.remove("is-on");
+    }
     if (self) { self.classList.add("is-on"); self.setAttribute("aria-selected", "true"); }
     var panelEl = document.getElementById("panel-" + name);
     if (panelEl) panelEl.classList.add("is-on");
@@ -12572,6 +12576,11 @@
   activate(startName);
   if (st0.params) { applyParams(st0.params); if (calcMap[startName]) calcMap[startName](); }
   FIRST_ACTIVATE = false;
+  /* 启动兜底：首屏只保留当前模块一个面板，其余 is-on 一律摘掉（防缓存/竞态导致的叠面板） */
+  var _onPanels = document.querySelectorAll(".panel.is-on");
+  for (var _op = 0; _op < _onPanels.length; _op++) {
+    if (_onPanels[_op].id !== "panel-" + startName) _onPanels[_op].classList.remove("is-on");
+  }
   /* 首次使用引导：只提示一次 */
   try {
     if (!localStorage.getItem("finance-calc-hello")) {
