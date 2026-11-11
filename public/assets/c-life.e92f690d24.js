@@ -593,29 +593,33 @@ const { $, BUILD_TAG, CAT_KEY, CAT_LABEL, CHUNK_FILES, CHUNK_OF, CMP_KEY, CORE_C
     var links = document.querySelectorAll("#panel-workflow a[href^='#']");
     var total = links.length, done = 0, man = 0;
     var carry = {
-      mgmtpack: [["pl-rev", "pk-rev"]],
-      bplan: [["pk-rev", "bpl-rev"]],
-      rollfc: [["bpl-rev", "rl-bud"]],
-      budgetalert: [["bpl-rev", "bga-budinc"], ["bpl-opex", "bga-budexp"], ["rbg-budinc", "bga-budinc"], ["rbg-budexp", "bga-budexp"]],
-      vatcheck: [["vd-out", "vchk-out"], ["vd-in", "vchk-in"]],
-      ratios: [["pl-rev", "rt-rev"], ["pl-cogs", "rt-cogs"]],
-      rollbudget: [["bpl-rev", "rbg-budinc"], ["bpl-opex", "rbg-budexp"], ["rl-bud", "rbg-budinc"], ["bga-budinc", "rbg-budinc"], ["bga-budexp", "rbg-budexp"]],
-      taxadj: [["cit-income", "txj-rev"], ["cit-adjust", "txj-ad"]],
-      taxwarn: [["txj-rev", "tbw-sales"], ["txj-profit", "tbw-profit"]]
+      mgmtpack: [["finreport", "pl-rev", "pk-rev"]],
+      bplan: [["mgmtpack", "pk-rev", "bpl-rev"]],
+      rollfc: [["bplan", "bpl-rev", "rl-bud"]],
+      budgetalert: [["bplan", "bpl-rev", "bga-budinc"], ["bplan", "bpl-opex", "bga-budexp"], ["rollbudget", "rbg-budinc", "bga-budinc"], ["rollbudget", "rbg-budexp", "bga-budexp"]],
+      vatcheck: [["vatdue", "vd-out", "vchk-out"], ["vatdue", "vd-in", "vchk-in"]],
+      ratios: [["finreport", "pl-rev", "rt-rev"], ["finreport", "pl-cogs", "rt-cogs"]],
+      rollbudget: [["bplan", "bpl-rev", "rbg-budinc"], ["bplan", "bpl-opex", "rbg-budexp"], ["rollfc", "rl-bud", "rbg-budinc"], ["budgetalert", "bga-budinc", "rbg-budinc"], ["budgetalert", "bga-budexp", "rbg-budexp"]],
+      taxadj: [["citprep", "cit-income", "txj-rev"], ["citprep", "cit-adjust", "txj-ad"]],
+      taxwarn: [["taxadj", "txj-rev", "tbw-sales"], ["taxadj", "txj-profit", "tbw-profit"]]
     };
     var st = window.FC ? (window.FC.STORED || {}) : {};
     var ed = window.FC ? (window.FC.EDITED || {}) : {};
     for (var i = 0; i < links.length; i++) {
       var h = (links[i].getAttribute("href") || "").replace(/^#/, "").split("?")[0];
-      var c = carry[h], qm = {};
+      var c = carry[h], qm = {}, srcMods = [];
       if (c) {
         for (var ci = 0; ci < c.length; ci++) {
-          var sv = st[c[ci][0]];
-          if (ed[c[ci][0]] && sv !== undefined && sv !== null && sv !== "") qm[c[ci][1]] = String(sv);
+          var sv = st[c[ci][1]];
+          if (ed[c[ci][1]] && sv !== undefined && sv !== null && sv !== "") {
+            qm[c[ci][2]] = String(sv);
+            if (srcMods.indexOf(c[ci][0]) < 0) srcMods.push(c[ci][0]);
+          }
         }
       }
       var qs = [];
       for (var qk in qm) { if (Object.prototype.hasOwnProperty.call(qm, qk)) qs.push(encodeURIComponent(qk) + "=" + encodeURIComponent(qm[qk])); }
+      if (qs.length && srcMods.length) qs.push("_src=" + encodeURIComponent(srcMods.join(",")));
       links[i].setAttribute("href", "#" + h + (qs.length ? "?" + qs.join("&") : ""));
       if (wfDone[h]) { links[i].classList.add("wf-done"); done++; } else { links[i].classList.remove("wf-done"); }
     }

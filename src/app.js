@@ -10504,29 +10504,33 @@
     var links = document.querySelectorAll("#panel-workflow a[href^='#']");
     var total = links.length, done = 0, man = 0;
     var carry = {
-      mgmtpack: [["pl-rev", "pk-rev"]],
-      bplan: [["pk-rev", "bpl-rev"]],
-      rollfc: [["bpl-rev", "rl-bud"]],
-      budgetalert: [["bpl-rev", "bga-budinc"], ["bpl-opex", "bga-budexp"], ["rbg-budinc", "bga-budinc"], ["rbg-budexp", "bga-budexp"]],
-      vatcheck: [["vd-out", "vchk-out"], ["vd-in", "vchk-in"]],
-      ratios: [["pl-rev", "rt-rev"], ["pl-cogs", "rt-cogs"]],
-      rollbudget: [["bpl-rev", "rbg-budinc"], ["bpl-opex", "rbg-budexp"], ["rl-bud", "rbg-budinc"], ["bga-budinc", "rbg-budinc"], ["bga-budexp", "rbg-budexp"]],
-      taxadj: [["cit-income", "txj-rev"], ["cit-adjust", "txj-ad"]],
-      taxwarn: [["txj-rev", "tbw-sales"], ["txj-profit", "tbw-profit"]]
+      mgmtpack: [["finreport", "pl-rev", "pk-rev"]],
+      bplan: [["mgmtpack", "pk-rev", "bpl-rev"]],
+      rollfc: [["bplan", "bpl-rev", "rl-bud"]],
+      budgetalert: [["bplan", "bpl-rev", "bga-budinc"], ["bplan", "bpl-opex", "bga-budexp"], ["rollbudget", "rbg-budinc", "bga-budinc"], ["rollbudget", "rbg-budexp", "bga-budexp"]],
+      vatcheck: [["vatdue", "vd-out", "vchk-out"], ["vatdue", "vd-in", "vchk-in"]],
+      ratios: [["finreport", "pl-rev", "rt-rev"], ["finreport", "pl-cogs", "rt-cogs"]],
+      rollbudget: [["bplan", "bpl-rev", "rbg-budinc"], ["bplan", "bpl-opex", "rbg-budexp"], ["rollfc", "rl-bud", "rbg-budinc"], ["budgetalert", "bga-budinc", "rbg-budinc"], ["budgetalert", "bga-budexp", "rbg-budexp"]],
+      taxadj: [["citprep", "cit-income", "txj-rev"], ["citprep", "cit-adjust", "txj-ad"]],
+      taxwarn: [["taxadj", "txj-rev", "tbw-sales"], ["taxadj", "txj-profit", "tbw-profit"]]
     };
     var st = window.FC ? (window.FC.STORED || {}) : {};
     var ed = window.FC ? (window.FC.EDITED || {}) : {};
     for (var i = 0; i < links.length; i++) {
       var h = (links[i].getAttribute("href") || "").replace(/^#/, "").split("?")[0];
-      var c = carry[h], qm = {};
+      var c = carry[h], qm = {}, srcMods = [];
       if (c) {
         for (var ci = 0; ci < c.length; ci++) {
-          var sv = st[c[ci][0]];
-          if (ed[c[ci][0]] && sv !== undefined && sv !== null && sv !== "") qm[c[ci][1]] = String(sv);
+          var sv = st[c[ci][1]];
+          if (ed[c[ci][1]] && sv !== undefined && sv !== null && sv !== "") {
+            qm[c[ci][2]] = String(sv);
+            if (srcMods.indexOf(c[ci][0]) < 0) srcMods.push(c[ci][0]);
+          }
         }
       }
       var qs = [];
       for (var qk in qm) { if (Object.prototype.hasOwnProperty.call(qm, qk)) qs.push(encodeURIComponent(qk) + "=" + encodeURIComponent(qm[qk])); }
+      if (qs.length && srcMods.length) qs.push("_src=" + encodeURIComponent(srcMods.join(",")));
       links[i].setAttribute("href", "#" + h + (qs.length ? "?" + qs.join("&") : ""));
       if (wfDone[h]) { links[i].classList.add("wf-done"); done++; } else { links[i].classList.remove("wf-done"); }
     }
@@ -12070,14 +12074,35 @@
 
   function applyParams(str, replay) {
     if (!str) return;
-    if (!replay) PENDING_PARAMS = PENDING_PARAMS ? PENDING_PARAMS + "&" + str : str;
-    str.split("&").forEach(function (kv) {
+    var pairs = str.split("&");
+    var deferred = false;
+    for (var pi = 0; pi < pairs.length; pi++) {
+      var pv = pairs[pi], i = pv.indexOf("=");
+      if (i < 0) continue;
+      var k = decodeURIComponent(pv.slice(0, i));
+      if (k === "_src") continue;
+      if (!document.getElementById(k)) { deferred = true; break; }
+    }
+    if (!replay && deferred) PENDING_PARAMS = PENDING_PARAMS ? PENDING_PARAMS + "&" + str : str;
+    var applied = 0, src = "";
+    pairs.forEach(function (kv) {
       var i = kv.indexOf("=");
       if (i < 0) return;
-      var el = document.getElementById(decodeURIComponent(kv.slice(0, i)));
+      var k = decodeURIComponent(kv.slice(0, i));
+      var v = decodeURIComponent(kv.slice(i + 1));
+      if (k === "_src") { src = v; return; }
+      var el = document.getElementById(k);
       if (!el || !el.tagName) return;
-      el.value = decodeURIComponent(kv.slice(i + 1));
+      el.value = v;
+      EDITED[k] = true;
+      applied++;
     });
+    if (applied > 0) save();
+    if (applied > 0 && src) {
+      var names = [];
+      src.split(",").forEach(function (m) { if (m) names.push(cmpTabName(m)); });
+      if (names.length) toast("已由「" + names.join("、") + "」带入 " + applied + " 个字段", 3200);
+    }
     scrollResultIfDeepLink();
   }
 
