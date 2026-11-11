@@ -1753,6 +1753,7 @@ undefined
     }
     delete PANEL_HTML[grp];
     runDeferredTaps();
+    if (typeof renderNext === "function") renderNext(ACTIVE);
   }
   function ensureChunk(grp) {
     if (chunkReady[grp]) return chunkReady[grp];
