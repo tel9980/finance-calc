@@ -79,6 +79,15 @@
     return String(Math.round(n * 1e6) / 1e6);
   }
   function numKey(e) {
+    if (e.key === "Enter") {
+      /* 数字框里按 Enter = 跳到下一个输入（等效 Tab），批量录入更顺 */
+      var list = [].slice.call((e.target.closest(".panel") || document).querySelectorAll("input.num"));
+      var idx = list.indexOf(e.target);
+      var next = list[(idx + 1) % list.length];
+      e.preventDefault();
+      if (next && next !== e.target) { next.focus(); try { next.select(); } catch (e2) {} }
+      return;
+    }
     if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
     var el = e.target;
     if (!el || !el.classList || !el.classList.contains("num")) return;
@@ -10606,6 +10615,22 @@
     var rows = [["模块", snap.name], ["生成时间", new Date().toLocaleString("zh-CN")], ["项目", "数值"]];
     snap.rows.forEach(function (r) { rows.push(r); });
     if (snap.note) rows.push(["说明", snap.note]);
+    var panel = document.querySelector(".panel.is-on");
+    var tbody = panel ? panel.querySelector("table tbody") : null;
+    if (tbody && tbody.rows.length) {
+      rows.push(["明细表", ""]);
+      var hd = panel.querySelector("table thead");
+      if (hd) {
+        var hr = [];
+        hd.querySelectorAll("th").forEach(function (th) { hr.push(th.textContent.trim()); });
+        if (hr.join("").length) rows.push(hr);
+      }
+      for (var ri = 0; ri < tbody.rows.length; ri++) {
+        var tr = tbody.rows[ri], rr = [];
+        for (var ci = 0; ci < tr.cells.length; ci++) rr.push(tr.cells[ci].textContent.trim());
+        rows.push(rr);
+      }
+    }
     var csv = "\ufeff" + rows.map(function (r) { return r.map(esc).join(","); }).join("\r\n");
     var blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     var a = document.createElement("a");
@@ -10780,6 +10805,22 @@
     runCalc(name);
     save();
     flash(btn, "已恢复默认示例");
+  });
+
+  if ($("btn-clear")) $("btn-clear").addEventListener("click", function () {
+    var panel = document.querySelector(".panel.is-on");
+    if (!panel) return;
+    var els = panel.querySelectorAll("input,select,textarea");
+    for (var i = 0; i < els.length; i++) {
+      var el = els[i];
+      if (el.type === "search" || el.id.indexOf("snap-") === 0) continue;
+      if (el.tagName === "SELECT") el.selectedIndex = 0;
+      else el.value = "";
+    }
+    var name = panel.id.replace("panel-", "");
+    runCalc(name);
+    save();
+    toast("已清空本模块输入，可重新填写");
   });
 
   if ($("btn-recent-clear")) $("btn-recent-clear").addEventListener("click", function () {
