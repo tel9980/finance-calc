@@ -330,6 +330,16 @@ a.snap-load{color:var(--accent2);text-decoration:underline;text-underline-offset
 .updbar .upd-x{border:0;background:transparent;color:#c7d2fe;font-size:17px;line-height:1;padding:2px 8px;cursor:pointer}
 @media print{.updbar{display:none}}
 
+/* 装到主屏提示条（和版本提示条同一位置，两个都在时上下错开） */
+.instbar{position:fixed;left:12px;right:12px;margin:0 auto;bottom:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:71;
+  max-width:560px;display:flex;align-items:center;gap:10px;background:#0f172a;color:#fff;padding:10px 8px 10px 16px;
+  border-radius:16px;box-shadow:0 8px 24px rgba(15,23,42,.34);font-size:13.5px;line-height:1.45}
+.instbar>span{flex:1 1 auto;min-width:0}
+.instbar .inst-go{border:0;background:#fff;color:#0f172a;font-weight:650;padding:5px 14px;border-radius:999px;cursor:pointer;font-size:13px;white-space:nowrap}
+.instbar .inst-x{border:0;background:transparent;color:#94a3b8;font-size:17px;line-height:1;padding:2px 8px;cursor:pointer}
+body:has(#instbar) .updbar{bottom:72px}
+@media print{.instbar{display:none}}
+
 /* 暗色模式下的行底色（对比表/差异行/预警行） */
 html[data-theme="dark"] .c-info{background:#16243d}
 html[data-theme="dark"] .c-warn{background:#2c2317}

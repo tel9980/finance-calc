@@ -28,6 +28,8 @@ jobs:
         run: node test/regress.mjs http://127.0.0.1:8099/
       - name: 交互回归（搜索/最近/快照/深链）
         run: node test/features.mjs http://127.0.0.1:8099/
+      - name: 安装到主屏与离线（manifest / iOS 指引 / 断网可算）
+        run: node test/pwa.mjs http://127.0.0.1:8099/
       - name: 构建产物与源码同步（public/ 必须由 src/ 重新构建得到）
         run: |
           node scripts/build.mjs

@@ -2654,7 +2654,7 @@ undefined
   /* ---- 按分类懒加载：只有点到的模块才下载对应 chunk ---- */
   var CHUNK_OF = { "deposit": "save", "loan": "loan", "combo": "loan", "prepay": "loan", "compound": "save", "goal": "save", "installment": "life", "annual": "save", "inflation": "save", "tax": "tax", "deal": "life", "salary": "tax", "rentbuy": "house", "card": "life", "fx": "life", "fund": "loan", "lpr": "loan", "deed": "house", "split": "life", "pension": "tax", "sell": "house", "offset": "loan", "multi": "life", "repayvs": "loan", "edu": "family", "insure": "family", "car": "life", "bonus": "tax", "deduct": "tax", "ladder": "save", "rentyield": "house", "settle": "tax", "balance": "family", "selfins": "tax", "underpay": "tax", "loanways": "loan", "dca": "save", "checkup": "family", "calendar": "save", "cashflow": "family", "zeroloan": "loan", "riskalloc": "family", "penalty": "loan", "debtfree": "life", "fire": "family", "annualfee": "family", "budget": "house", "zhuan": "loan", "medins": "tax", "childcost": "family", "ppension": "tax", "fundlimit": "loan", "emergency": "family", "rule503020": "family", "debtmerge": "life", "freeperiod": "life", "overtime": "tax", "rentup": "house", "ev": "life", "vat": "acct-tax", "vatdue": "acct-tax", "deprec": "acct-cost", "breakeven": "acct-perf", "ratios": "acct-report", "recon": "acct-report", "expense": "acct-report", "aging": "acct-bd", "funding": "acct-cash", "pricing": "acct-perf", "triplede": "acct-report", "multimargin": "acct-perf", "apterms": "acct-bd", "assetledger": "acct-cost", "payage": "acct-bd", "costcard": "acct-cost", "budgetvar": "acct-cost", "finreport": "acct-report", "invoice": "acct-bd", "expbudget": "acct-report", "efficiency": "acct-report", "cashstmt": "acct-report", "invstock": "acct-bd", "exportrebate": "acct-tax", "tieout": "acct-bd", "feetrend": "acct-report2", "mpbe": "acct-perf", "payroll": "acct-perf", "assetdiff": "acct-cost", "monthclose": "acct-report", "factoring": "acct-cash", "deadstock": "acct-bd", "aptalk": "acct-cash", "cash13": "acct-cash", "bill": "acct-cash", "loanreal": "loan", "collect": "acct-bd", "mgmtpack": "acct-report", "settleway": "acct-cash", "creditline": "acct-cash", "impair": "acct-bd", "fxgain": "acct-cash", "taxburden": "acct-tax", "sens": "acct-report", "consol": "acct-report", "eoq": "acct-bd", "bplan": "acct-report", "refundflow": "acct-tax", "costalloc": "acct-cost", "importcost": "acct-perf", "makeorbuy": "acct-cost", "ecl": "acct-bd", "quotefx": "acct-perf", "capacity": "acct-cost", "mold": "acct-cost", "rebate": "acct-perf", "stdcost": "acct-cost", "svc": "acct-bd", "taxadj": "acct-tax", "supplier": "acct-bd", "debtcap": "acct-tax", "accdep": "acct-tax", "custwin": "acct-bd", "upgrade": "acct-cost", "deptalloc": "acct-cost", "payout": "acct-perf", "numwords": "util", "duedate": "util", "workday": "util", "cagr": "util", "apportion": "util", "grossup": "util", "trprice": "acct-cash", "esop": "acct-tax", "rdexp": "acct-tax", "rollfc": "acct-report", "commission": "acct-perf", "capex": "acct-cost", "pooling": "acct-cash", "creditlimit": "acct-cash", "contractperf": "acct-report2", "projrev": "acct-report2", "creditpolicy": "acct-bd", "rateadj": "tax", "invfund": "acct-bd", "machrate": "acct-cost", "govgrant": "acct-tax", "fxtranslate": "acct-report2", "rebateacc": "acct-perf", "pledgeloan": "acct-cash", "labvar": "acct-cost", "rdcap": "acct-tax", "processcost": "acct-cost", "makeoroutsource": "acct-cost", "rebatedta": "acct-tax", "leasebuy": "acct-cash", "welfare": "acct-tax", "inputout": "acct-tax", "stampduty": "acct-tax", "assetdisp": "acct-cost", "headcount": "acct-perf", "markroi": "acct-perf", "rdproject": "acct-cost", "intsvc": "acct-tax", "accrual": "acct-report2", "cfconsol": "acct-report2", "exportcheck": "acct-tax", "vatcheck": "acct-tax", "report": "family", "snaps": "util", "housecash": "house", "planner": "family", "healthcheck": "hot", "salesallow": "acct-tax", "lease": "acct-report2", "gpmix": "acct-report2", "vatchoose": "acct-tax", "datemath": "util", "pct3": "util", "xlhelp": "util", "csvrecon": "util", "bundle": "family", "monthly": "family", "yearcmp": "family", "yearreport": "family", "fifocost": "acct-cost", "hlcost": "acct-cost", "trialbal": "acct-report2", "citprep": "acct-tax", "rollbudget": "acct-report2", "csladv": "acct-report2", "taxwarn": "acct-tax", "loanledger": "acct-cash", "expcheck": "acct-report2", "dtax": "acct-tax", "invimpair": "acct-cost", "budgetalert": "acct-report2", "cashcycle": "acct-report2", "saleexp": "acct-perf", "deptcost": "acct-cost", "invvar": "acct-bd", "aroverdue": "acct-bd", "payterms": "acct-bd", "fxar": "acct-bd", "faimpair": "acct-cost", "costbehav": "acct-cost", "profitcenter": "acct-perf", "invorder": "acct-bd", "creditterm": "acct-bd", "workflow": "life", "excoll": "acct-cash", "assetdisptax": "acct-tax", "tpdocs": "acct-tax", "fxhedge": "acct-cash", "unbilled": "acct-bd", "deferred": "acct-tax", "interco": "acct-report", "sharepay": "acct-cost", "vatrefund": "acct-tax", "smallmicro": "acct-tax", "addcredit": "acct-tax", "losscontract": "acct-report2", "bankacct": "acct-cash", "equitychg": "acct-report2", "estimatechg": "acct-cost", "dtlind": "acct-tax", "relparty": "acct-bd", "repaircap": "acct-cost", "eps": "acct-report2" };
   var TABS = { "deposit": 1, "loan": 1, "combo": 1, "prepay": 1, "compound": 1, "goal": 1, "installment": 1, "annual": 1, "inflation": 1, "tax": 1, "deal": 1, "salary": 1, "rentbuy": 1, "card": 1, "fx": 1, "fund": 1, "lpr": 1, "deed": 1, "split": 1, "pension": 1, "sell": 1, "offset": 1, "multi": 1, "repayvs": 1, "edu": 1, "insure": 1, "car": 1, "bonus": 1, "deduct": 1, "ladder": 1, "rentyield": 1, "settle": 1, "balance": 1, "selfins": 1, "underpay": 1, "loanways": 1, "dca": 1, "checkup": 1, "calendar": 1, "cashflow": 1, "zeroloan": 1, "riskalloc": 1, "penalty": 1, "debtfree": 1, "fire": 1, "annualfee": 1, "budget": 1, "zhuan": 1, "medins": 1, "childcost": 1, "ppension": 1, "fundlimit": 1, "emergency": 1, "rule503020": 1, "debtmerge": 1, "freeperiod": 1, "overtime": 1, "rentup": 1, "ev": 1, "vat": 1, "vatdue": 1, "deprec": 1, "breakeven": 1, "ratios": 1, "recon": 1, "expense": 1, "aging": 1, "funding": 1, "pricing": 1, "triplede": 1, "multimargin": 1, "apterms": 1, "assetledger": 1, "payage": 1, "costcard": 1, "budgetvar": 1, "finreport": 1, "invoice": 1, "expbudget": 1, "efficiency": 1, "cashstmt": 1, "invstock": 1, "exportrebate": 1, "tieout": 1, "feetrend": 1, "mpbe": 1, "payroll": 1, "assetdiff": 1, "monthclose": 1, "factoring": 1, "deadstock": 1, "aptalk": 1, "cash13": 1, "bill": 1, "loanreal": 1, "collect": 1, "mgmtpack": 1, "settleway": 1, "creditline": 1, "impair": 1, "fxgain": 1, "taxburden": 1, "sens": 1, "consol": 1, "eoq": 1, "bplan": 1, "refundflow": 1, "costalloc": 1, "importcost": 1, "makeorbuy": 1, "ecl": 1, "quotefx": 1, "capacity": 1, "mold": 1, "rebate": 1, "stdcost": 1, "svc": 1, "taxadj": 1, "supplier": 1, "debtcap": 1, "accdep": 1, "custwin": 1, "upgrade": 1, "deptalloc": 1, "payout": 1, "numwords": 1, "duedate": 1, "workday": 1, "cagr": 1, "apportion": 1, "grossup": 1, "trprice": 1, "esop": 1, "rdexp": 1, "rollfc": 1, "commission": 1, "capex": 1, "pooling": 1, "creditlimit": 1, "contractperf": 1, "projrev": 1, "creditpolicy": 1, "rateadj": 1, "invfund": 1, "machrate": 1, "govgrant": 1, "fxtranslate": 1, "rebateacc": 1, "pledgeloan": 1, "labvar": 1, "rdcap": 1, "processcost": 1, "makeoroutsource": 1, "rebatedta": 1, "leasebuy": 1, "welfare": 1, "inputout": 1, "stampduty": 1, "assetdisp": 1, "headcount": 1, "markroi": 1, "rdproject": 1, "intsvc": 1, "accrual": 1, "cfconsol": 1, "exportcheck": 1, "vatcheck": 1, "report": 1, "snaps": 1, "housecash": 1, "planner": 1, "healthcheck": 1, "salesallow": 1, "lease": 1, "gpmix": 1, "vatchoose": 1, "datemath": 1, "pct3": 1, "xlhelp": 1, "csvrecon": 1, "bundle": 1, "monthly": 1, "yearcmp": 1, "yearreport": 1, "fifocost": 1, "hlcost": 1, "trialbal": 1, "citprep": 1, "rollbudget": 1, "csladv": 1, "taxwarn": 1, "loanledger": 1, "expcheck": 1, "dtax": 1, "invimpair": 1, "budgetalert": 1, "cashcycle": 1, "saleexp": 1, "deptcost": 1, "invvar": 1, "aroverdue": 1, "payterms": 1, "fxar": 1, "faimpair": 1, "costbehav": 1, "profitcenter": 1, "invorder": 1, "creditterm": 1, "workflow": 1, "excoll": 1, "assetdisptax": 1, "tpdocs": 1, "fxhedge": 1, "unbilled": 1, "deferred": 1, "interco": 1, "sharepay": 1, "vatrefund": 1, "smallmicro": 1, "addcredit": 1, "losscontract": 1, "bankacct": 1, "equitychg": 1, "estimatechg": 1, "dtlind": 1, "relparty": 1, "repaircap": 1, "eps": 1 };
-  var CHUNK_FILES = { "save": "assets/c-save.e691320bfd.js", "loan": "assets/c-loan.1ee28710c7.js", "life": "assets/c-life.58d392f7d4.js", "tax": "assets/c-tax.6d16dedef5.js", "house": "assets/c-house.eb93988496.js", "family": "assets/c-family.02b58b3cdc.js", "acct-tax": "assets/c-acct-tax.9b830a9c3b.js", "acct-cost": "assets/c-acct-cost.7c81536547.js", "acct-perf": "assets/c-acct-perf.b8fa699fd9.js", "acct-report": "assets/c-acct-report.e17bf4c113.js", "acct-bd": "assets/c-acct-bd.bf6c8f7158.js", "acct-cash": "assets/c-acct-cash.3d5f94bb2b.js", "acct-report2": "assets/c-acct-report2.5a2ecfa4c2.js", "util": "assets/c-util.ec0627148f.js", "hot": "assets/c-hot.a9ebff0b29.js" };
+  var CHUNK_FILES = { "save": "assets/c-save.3337331c4d.js", "loan": "assets/c-loan.0e18a90462.js", "life": "assets/c-life.3380016fae.js", "tax": "assets/c-tax.5a7bdc4f6b.js", "house": "assets/c-house.3dac07bdb8.js", "family": "assets/c-family.e6bfe3cf52.js", "acct-tax": "assets/c-acct-tax.1940f89925.js", "acct-cost": "assets/c-acct-cost.82a20390ff.js", "acct-perf": "assets/c-acct-perf.866a2b5592.js", "acct-report": "assets/c-acct-report.fb1d27230f.js", "acct-bd": "assets/c-acct-bd.9d16ba476f.js", "acct-cash": "assets/c-acct-cash.80f4d632d8.js", "acct-report2": "assets/c-acct-report2.feb554d529.js", "util": "assets/c-util.0794dc99c5.js", "hot": "assets/c-hot.d24efcb651.js" };
   var CORE_CALC = { "loan": calcLoan, "workflow": calcWorkflow };
   var calcMap = {};
   Object.keys(CORE_CALC).forEach(function (k) { calcMap[k] = CORE_CALC[k]; });
@@ -3259,7 +3259,7 @@ undefined
   var KEY = "finance-calc-v63";
   var CAT_KEY = "finance-calc-cat";
   /* 构建时由 build.mjs 注入为 "v<内容哈希>"，页脚展示，方便核对版本 */
-  var BUILD_TAG = "ved7b83d3c9";
+  var BUILD_TAG = "v0aae8cb790";
 
   /* ---------------- 现金流月历 ---------------- */
 
@@ -4122,14 +4122,140 @@ undefined
           });
         }).catch(function () {});
         var once = false;
+        var hadController = !!navigator.serviceWorker.controller;   /* 首次注册接管不算新版本 */
         navigator.serviceWorker.addEventListener("controllerchange", function () {
           if (once) return; once = true;
-          if (navigator.serviceWorker.controller) showUpdateBar();
+          if (hadController && navigator.serviceWorker.controller) showUpdateBar();
         });
       } catch (e) {}
     });
   }
 
+
+  /* ---------------- 装到主屏（PWA）：安卓一键装，iOS 给图文指引 ---------------- */
+  var INSTALL_HIDE_KEY = "finance-calc-installhide";
+  var installEvt = null;
+  function pwaStandalone() {
+    try {
+      var mq = window.matchMedia;
+      if (mq && (mq("(display-mode: standalone)").matches || mq("(display-mode: fullscreen)").matches
+        || mq("(display-mode: minimal-ui)").matches)) return true;
+    } catch (e) {}
+    return !!(navigator.standalone);
+  }
+  function iosLike() {
+    var ua = navigator.userAgent || "";
+    if (/iPad|iPhone|iPod/.test(ua)) return true;
+    return /Macintosh/.test(ua) && "ontouchend" in document;   /* iPadOS 13+ 伪装成 Mac */
+  }
+  function installHintOff() {
+    try {
+      var t = parseInt(localStorage.getItem(INSTALL_HIDE_KEY) || "0", 10) || 0;
+      return !!t && (Date.now() - t) < 30 * 864e5;            /* 关掉后 30 天不再自动弹 */
+    } catch (e) { return false; }
+  }
+  function installHintHide() {
+    try { localStorage.setItem(INSTALL_HIDE_KEY, String(Date.now())); } catch (e) {}
+    var b = document.getElementById("instbar");
+    if (b && b.parentNode) b.parentNode.removeChild(b);
+  }
+  function showInstBar(text, label, onClick) {
+    if (document.getElementById("instbar")) return;
+    var bar = document.createElement("div");
+    bar.className = "instbar";
+    bar.id = "instbar";
+    var span = document.createElement("span");
+    span.textContent = text;
+    bar.appendChild(span);
+    if (label && onClick) {
+      var go = document.createElement("button");
+      go.type = "button";
+      go.className = "inst-go";
+      go.textContent = label;
+      go.addEventListener("click", onClick);
+      bar.appendChild(go);
+    }
+    var x = document.createElement("button");
+    x.type = "button";
+    x.className = "inst-x";
+    x.setAttribute("aria-label", "关闭");
+    x.textContent = "×";
+    x.addEventListener("click", installHintHide);
+    bar.appendChild(x);
+    document.body.appendChild(bar);
+    setTimeout(function () {                 /* 15 秒后自己收起来，别一直挡着表单 */
+      var b = document.getElementById("instbar");
+      if (b && b.parentNode) b.parentNode.removeChild(b);
+    }, 15000);
+  }
+  function iosInstallTip() {
+    showInstBar("装到主屏：点浏览器底部的「分享」按钮 →「添加到主屏幕」，以后点图标就直接进。", null, null);
+  }
+  function syncInstallUi() {
+    var b = document.getElementById("btn-install");
+    if (!b) return;
+    if (pwaStandalone()) { b.hidden = true; return; }
+    if (installEvt) { b.hidden = false; b.textContent = "安装到主屏"; return; }
+    if (iosLike()) { b.hidden = false; b.textContent = "怎么装到主屏"; return; }
+    b.hidden = true;
+  }
+  function doInstall() {
+    if (installEvt) {
+      var p = installEvt;
+      installEvt = null;
+      try { p.prompt(); } catch (e) {}
+      var done = function (r) {
+        if (r && r.outcome === "accepted") { installHintHide(); toast("已经装到主屏了"); }
+        syncInstallUi();
+      };
+      try { p.userChoice.then(done, done); } catch (e) { syncInstallUi(); }
+      return;
+    }
+    if (iosLike()) { iosInstallTip(); return; }
+    toast("这个浏览器不支持一键安装：可以点右上角菜单里的「安装应用 / 添加到主屏幕」");
+  }
+  window.addEventListener("beforeinstallprompt", function (e) {
+    e.preventDefault();
+    installEvt = e;
+    syncInstallUi();
+    if (!pwaStandalone() && !installHintOff()) {
+      showInstBar("装到主屏，断网也能算，点图标直接进。", "安装", doInstall);
+    }
+  });
+  window.addEventListener("appinstalled", function () {
+    installEvt = null;
+    installHintHide();
+    syncInstallUi();
+    toast("已经装到主屏了");
+  });
+  if (document.getElementById("btn-install")) {
+    document.getElementById("btn-install").addEventListener("click", doInstall);
+  }
+  setTimeout(function () {
+    syncInstallUi();
+    /* iOS 没有 beforeinstallprompt：第一次来给一次指引，关掉后 30 天内不再打扰 */
+    if (!pwaStandalone() && iosLike() && !installHintOff() && !document.getElementById("instbar")) {
+      showInstBar("在 iPhone 上点底部「分享」→「添加到主屏幕」，以后点图标直接进。", null, null);
+    }
+  }, 2200);
+
+  /* 装到主屏后把所有分组缓存下来，断网也能算（仅在线、非省流量模式） */
+  function prefetchAllChunks() {
+    if (!navigator.onLine) return;
+    try { if (navigator.connection && navigator.connection.saveData) return; } catch (e) {}
+    if (typeof CHUNK_FILES === "undefined" || !CHUNK_FILES) return;
+    var keys = [], g;
+    for (g in CHUNK_FILES) if (CHUNK_FILES.hasOwnProperty(g)) keys.push(g);
+    var i = 0;
+    var tick = function () {
+      if (i >= keys.length) return;
+      var name = keys[i++];
+      try { ensureChunk(name); } catch (e) {}
+      setTimeout(tick, 1200);
+    };
+    setTimeout(tick, 2000);
+  }
+  if (pwaStandalone()) window.addEventListener("load", function () { setTimeout(prefetchAllChunks, 1500); });
 
   /* ---------------- 方案快照：按钮与行内交互 ---------------- */
   if ($("btn-snap")) $("btn-snap").addEventListener("click", function () {
@@ -4488,7 +4614,7 @@ undefined
       PALETTE_EL.innerHTML = '<div class="pal-box" role="dialog" aria-modal="true" aria-label="模块搜索面板">'
         + '<input class="pal-q" id="pal-q" type="search" placeholder="输入模块名、英文 id 或拼音，↑↓ 选择，回车打开">'
         + '<ul class="pal-list" id="pal-list"></ul>'
-        + '<p class="pal-hint">共 188 个模块 · Enter 打开 · Esc 关闭</p></div>';
+        + '<p class="pal-hint">共 ' + ((typeof TABS !== "undefined" && TABS && TABS.length) ? TABS.length : 228) + ' 个模块 · Enter 打开 · Esc 关闭</p></div>';
       document.body.appendChild(PALETTE_EL);
       $("pal-q").addEventListener("input", renderPalette);
       $("pal-q").addEventListener("keydown", palKey);
@@ -4636,7 +4762,7 @@ undefined
   });
 
   /* chunk 里要用到的工具函数，统一挂到 window.FC */
-  window.FC = { $, BUILD_TAG, CAT_KEY, CAT_LABEL, CHUNK_FILES, CHUNK_OF, CMP_KEY, CORE_CALC, CURS, DEFERRED_TAPS, DIVISOR, EDITED, ERR_BOX, FAV_KEY, FIELDS, FIRST_ACTIVATE, KEY, LAST_KEY, MONTH_CATS, MONTH_TABLE, NEXT_OF, PALETTE_EL, PENDING_PARAMS, PRE_KEY, QUOTA_WARNED, RECENT_KEY, SAVE_TIMER, SEARCH_KEY, SNAP_KEY, SNAP_PICK, STORED, TABS, THEME_KEY, TOAST_EL, UNITS, WF_ARCH_KEY, WF_AUTO_IDX, WF_AUTO_LIST, WF_AUTO_STEP, WF_AUTO_TIMER, WF_CUSTNAME_KEY, WF_CUST_KEY, WF_CUST_NAME, WF_DONE, WF_KEY, WF_LAST, WF_LEGACY, WF_MAN_KEY, WF_META_KEY, WF_MONTH_KEY, WF_NOTE_KEY, WF_PATHS, WF_ROLE_KEY, WF_ROLE_READY, WF_SKIP_KEY, XL_ROWS, YEAR_TABLE, _onPanels, activate, addMonths, annuityPV, annuityPayment, applyFilter, applyParams, applyStoredTo, bindWfDnd, bindWfInline, bizAdd, bonusSoloTax, buildLoanSchedule, buildShare, buildTabBadges, calcLoan, calcMap, calcWorkflow, clearWfMan, closePalette, cmpTabName, cnUpper, combineTax, convertTemp, copyText, cumulativeTax, curCat, currentSnap, diagText, dlJson, doPrint, drawMonthCats, drawMonthStack, drawReportCharts, drawRpMini, drawnMonthlyChart, drawnYearChart, enhanceNums, enhancePanelUi, ensureChunk, evalExpr, favList, fillCmpMod, fillMonthGrid, fillUnits, flash, flushParams, flushSave, fmt, fmtAt, fmtDate, fx, gauss, getWfCust, getWfDone, getWfMan, getWfMeta, getWfNotes, getWfSkip, hashTarget, isFav, lastName, leftAfter, linkTo, loadCmpA, loadSnaps, loadWfArch, loadWfCust, loadWfDone, loadWfMan, loadWfMeta, loadWfNotes, loadWfSkip, loanRows, makeSnap, markBadInputs, matchQ, money, monthToDate, monthlyIRR, months, npvDiff, num, numBlur, numFocus, numInput, numKey, numOf, openPalette, palKey, panelEls, panelParams, parseAmounts, parseDate, parseNum, pct, percentile, plRank, plScoreCov, plScoreDsr, plScoreEmg, plScoreLev, plScoreSave, prePanels, presets, printCover, pushRecent, pushSearch, quickOf, rateOf, readJsonFile, readMonthGrid, recentList, recordWf, refreshCounts, refreshTableTools, refreshTrackMods, refreshWfBadge, renderLoanTable, renderNext, renderPalette, renderPresets, renderSearchHist, renderSnapCompare, renderSnapList, renderTrack, rentBuyAt, restore, runCalc, runDeferredTaps, save, saveCmpA, saveFav, savePresets, saveSnaps, saveWfCust, savedCat, scrollResultIfDeepLink, searchHist, setCat, setSub, setTheme, showErrorBox, showUpdateBar, snapNameOf, snapshot, st0, stamp, startName, tabCatLabel, tap, taxBy, toast, toggleWfStep, trimNum, unitFor, updShown, wfArchiveMonth, wfArchivePut, wfAutoNext, wfAutoStop, wfAutoWalk, wfBar, wfBindCustQ, wfBuildHandoff, wfCarryQuery, wfCsvCell, wfCustNameSave, wfFillCustSel, wfHandoff, wfHandoffCopy, wfHandoffCsv, wfKnownMods, wfLegacyToNew, wfLoad, wfManSave, wfMetaSave, wfMigrateLegacy, wfMonthKey, wfMonthRoll, wfMonthTouch, wfNoteSave, wfOpenInline, wfPad2, wfRenderSummary, wfSet, wfSkipCurrent, wfSkipSave, wfStepKey, wfStepShare, wfStepState, wfVisiblePaths, yuan, zOf };
+  window.FC = { $, BUILD_TAG, CAT_KEY, CAT_LABEL, CHUNK_FILES, CHUNK_OF, CMP_KEY, CORE_CALC, CURS, DEFERRED_TAPS, DIVISOR, EDITED, ERR_BOX, FAV_KEY, FIELDS, FIRST_ACTIVATE, INSTALL_HIDE_KEY, KEY, LAST_KEY, MONTH_CATS, MONTH_TABLE, NEXT_OF, PALETTE_EL, PENDING_PARAMS, PRE_KEY, QUOTA_WARNED, RECENT_KEY, SAVE_TIMER, SEARCH_KEY, SNAP_KEY, SNAP_PICK, STORED, TABS, THEME_KEY, TOAST_EL, UNITS, WF_ARCH_KEY, WF_AUTO_IDX, WF_AUTO_LIST, WF_AUTO_STEP, WF_AUTO_TIMER, WF_CUSTNAME_KEY, WF_CUST_KEY, WF_CUST_NAME, WF_DONE, WF_KEY, WF_LAST, WF_LEGACY, WF_MAN_KEY, WF_META_KEY, WF_MONTH_KEY, WF_NOTE_KEY, WF_PATHS, WF_ROLE_KEY, WF_ROLE_READY, WF_SKIP_KEY, XL_ROWS, YEAR_TABLE, _onPanels, activate, addMonths, annuityPV, annuityPayment, applyFilter, applyParams, applyStoredTo, bindWfDnd, bindWfInline, bizAdd, bonusSoloTax, buildLoanSchedule, buildShare, buildTabBadges, calcLoan, calcMap, calcWorkflow, clearWfMan, closePalette, cmpTabName, cnUpper, combineTax, convertTemp, copyText, cumulativeTax, curCat, currentSnap, diagText, dlJson, doInstall, doPrint, drawMonthCats, drawMonthStack, drawReportCharts, drawRpMini, drawnMonthlyChart, drawnYearChart, enhanceNums, enhancePanelUi, ensureChunk, evalExpr, favList, fillCmpMod, fillMonthGrid, fillUnits, flash, flushParams, flushSave, fmt, fmtAt, fmtDate, fx, gauss, getWfCust, getWfDone, getWfMan, getWfMeta, getWfNotes, getWfSkip, hashTarget, installEvt, installHintHide, installHintOff, iosInstallTip, iosLike, isFav, lastName, leftAfter, linkTo, loadCmpA, loadSnaps, loadWfArch, loadWfCust, loadWfDone, loadWfMan, loadWfMeta, loadWfNotes, loadWfSkip, loanRows, makeSnap, markBadInputs, matchQ, money, monthToDate, monthlyIRR, months, npvDiff, num, numBlur, numFocus, numInput, numKey, numOf, openPalette, palKey, panelEls, panelParams, parseAmounts, parseDate, parseNum, pct, percentile, plRank, plScoreCov, plScoreDsr, plScoreEmg, plScoreLev, plScoreSave, prePanels, prefetchAllChunks, presets, printCover, pushRecent, pushSearch, pwaStandalone, quickOf, rateOf, readJsonFile, readMonthGrid, recentList, recordWf, refreshCounts, refreshTableTools, refreshTrackMods, refreshWfBadge, renderLoanTable, renderNext, renderPalette, renderPresets, renderSearchHist, renderSnapCompare, renderSnapList, renderTrack, rentBuyAt, restore, runCalc, runDeferredTaps, save, saveCmpA, saveFav, savePresets, saveSnaps, saveWfCust, savedCat, scrollResultIfDeepLink, searchHist, setCat, setSub, setTheme, showErrorBox, showInstBar, showUpdateBar, snapNameOf, snapshot, st0, stamp, startName, syncInstallUi, tabCatLabel, tap, taxBy, toast, toggleWfStep, trimNum, unitFor, updShown, wfArchiveMonth, wfArchivePut, wfAutoNext, wfAutoStop, wfAutoWalk, wfBar, wfBindCustQ, wfBuildHandoff, wfCarryQuery, wfCsvCell, wfCustNameSave, wfFillCustSel, wfHandoff, wfHandoffCopy, wfHandoffCsv, wfKnownMods, wfLegacyToNew, wfLoad, wfManSave, wfMetaSave, wfMigrateLegacy, wfMonthKey, wfMonthRoll, wfMonthTouch, wfNoteSave, wfOpenInline, wfPad2, wfRenderSummary, wfSet, wfSkipCurrent, wfSkipSave, wfStepKey, wfStepShare, wfStepState, wfVisiblePaths, yuan, zOf };
 
   /* ---------------- 启动 ---------------- */
   enhanceNums(document);

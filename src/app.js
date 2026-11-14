@@ -13469,14 +13469,140 @@
           });
         }).catch(function () {});
         var once = false;
+        var hadController = !!navigator.serviceWorker.controller;   /* 首次注册接管不算新版本 */
         navigator.serviceWorker.addEventListener("controllerchange", function () {
           if (once) return; once = true;
-          if (navigator.serviceWorker.controller) showUpdateBar();
+          if (hadController && navigator.serviceWorker.controller) showUpdateBar();
         });
       } catch (e) {}
     });
   }
 
+
+  /* ---------------- 装到主屏（PWA）：安卓一键装，iOS 给图文指引 ---------------- */
+  var INSTALL_HIDE_KEY = "finance-calc-installhide";
+  var installEvt = null;
+  function pwaStandalone() {
+    try {
+      var mq = window.matchMedia;
+      if (mq && (mq("(display-mode: standalone)").matches || mq("(display-mode: fullscreen)").matches
+        || mq("(display-mode: minimal-ui)").matches)) return true;
+    } catch (e) {}
+    return !!(navigator.standalone);
+  }
+  function iosLike() {
+    var ua = navigator.userAgent || "";
+    if (/iPad|iPhone|iPod/.test(ua)) return true;
+    return /Macintosh/.test(ua) && "ontouchend" in document;   /* iPadOS 13+ 伪装成 Mac */
+  }
+  function installHintOff() {
+    try {
+      var t = parseInt(localStorage.getItem(INSTALL_HIDE_KEY) || "0", 10) || 0;
+      return !!t && (Date.now() - t) < 30 * 864e5;            /* 关掉后 30 天不再自动弹 */
+    } catch (e) { return false; }
+  }
+  function installHintHide() {
+    try { localStorage.setItem(INSTALL_HIDE_KEY, String(Date.now())); } catch (e) {}
+    var b = document.getElementById("instbar");
+    if (b && b.parentNode) b.parentNode.removeChild(b);
+  }
+  function showInstBar(text, label, onClick) {
+    if (document.getElementById("instbar")) return;
+    var bar = document.createElement("div");
+    bar.className = "instbar";
+    bar.id = "instbar";
+    var span = document.createElement("span");
+    span.textContent = text;
+    bar.appendChild(span);
+    if (label && onClick) {
+      var go = document.createElement("button");
+      go.type = "button";
+      go.className = "inst-go";
+      go.textContent = label;
+      go.addEventListener("click", onClick);
+      bar.appendChild(go);
+    }
+    var x = document.createElement("button");
+    x.type = "button";
+    x.className = "inst-x";
+    x.setAttribute("aria-label", "关闭");
+    x.textContent = "×";
+    x.addEventListener("click", installHintHide);
+    bar.appendChild(x);
+    document.body.appendChild(bar);
+    setTimeout(function () {                 /* 15 秒后自己收起来，别一直挡着表单 */
+      var b = document.getElementById("instbar");
+      if (b && b.parentNode) b.parentNode.removeChild(b);
+    }, 15000);
+  }
+  function iosInstallTip() {
+    showInstBar("装到主屏：点浏览器底部的「分享」按钮 →「添加到主屏幕」，以后点图标就直接进。", null, null);
+  }
+  function syncInstallUi() {
+    var b = document.getElementById("btn-install");
+    if (!b) return;
+    if (pwaStandalone()) { b.hidden = true; return; }
+    if (installEvt) { b.hidden = false; b.textContent = "安装到主屏"; return; }
+    if (iosLike()) { b.hidden = false; b.textContent = "怎么装到主屏"; return; }
+    b.hidden = true;
+  }
+  function doInstall() {
+    if (installEvt) {
+      var p = installEvt;
+      installEvt = null;
+      try { p.prompt(); } catch (e) {}
+      var done = function (r) {
+        if (r && r.outcome === "accepted") { installHintHide(); toast("已经装到主屏了"); }
+        syncInstallUi();
+      };
+      try { p.userChoice.then(done, done); } catch (e) { syncInstallUi(); }
+      return;
+    }
+    if (iosLike()) { iosInstallTip(); return; }
+    toast("这个浏览器不支持一键安装：可以点右上角菜单里的「安装应用 / 添加到主屏幕」");
+  }
+  window.addEventListener("beforeinstallprompt", function (e) {
+    e.preventDefault();
+    installEvt = e;
+    syncInstallUi();
+    if (!pwaStandalone() && !installHintOff()) {
+      showInstBar("装到主屏，断网也能算，点图标直接进。", "安装", doInstall);
+    }
+  });
+  window.addEventListener("appinstalled", function () {
+    installEvt = null;
+    installHintHide();
+    syncInstallUi();
+    toast("已经装到主屏了");
+  });
+  if (document.getElementById("btn-install")) {
+    document.getElementById("btn-install").addEventListener("click", doInstall);
+  }
+  setTimeout(function () {
+    syncInstallUi();
+    /* iOS 没有 beforeinstallprompt：第一次来给一次指引，关掉后 30 天内不再打扰 */
+    if (!pwaStandalone() && iosLike() && !installHintOff() && !document.getElementById("instbar")) {
+      showInstBar("在 iPhone 上点底部「分享」→「添加到主屏幕」，以后点图标直接进。", null, null);
+    }
+  }, 2200);
+
+  /* 装到主屏后把所有分组缓存下来，断网也能算（仅在线、非省流量模式） */
+  function prefetchAllChunks() {
+    if (!navigator.onLine) return;
+    try { if (navigator.connection && navigator.connection.saveData) return; } catch (e) {}
+    if (typeof CHUNK_FILES === "undefined" || !CHUNK_FILES) return;
+    var keys = [], g;
+    for (g in CHUNK_FILES) if (CHUNK_FILES.hasOwnProperty(g)) keys.push(g);
+    var i = 0;
+    var tick = function () {
+      if (i >= keys.length) return;
+      var name = keys[i++];
+      try { ensureChunk(name); } catch (e) {}
+      setTimeout(tick, 1200);
+    };
+    setTimeout(tick, 2000);
+  }
+  if (pwaStandalone()) window.addEventListener("load", function () { setTimeout(prefetchAllChunks, 1500); });
 
   /* ---------------- 方案快照：按钮与行内交互 ---------------- */
   if ($("btn-snap")) $("btn-snap").addEventListener("click", function () {
@@ -13835,7 +13961,7 @@
       PALETTE_EL.innerHTML = '<div class="pal-box" role="dialog" aria-modal="true" aria-label="模块搜索面板">'
         + '<input class="pal-q" id="pal-q" type="search" placeholder="输入模块名、英文 id 或拼音，↑↓ 选择，回车打开">'
         + '<ul class="pal-list" id="pal-list"></ul>'
-        + '<p class="pal-hint">共 188 个模块 · Enter 打开 · Esc 关闭</p></div>';
+        + '<p class="pal-hint">共 ' + ((typeof TABS !== "undefined" && TABS && TABS.length) ? TABS.length : 228) + ' 个模块 · Enter 打开 · Esc 关闭</p></div>';
       document.body.appendChild(PALETTE_EL);
       $("pal-q").addEventListener("input", renderPalette);
       $("pal-q").addEventListener("keydown", palKey);
