@@ -10478,6 +10478,7 @@
   var WF_NOTE_KEY = "finance-calc-wfnotes";    // {key:备注}
   var WF_META_KEY = "finance-calc-wfmeta";     // {key:{due:"YYYY-MM-DD",est:分钟}}
   var WF_ARCH_KEY = "finance-calc-wfarch";     // {"YYYY-MM":{total,done,man,skip,at}}
+  var WF_MONTH_KEY = "finance-calc-wfmonth";   // {m:"YYYY-MM",total,done,man,skip} 上次渲染的月份快照，用于换月自动归档
 
   var WF_DONE = {}, WF_MAN = {}, WF_SKIP = {}, WF_CUST = [], WF_NOTES = {}, WF_META = {}, WF_ARCH = {};
   var WF_CUST_NAME = "";
@@ -10521,6 +10522,7 @@
   function wfLoad(key) { try { return JSON.parse(localStorage.getItem(key) || "null"); } catch (e) { return null; } }
   function wfSet(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) {} }
   function wfPad2(n) { return (n < 10 ? "0" : "") + n; }
+  function wfMonthKey() { var d = new Date(); return d.getFullYear() + "-" + wfPad2(d.getMonth() + 1); }
 
   function loadWfDone() { WF_DONE = wfLoad(WF_KEY) || {}; }
   function loadWfMan() { WF_MAN = wfLoad(WF_MAN_KEY) || {}; }
@@ -10602,19 +10604,40 @@
     else { delete WF_SKIP[key]; }
     wfManSave(); wfSkipSave();
   }
-  function wfArchiveMonth() {
-    if (WF_LAST.total <= 0) return;
-    var d = new Date();
-    var ym = d.getFullYear() + "-" + wfPad2(d.getMonth() + 1);
-    WF_ARCH[ym] = { total: WF_LAST.total, done: WF_LAST.done, man: WF_LAST.man, skip: WF_LAST.skip, at: Date.now() };
+  function wfArchivePut(ym, snap) {
+    if (!ym || !snap) return;
+    WF_ARCH[ym] = { total: snap.total || 0, done: snap.done || 0, man: snap.man || 0, skip: snap.skip || 0, at: Date.now() };
     var keys = Object.keys(WF_ARCH).sort();
     while (keys.length > 12) delete WF_ARCH[keys.shift()];
     wfSet(WF_ARCH_KEY, WF_ARCH);
+  }
+  function wfArchiveMonth() {
+    if (WF_LAST.total <= 0) return;
+    var d = new Date();
+    wfArchivePut(d.getFullYear() + "-" + wfPad2(d.getMonth() + 1), WF_LAST);
   }
   function clearWfMan() {
     wfArchiveMonth();
     WF_MAN = {}; WF_SKIP = {};
     wfManSave(); wfSkipSave();
+  }
+  /* 换月自动归档：把上个月的快照（上次渲染时记下的 total/done/man/skip）归档后清零本月勾选，
+     这样忘了点「清空本月」也不会把上个月的完成算进新月份 */
+  function wfMonthRoll() {
+    var now = wfMonthKey();
+    var rec = wfLoad(WF_MONTH_KEY);
+    if (rec && rec.m && rec.m !== now) {
+      if ((rec.man || 0) + (rec.skip || 0) > 0) {
+        wfArchivePut(rec.m, rec);
+        toast("上个月（" + rec.m + "）的进度已归档");
+      }
+      WF_MAN = {}; WF_SKIP = {};
+      wfManSave(); wfSkipSave();
+    }
+    wfSet(WF_MONTH_KEY, { m: now, total: (rec && rec.m === now ? rec.total : 0) || 0 });
+  }
+  function wfMonthTouch(total, done, man, skip) {
+    wfSet(WF_MONTH_KEY, { m: wfMonthKey(), total: total, done: done, man: man, skip: skip });
   }
 
   function wfVisiblePaths(role) {
@@ -10886,6 +10909,7 @@
     loadWfMeta();
     loadWfArch();
     wfMigrateLegacy();
+    wfMonthRoll();
 
     /* 深链导入自定义路径 #workflow?wfimport=... */
     var ht = hashTarget();
@@ -11075,6 +11099,7 @@
       }
     }
     WF_LAST = { total: total, done: done, man: man, skip: skip };
+    wfMonthTouch(total, done, man, skip);
 
     if ($("wf-big")) $("wf-big").textContent = done + "/" + total;
     if ($("wf-donekv")) $("wf-donekv").textContent = done + " 步";
@@ -13671,7 +13696,7 @@
       app: "finance-calc", kind: "all", v: 1, at: new Date().toISOString(),
       fields: data, fav: favList, presets: presets, snaps: loadSnaps(), cat: cat,
       theme: document.documentElement.getAttribute("data-theme") || "light",
-      wf: { done: WF_DONE, man: WF_MAN, skip: WF_SKIP, notes: WF_NOTES, meta: WF_META, cust: WF_CUST, custname: WF_CUST_NAME, role: wfRole, arch: WF_ARCH }
+      wf: { done: WF_DONE, man: WF_MAN, skip: WF_SKIP, notes: WF_NOTES, meta: WF_META, cust: WF_CUST, custname: WF_CUST_NAME, role: wfRole, arch: WF_ARCH, month: wfLoad(WF_MONTH_KEY) }
     });
     flash(this, "已备份");
   });
@@ -13702,6 +13727,7 @@
           if (obj.wf.custname !== undefined) localStorage.setItem(WF_CUSTNAME_KEY, JSON.stringify(obj.wf.custname));
           if (obj.wf.role) localStorage.setItem(WF_ROLE_KEY, obj.wf.role);
           if (obj.wf.arch) localStorage.setItem(WF_ARCH_KEY, JSON.stringify(obj.wf.arch));
+          if (obj.wf.month) localStorage.setItem(WF_MONTH_KEY, JSON.stringify(obj.wf.month));
         }
         save();
       } catch (e) {}
