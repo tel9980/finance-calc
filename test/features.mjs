@@ -14,6 +14,11 @@ const ok = (cond, msg) => { if (!cond) bad.push(msg); };
 await page.goto(BASE, { waitUntil: 'load' });
 await page.waitForTimeout(600);
 
+/* 页脚反馈邮箱：脚本拼出来，测试保证人能看到、点得到 */
+const foot = await page.evaluate(() => { const a = document.getElementById('foot-mail'); return a ? { href: a.getAttribute('href'), text: a.textContent } : null; });
+ok(foot && foot.href.indexOf('mailto:') === 0 && foot.href.indexOf('@qq.com') > 0, '页脚反馈邮箱没拼出 mailto：' + JSON.stringify(foot));
+ok(foot && foot.text.indexOf('@qq.com') > 0, '页脚没显示出邮箱地址：' + JSON.stringify(foot));
+
 const hits = async q => {
   await page.fill('#q', q); await page.waitForTimeout(180);
   return page.evaluate(() => [...document.querySelectorAll('.tab:not([hidden])')].map(t => t.dataset.tab));

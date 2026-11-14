@@ -13541,8 +13541,9 @@
       tips.className = "hint";
       tips.appendChild(document.createTextNode("反复出现的话，把「复制诊断信息」得到的内容发到 "));
       var mail = document.createElement("a");
-      mail.href = "mailto:tel9980@qq.com?subject=%E8%B4%A2%E5%8A%A1%E8%AE%A1%E7%AE%97%E5%99%A8%20%E6%8A%A5%E9%94%99";
-      mail.textContent = "tel9980@qq.com";
+      var mu = "tel9980", md = "qq.com";        /* 拼出来，源码里不留完整邮箱 */
+      mail.href = "mailto:" + mu + "@" + md + "?subject=" + encodeURIComponent("财务计算器 报错");
+      mail.textContent = mu + "@" + md;
       tips.appendChild(mail);
       tips.appendChild(document.createTextNode("，我看看怎么修。"));
       ERR_BOX.appendChild(t); ERR_BOX.appendChild(d); ERR_BOX.appendChild(tips); ERR_BOX.appendChild(acts);
