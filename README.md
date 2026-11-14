@@ -356,7 +356,7 @@ MIT
 - 方案快照支持备注与改名：存的时候写「名称｜备注」，列表里也能点「改」重命名。
 
 ## 自动化测试与 CI
-仓库自带两套无头浏览器回归（Playwright），推送到 `main` 时 GitHub Actions 自动跑：
+仓库自带四套无头浏览器测试（Playwright），推送到 `main` 时 GitHub Actions 自动跑：
 
 ```bash
 npm install                 # 首次：装 playwright
@@ -365,13 +365,15 @@ npm run build               # 切 chunk + 算哈希 + 重建 sw.js
 node test/serve.mjs 8099 &  # 起本地静态服务器（无依赖）
 node test/regress.mjs http://127.0.0.1:8099/    # 228 个模块数值对拍 test/baseline.json
 node test/features.mjs  http://127.0.0.1:8099/  # 搜索 / 最近 / 快照备注 / 深链参数 / 工作流交互
+node test/units.mjs     http://127.0.0.1:8099/  # 计算单测：拿教科书公式对答案
 ```
 
 - `regress.mjs` 会把 228 个模块的主结果与 `test/baseline.json` 逐项对比（`dca` 蒙特卡洛随机不在对拍范围），并检查重复 id、控制台报错、手机端横向溢出。
 - 改了计算逻辑且确认新结果正确时，用 `node test/regress.mjs http://127.0.0.1:8099/ --update` 重写基线，并把 baseline 的改动一起提交。
 - `features.mjs` 除搜索 / 最近 / 快照备注 / 深链参数外，还覆盖财务工作流：三态勾选、备注弹层（含预计时长与截止日期）、逐步走完的浮动步骤条、月度归档、自定义路径的增删排序与导入、依赖缺失提示、首页今日待办、本月明细、打印交接单；`pwa.mjs` 另外覆盖到期提醒权限与通知发出。
+- `units.mjs` 是「对公式」而不是「对昨天」：月供用 PMT 公式、等额本金总利息用等差数列求和、复利终值按期初/期末年金算、发票税额与应纳增值税按税率拆，期望值在测试里用**另一条路径**独立算出来再和页面比——这样能抓出「一直就错、但基线也跟着错」的问题；还会检查本金填 0、利率填负数时不会冒出 `NaN`。
 - `pwa.mjs` 专测「装到主屏」这条链：manifest 字段是否齐（`id`/`display`/maskable 图标/narrow 截图）、引用的图标与截图能否取到、快捷方式指向的模块是否存在、iOS 上有没有出现「添加到主屏幕」指引、点 × 关掉后 30 天内不再弹、已经是独立窗口时不再提示安装，以及**装好后断网打开一个从没访问过的模块仍能算**。
-- CI 配置在 `.github/workflows/ci.yml`（ubuntu + node 20 + chromium），五道闸：数值回归、交互回归、安装/离线回归、构建产物同步、模块数口径。其中「构建产物同步」会在 CI 里重跑一遍 `npm run build` 再比对 `public/`——**只改 `src/` 忘了构建的提交会被拦下**，也不要手改 `public/` 里的产物。
+- CI 配置在 `.github/workflows/ci.yml`（ubuntu + node 20 + chromium），六道闸：数值回归、交互回归、计算单测、安装/离线回归、构建产物同步、模块数口径。其中「构建产物同步」会在 CI 里重跑一遍 `npm run build` 再比对 `public/`——**只改 `src/` 忘了构建的提交会被拦下**，也不要手改 `public/` 里的产物。
 
 ## 分享与导出
 - **结果图**（工具栏「结果图」）：把当前模块的主结果、指标和口径画成一张 980px 宽的 PNG，手机直接发微信/群里，不用截图裁边。
