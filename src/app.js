@@ -11141,7 +11141,10 @@
       toast("已关闭到期提醒");
       return;
     }
+    var done = false;
     function got(p) {
+      if (done) return; /* 老式回调 + Promise 会各触发一次，只认第一次 */
+      done = true;
       if (p === "granted") {
         wfNotifySetPref(true); wfNotifyStatus(); toast("到期提醒已开启");
         wfNotifyCheck();

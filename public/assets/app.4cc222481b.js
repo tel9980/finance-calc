@@ -2348,7 +2348,10 @@
       toast("已关闭到期提醒");
       return;
     }
+    var done = false;
     function got(p) {
+      if (done) return; /* 老式回调 + Promise 会各触发一次，只认第一次 */
+      done = true;
       if (p === "granted") {
         wfNotifySetPref(true); wfNotifyStatus(); toast("到期提醒已开启");
         wfNotifyCheck();
@@ -3614,7 +3617,7 @@ undefined
   var KEY = "finance-calc-v63";
   var CAT_KEY = "finance-calc-cat";
   /* 构建时由 build.mjs 注入为 "v<内容哈希>"，页脚展示，方便核对版本 */
-  var BUILD_TAG = "v68426bcf30";
+  var BUILD_TAG = "vfa99ddd448";
 
   /* ---------------- 现金流月历 ---------------- */
 

@@ -129,16 +129,23 @@ await ctx3.close();
 ok(errs.length === 0, '控制台报错：' + errs.join(' | '));
 
 /* ---------- 5. 到期提醒（本地通知，只有装到主屏/授权后才发） ---------- */
-const ctx5 = await browser.newContext({ permissions: ['notifications'] });
-await ctx5.addInitScript(() => {
-  window.__notified = [];
+/* 通知权限在无头环境里不稳定（CI 上可能直接 denied），这里把权限位打桩成「已允许」，
+   测我们自己的开关/去重/发送逻辑；再另开一个「已拒绝」的环境验证不误存开关。 */
+const stubNotify = (perm) => {
   if (navigator.serviceWorker) {
+    window.__notified = [];
     navigator.serviceWorker.ready.then(reg => {
       const orig = reg.showNotification.bind(reg);
       reg.showNotification = (t, o) => { window.__notified.push(t); return orig(t, o); };
     });
   }
-});
+  if (perm) {
+    Object.defineProperty(Notification, 'permission', { get: () => perm, configurable: true });
+    Notification.requestPermission = (cb) => { if (cb) cb(perm); return Promise.resolve(perm); };
+  }
+};
+const ctx5 = await browser.newContext({ permissions: ['notifications'] });
+await ctx5.addInitScript(stubNotify, 'granted');
 const p5 = await ctx5.newPage();
 const e5 = [];
 p5.on('pageerror', e => e5.push('PE:' + e.message));
@@ -166,8 +173,33 @@ await p5.goto(BASE + '#workflow', { waitUntil: 'load' });
 await p5.waitForTimeout(1600);
 const nt = await p5.evaluate(() => window.__notified || []);
 ok(nt.length >= 1 && nt.join(' ').indexOf('到期') >= 0, '到期提醒没发出去（' + JSON.stringify(nt) + '）');
+/* 同一天不重复推 */
+await p5.goto(BASE + '#deposit', { waitUntil: 'load' });
+await p5.waitForTimeout(300);
+await p5.goto(BASE + '#workflow', { waitUntil: 'load' });
+await p5.waitForTimeout(1400);
+const nt2 = await p5.evaluate(() => window.__notified || []);
+ok(nt2.length === nt.length, '同一天重复发了提醒（' + JSON.stringify(nt2) + '）');
 ok(e5.length === 0, '到期提醒相关报错：' + e5.join(' | '));
 await ctx5.close();
+
+/* 5b. 权限被拒时不能把开关存成「已开启」 */
+const ctx6 = await browser.newContext();
+await ctx6.addInitScript(stubNotify, 'denied');
+const p6 = await ctx6.newPage();
+await p6.goto(BASE + '#workflow', { waitUntil: 'load' });
+await p6.waitForTimeout(700);
+await p6.evaluate(() => localStorage.removeItem('finance-calc-wfnotify'));
+await p6.goto(BASE + '#workflow', { waitUntil: 'load' });
+await p6.waitForTimeout(600);
+await p6.click('#wf-notify');
+await p6.waitForTimeout(500);
+const nd = await p6.evaluate(() => ({
+  pref: localStorage.getItem('finance-calc-wfnotify'),
+  st: document.getElementById('wf-notify-st').textContent.trim()
+}));
+ok(nd.pref !== '1' && nd.st.indexOf('权限') >= 0, '权限被拒时开关状态不对（' + JSON.stringify(nd) + '）');
+await ctx6.close();
 
 console.log(bad.length ? '❌ 安装/离线项失败：\n- ' + bad.join('\n- ') : '✅ 安装与离线项全部通过');
 await browser.close();
