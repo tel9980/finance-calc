@@ -135,8 +135,9 @@ const stubNotify = (perm) => {
   if (navigator.serviceWorker) {
     window.__notified = [];
     navigator.serviceWorker.ready.then(reg => {
-      const orig = reg.showNotification.bind(reg);
-      reg.showNotification = (t, o) => { window.__notified.push(t); return orig(t, o); };
+      /* 真机/CI 里没真授权时调用会异步拒绝，这里照样记下标题再返回一个被拒的 Promise，
+         顺便验证我们的代码不会因此抛未处理异常 */
+      reg.showNotification = (t, o) => { window.__notified.push(t); return Promise.reject(new Error('no permission')); };
     });
   }
   if (perm) {

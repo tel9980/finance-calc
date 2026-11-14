@@ -2308,7 +2308,8 @@
         navigator.serviceWorker.ready.then(function (reg) {
           if (reg && reg.showNotification) {
             try {
-              reg.showNotification(title, { body: body, icon: "./icon-192.png", badge: "./icon-192.png", tag: "fc-wf-due", data: { url: "./#workflow" } });
+              var np = reg.showNotification(title, { body: body, icon: "./icon-192.png", badge: "./icon-192.png", tag: "fc-wf-due", data: { url: "./#workflow" } });
+              if (np && np.catch) np.catch(fallback); /* 权限被撤/系统限制时是异步拒绝，同步 try 抓不住 */
             } catch (e) { fallback(); }
           } else fallback();
         }).catch(fallback);
@@ -3617,7 +3618,7 @@ undefined
   var KEY = "finance-calc-v63";
   var CAT_KEY = "finance-calc-cat";
   /* 构建时由 build.mjs 注入为 "v<内容哈希>"，页脚展示，方便核对版本 */
-  var BUILD_TAG = "vfa99ddd448";
+  var BUILD_TAG = "vd055573fa3";
 
   /* ---------------- 现金流月历 ---------------- */
 

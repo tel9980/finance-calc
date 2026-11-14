@@ -11101,7 +11101,8 @@
         navigator.serviceWorker.ready.then(function (reg) {
           if (reg && reg.showNotification) {
             try {
-              reg.showNotification(title, { body: body, icon: "./icon-192.png", badge: "./icon-192.png", tag: "fc-wf-due", data: { url: "./#workflow" } });
+              var np = reg.showNotification(title, { body: body, icon: "./icon-192.png", badge: "./icon-192.png", tag: "fc-wf-due", data: { url: "./#workflow" } });
+              if (np && np.catch) np.catch(fallback); /* 权限被撤/系统限制时是异步拒绝，同步 try 抓不住 */
             } catch (e) { fallback(); }
           } else fallback();
         }).catch(fallback);
