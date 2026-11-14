@@ -24,7 +24,11 @@ jobs:
           node test/serve.mjs 8099 &
           sleep 2
           curl -sf http://127.0.0.1:8099/ > /dev/null && echo server ok
-      - name: 180 模块数值回归
+      - name: 228 模块数值回归
         run: node test/regress.mjs http://127.0.0.1:8099/
       - name: 交互回归（搜索/最近/快照/深链）
         run: node test/features.mjs http://127.0.0.1:8099/
+      - name: 构建产物与源码同步（public/ 必须由 src/ 重新构建得到）
+        run: |
+          node scripts/build.mjs
+          git diff --exit-code --stat || (echo "::error::public/ 与 src/ 不同步，请在本地跑 node scripts/build.mjs 并一并提交" && exit 1)

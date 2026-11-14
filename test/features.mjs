@@ -140,6 +140,55 @@ let ppOk = false;
 for (let i = 0; i < 24; i++) { ppOk = await page.evaluate(() => { const e = document.getElementById('pp-principal'); return !!e && e.value.replace(/,/g, '') === '800000' && (document.querySelector('.panel.is-on') || {}).id === 'panel-prepay'; }); if (ppOk) break; await page.waitForTimeout(250); }
 ok(ppOk, '跨模块带参跳转没回填参数或没切面板');
 
+/* 财务工作流：三态打勾、备注弹层、逐步走完、归档、深链导入 */
+await page.evaluate(() => {
+  ['wfdone', 'wfman', 'wfskip', 'wfnotes', 'wfmeta', 'wfcust', 'wfarch', 'wfrole'].forEach(k => localStorage.removeItem('finance-calc-' + k));
+});
+await page.evaluate(() => { location.hash = '#workflow'; });
+await page.selectOption('#wf-role', '1'); await page.waitForTimeout(500);
+const wfState = () => page.evaluate(() => ({
+  man: document.getElementById('wf-mankv').textContent.trim(),
+  skip: document.getElementById('wf-skipkv').textContent.trim(),
+  bar: (() => { const b = document.getElementById('wf-stepbar'); return !!b && !b.hidden; })()
+}));
+ok((await page.$$('[data-path="cash"] .wf-tick')).length === 4, '出纳路径不是 4 步');
+await page.locator('[data-path="cash"] .wf-tick').nth(0).click(); await page.waitForTimeout(400);
+ok((await wfState()).man === '1 步', '打勾后本月完成没 +1');
+await page.locator('[data-path="cash"] .wf-tick').nth(0).click(); await page.waitForTimeout(400);
+ok((await wfState()).skip === '1 步', '第二次点击没进「跳过」态');
+await page.locator('[data-path="cash"] .wf-tick').nth(0).click(); await page.waitForTimeout(400);
+const wfBack = await wfState();
+ok(wfBack.man === '0 步' && wfBack.skip === '0 步', '第三次点击没回到未做态');
+
+await page.locator('[data-path="cash"] .wf-tick').nth(1).click(); await page.waitForTimeout(350);
+await page.locator('[data-path="cash"] .wf-note').nth(1).click(); await page.waitForTimeout(350);
+await page.fill('#wf-inline-ta', '回归备注'); await page.fill('#wf-inline-est', '10');
+await page.fill('#wf-inline-due', new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10));
+await page.click('#wf-inline-save'); await page.waitForTimeout(450);
+const wfMeta = (await page.evaluate(() => (localStorage.getItem('finance-calc-wfnotes') || '') + '|' + (localStorage.getItem('finance-calc-wfmeta') || ''))) || '';
+ok(wfMeta.indexOf('回归备注') >= 0 && wfMeta.indexOf('"est":10') >= 0, '备注/时长没写进 wfnotes/wfmeta（' + wfMeta + '）');
+ok((await page.textContent('#wf-duekv')).indexOf('1 步') >= 0, '7 天内到期没统计到');
+
+await page.selectOption('#wf-speed', 'step'); await page.click('#wf-auto'); await page.waitForTimeout(700);
+ok((await wfState()).bar, '逐步走完没出现浮动步骤条');
+ok((await page.textContent('#wf-stepbar .wf-stepbar-lab')).indexOf('1/4') >= 0, '步骤条计数不对');
+await page.click('#wf-step-skip'); await page.waitForTimeout(450);
+ok((await page.textContent('#wf-stepbar .wf-stepbar-lab')).indexOf('2/4') >= 0, '跳过本步没有前进');
+await page.click('#wf-step-stop'); await page.waitForTimeout(350);
+ok(!(await wfState()).bar, '结束后浮动步骤条没收起');
+
+await page.goto(BASE + '#workflow?wfimport=' + encodeURIComponent(JSON.stringify({ n: '回归路径', p: ['vatdue', 'citprep'] })), { waitUntil: 'load' });
+await page.waitForTimeout(1000);
+const wfImp = await page.evaluate(() => ({
+  role: document.getElementById('wf-role').value,
+  name: (document.getElementById('wf-cust-name') || {}).value || '',
+  chips: document.querySelectorAll('#wf-cust-links .wf-chip a').length
+}));
+ok(wfImp.role === '9' && wfImp.name === '回归路径' && wfImp.chips === 2, '深链导入路径没生效（' + JSON.stringify(wfImp) + '）');
+
+await page.click('#wf-clear'); await page.waitForTimeout(600);
+ok(/20\d\d-\d\d/.test(await page.textContent('#wf-histkv')), '清空本月没有写归档历史');
+
 /* 错误自检浮层 */
 await page.evaluate(() => { setTimeout(() => { throw new Error('自检测试'); }, 0); });
 let hasBox = false;
