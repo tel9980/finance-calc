@@ -3875,7 +3875,7 @@ undefined
   var KEY = "finance-calc-v63";
   var CAT_KEY = "finance-calc-cat";
   /* 构建时由 build.mjs 注入为 "v<内容哈希>"，页脚展示，方便核对版本 */
-  var BUILD_TAG = "vfa5ec7f3c0";
+  var BUILD_TAG = "vae17e37c12";
 
   /* ---------------- 现金流月历 ---------------- */
 
@@ -4190,7 +4190,15 @@ undefined
       close.textContent = "关闭";
       close.addEventListener("click", function () { if (ERR_BOX) ERR_BOX.hidden = true; });
       acts.appendChild(copy); acts.appendChild(close);
-      ERR_BOX.appendChild(t); ERR_BOX.appendChild(d); ERR_BOX.appendChild(acts);
+      var tips = document.createElement("p");
+      tips.className = "hint";
+      tips.appendChild(document.createTextNode("反复出现的话，把「复制诊断信息」得到的内容发到 "));
+      var mail = document.createElement("a");
+      mail.href = "mailto:tel9980@qq.com?subject=%E8%B4%A2%E5%8A%A1%E8%AE%A1%E7%AE%97%E5%99%A8%20%E6%8A%A5%E9%94%99";
+      mail.textContent = "tel9980@qq.com";
+      tips.appendChild(mail);
+      tips.appendChild(document.createTextNode("，我看看怎么修。"));
+      ERR_BOX.appendChild(t); ERR_BOX.appendChild(d); ERR_BOX.appendChild(tips); ERR_BOX.appendChild(acts);
       document.body.appendChild(ERR_BOX);
     }
     var mp = ERR_BOX.querySelector('[data-role="msg"]');
