@@ -360,12 +360,7 @@ fs.writeFileSync(path.join(ASSETS, cssName), css);
 written.push(cssName);
 
 const coreHash = hash8(core);
-/* 全站内容版本：chunks + css + core 一起算，页脚展示，和 sw.js 的 VERSION 一致 */
-const ver = hash8(written.join('|') + '|' + coreHash);
-core = core.replace('var BUILD_TAG = "";', 'var BUILD_TAG = "v' + ver + '";');
 const coreName = 'app.' + coreHash + '.js';
-fs.writeFileSync(path.join(ASSETS, coreName), core);
-written.push(coreName);
 
 /* ---------- 9. 重写 index.html（标签块从 src/tabs.html 写回，单一来源） ---------- */
 html = html.replace(/<nav class="tabs" id="tabs" role="tablist">[\s\S]*?<\/nav>/, '<nav class="tabs" id="tabs" role="tablist">\n' + tabsSrc.trim() + '\n    </nav>');
@@ -394,6 +389,14 @@ out = out
   .replace(/\u0000E\u0000/g, '<!-- PANELS-CORE:END -->')
   .replace(/^\s+/gm, '');
 fs.writeFileSync(path.join(PUB, 'index.html'), out);
+
+/* 全站内容版本：chunks + css + core + 产物 HTML 一起算（页脚展示，和 sw.js 的 VERSION 一致）。
+   把 HTML 也算进来，是因为只改 tabs/拼音/面板时 chunk 名不变，版本不跟着变的话
+   老客户端会一直用缓存里的旧外壳，看不到新增的模块。 */
+const ver = hash8(written.join('|') + '|' + coreHash + '|' + hash8(out));
+core = core.replace('var BUILD_TAG = "";', 'var BUILD_TAG = "v' + ver + '";');
+fs.writeFileSync(path.join(ASSETS, coreName), core);
+written.push(coreName);
 
 /* ---------- 10. sw.js ---------- */
 const shell = ['/', './assets/' + coreName, './assets/' + cssName, './manifest.webmanifest', './icon-192.png'];
