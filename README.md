@@ -352,12 +352,13 @@ npx playwright install chromium
 npm run build               # 切 chunk + 算哈希 + 重建 sw.js
 node test/serve.mjs 8099 &  # 起本地静态服务器（无依赖）
 node test/regress.mjs http://127.0.0.1:8099/    # 228 个模块数值对拍 test/baseline.json
-node test/features.mjs  http://127.0.0.1:8099/  # 搜索 / 最近 / 快照备注 / 深链参数
+node test/features.mjs  http://127.0.0.1:8099/  # 搜索 / 最近 / 快照备注 / 深链参数 / 工作流交互
 ```
 
 - `regress.mjs` 会把 228 个模块的主结果与 `test/baseline.json` 逐项对比（`dca` 蒙特卡洛随机不在对拍范围），并检查重复 id、控制台报错、手机端横向溢出。
 - 改了计算逻辑且确认新结果正确时，用 `node test/regress.mjs http://127.0.0.1:8099/ --update` 重写基线，并把 baseline 的改动一起提交。
-- CI 配置在 `.github/workflows/ci.yml`（ubuntu + node 20 + chromium）。
+- `features.mjs` 除搜索 / 最近 / 快照备注 / 深链参数外，还覆盖财务工作流：三态勾选、备注弹层（含预计时长与截止日期）、逐步走完的浮动步骤条、月度归档、自定义路径的增删排序与导入。
+- CI 配置在 `.github/workflows/ci.yml`（ubuntu + node 20 + chromium），四道闸：数值回归、交互回归、构建产物同步、模块数口径。其中「构建产物同步」会在 CI 里重跑一遍 `npm run build` 再比对 `public/`——**只改 `src/` 忘了构建的提交会被拦下**，也不要手改 `public/` 里的产物。
 
 ## 分享与导出
 - **结果图**（工具栏「结果图」）：把当前模块的主结果、指标和口径画成一张 980px 宽的 PNG，手机直接发微信/群里，不用截图裁边。
