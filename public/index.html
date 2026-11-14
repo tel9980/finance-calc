@@ -29,7 +29,7 @@
 {"@context":"https://schema.org","@type":"WebApplication","name":"财务计算器","alternateName":"Finance Calculator","url":"https://js.1211.cc.cd/","applicationCategory":"FinanceApplication","operatingSystem":"Any","inLanguage":"zh-CN","isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"CNY"},"description":"228 个模块的免费财务计算器，覆盖个人理财与公司财务。纯前端计算，数据不上传。","featureList":"存款利息、贷款月供、提前还款、组合贷、个税与到手工资、社保公积金、租房还是买房、资产负债、FIRE、存货计价、试算平衡、季度所得税预缴、预算滚动预测、合并抵销进阶、综合税负预警、借款台账、费用报销合规、合并递延所得税、存货减值毛利联动、预算执行偏差预警、现金周转天数、销售费用ROI、部门费用考核、盘点差异率、回款逾期分析、付款信用期、外币应收重估、固资减值、期间费用性态分解、利润中心责任报告、存货库龄与订货联动、销售回款账期政策对比、财务工作流、出口收汇核销、固定资产处置税务、关联交易同期资料、外汇套期保值、未开票收入与账期差异、递延收益与预收款确认、集团内部往来抵销、股份支付费用分摊、留抵退税、小型微利企业、加计抵减、亏损合同预计负债、银行账户汇总、所有者权益变动、会计估计变更、递延所得税明细、关联交易审议、维修改良判断、每股收益、公司财务报表与税务测算"}
 </script>
 <link rel="preconnect" href="https://static.cloudflareinsights.com" crossorigin>
-<link rel="stylesheet" href="./assets/style.f1a059fa07.css">
+<link rel="stylesheet" href="./assets/style.d0c004ac09.css">
 </head>
 <body>
 <a class="skip" href="#panels">跳到计算区</a>
@@ -385,6 +385,97 @@
 </div>
 </div>
 </section>
+<section class="panel" id="panel-workflow">
+<div class="cols">
+<div class="card">
+<h2>财务工作流 · 按岗位串起来</h2>
+<p class="wfctl"><label>岗位 <select id="wf-role" class="ghost sm">
+<option value="0">全部路径</option>
+<option value="1">出纳 · 报销记账</option>
+<option value="2">总账 · 结账报表</option>
+<option value="3">税务 · 申报</option>
+<option value="4">预算 · 分析</option>
+<option value="9">我的路径</option>
+</select></label></p>
+<p class="hint" id="wf-note"></p>
+<details class="hintd" open data-path="cash">
+<summary>① 报销 → 记账 → 出报表</summary>
+<p class="jump"></p>
+</details>
+<details class="hintd" data-path="close">
+<summary>② 月度结账</summary>
+<p class="jump"></p>
+</details>
+<details class="hintd" data-path="report">
+<summary>③ 报表与分析</summary>
+<p class="jump"></p>
+</details>
+<details class="hintd" data-path="tax">
+<summary>④ 报税（增值税 + 所得税）</summary>
+<p class="jump"></p>
+</details>
+<details class="hintd" data-path="budget">
+<summary>⑤ 预算与滚动预测</summary>
+<p class="jump"></p>
+</details>
+<details class="hintd" data-path="mine" id="wf-cust-details">
+<summary>⑨ 我的路径</summary>
+<p class="jump" id="wf-cust-links"></p>
+</details>
+<p class="wfctl" id="wf-cust-ctl" hidden>
+<label>路径名 <input id="wf-cust-name" class="ghost sm" placeholder="我的路径" maxlength="12"></label>
+<button type="button" id="wf-cust-share" class="ghost sm">复制路径链接</button>
+</p>
+<p class="wfctl" id="wf-cust-ctl2" hidden>
+<input id="wf-cust-q" class="ghost sm" type="search" placeholder="搜模块（名称/拼音首字母）">
+<select id="wf-cust-add" class="ghost sm"></select>
+<select id="wf-cust-at" class="ghost sm"></select>
+<button type="button" id="wf-cust-addbtn" class="ghost sm">加进我的路径</button>
+<button type="button" id="wf-cust-clear" class="ghost sm">清空</button>
+</p>
+<p class="wfctl">
+<button type="button" id="wf-auto" class="ghost sm">一键走完本岗位</button>
+<select id="wf-speed" class="ghost sm" title="每步停留时长">
+<option value="1500">每步 1.5 秒</option>
+<option value="800">每步 0.8 秒</option>
+<option value="3000">每步 3 秒</option>
+<option value="step">逐步确认</option>
+</select>
+</p>
+<p class="wfctl">
+<button type="button" id="wf-clear" class="ghost sm">归档并清空本月</button>
+<button type="button" id="wf-handoff" class="ghost sm">导出交接单 .md</button>
+<button type="button" id="wf-handoff-copy" class="ghost sm">复制交接单</button>
+<button type="button" id="wf-handoff-csv" class="ghost sm">导出 CSV</button>
+</p>
+</div>
+<div class="card res">
+<h2>说明</h2>
+<div class="big"><span class="k">累计点开</span><strong id="wf-big">0/22</strong><span class="unit">步</span></div>
+<ul class="kv">
+<li><span>已点开（累计）</span><b id="wf-donekv">0 步</b></li>
+<li><span>本月完成</span><b id="wf-mankv">0 步</b></li>
+<li><span>本月跳过</span><b id="wf-skipkv">0 步</b></li>
+<li><span>下一步建议</span><b id="wf-next">—</b></li>
+<li><span>本周到期（7 天内）</span><b id="wf-duekv">0 步</b></li>
+<li><span>归档历史</span><b id="wf-histkv">还没有存档</b></li>
+<li><span>最近用过</span><b id="wf-recentkv">—</b></li>
+</ul>
+<p class="hint">点开模块自动打绿勾（累计）；「✓」循环：未做 → 本月完成 → 跳过；「✎」写备注、预计分钟、截止日期。月底点「归档并清空本月」。</p>
+<p class="hint" id="wf-linkkv"></p>
+<div id="wf-summary" class="wf-summary" hidden></div>
+</div>
+</div>
+<div id="wf-inline" class="wf-inline" hidden>
+<textarea id="wf-inline-ta" rows="3" placeholder="这一步的备注（交接时能看到）"></textarea>
+<div class="wf-inline-btns">
+<label>预计 <input id="wf-inline-est" type="number" min="0" step="5"> 分钟</label>
+<label>截止 <input id="wf-inline-due" type="date"></label>
+<button type="button" id="wf-inline-save" class="ghost sm">保存</button>
+<button type="button" id="wf-inline-cancel" class="ghost sm">取消</button>
+</div>
+</div>
+</section>
 <!-- PANELS-CORE:END -->
 <div class="cmpbox" id="cmpbox" hidden>
 <div class="cmphead">
@@ -405,6 +496,6 @@
 <a href="https://github.com/tel9980/finance-calc/issues/new?title=反馈" target="_blank" rel="noopener">反馈建议</a>
 </p>
 </main>
-<script src="./assets/app.6ce165e704.js"></script>
+<script src="./assets/app.aabbf40dce.js"></script>
 </body>
 </html>

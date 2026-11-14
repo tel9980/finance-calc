@@ -1675,9 +1675,80 @@
 
 
 
-  var WF_KEY = "finance-calc-wfdone";
-  var WF_DONE = {};
-  function loadWfDone() { try { WF_DONE = JSON.parse(localStorage.getItem(WF_KEY) || "{}"); } catch (e) { WF_DONE = {}; } }
+  /* ============ 财务工作流 ============ */
+  var WF_KEY = "finance-calc-wfdone";          // 累计点开过的模块 {mod:1}
+  var WF_MAN_KEY = "finance-calc-wfman";       // 本月完成 {key:1}
+  var WF_SKIP_KEY = "finance-calc-wfskip";     // 本月跳过 {key:1}
+  var WF_ROLE_KEY = "finance-calc-wfrole";     // 岗位选择
+  var WF_CUST_KEY = "finance-calc-wfcust";     // 我的路径 [mod,...]
+  var WF_CUSTNAME_KEY = "finance-calc-wfcustname";
+  var WF_NOTE_KEY = "finance-calc-wfnotes";    // {key:备注}
+  var WF_META_KEY = "finance-calc-wfmeta";     // {key:{due:"YYYY-MM-DD",est:分钟}}
+  var WF_ARCH_KEY = "finance-calc-wfarch";     // {"YYYY-MM":{total,done,man,skip,at}}
+
+  var WF_DONE = {}, WF_MAN = {}, WF_SKIP = {}, WF_CUST = [], WF_NOTES = {}, WF_META = {}, WF_ARCH = {};
+  var WF_CUST_NAME = "";
+  var WF_LAST = { total: 0, done: 0, man: 0, skip: 0 };
+  var WF_ROLE_READY = false;
+
+  /* 路径定义：标题、岗位、步骤、带参跳转的单一数据源（carry = [[src模块, 源字段, 目标字段]...]） */
+  var WF_PATHS = [
+    { id: "cash", roles: ["1"], no: "①", title: "报销 → 记账 → 出报表", steps: [
+      { m: "expense" }, { m: "expcheck" }, { m: "recon" }, { m: "cashstmt" } ] },
+    { id: "close", roles: ["2"], no: "②", title: "月度结账", steps: [
+      { m: "recon" }, { m: "trialbal" }, { m: "triplede" }, { m: "monthclose" } ] },
+    { id: "report", roles: ["2"], no: "③", title: "报表与分析", steps: [
+      { m: "finreport" },
+      { m: "ratios", carry: [["finreport", "pl-rev", "rt-rev"], ["finreport", "pl-cogs", "rt-cogs"]] },
+      { m: "mgmtpack", carry: [["finreport", "pl-rev", "pk-rev"]] },
+      { m: "bplan", carry: [["mgmtpack", "pk-rev", "bpl-rev"]] } ] },
+    { id: "tax", roles: ["3"], no: "④", title: "报税（增值税 + 所得税）", steps: [
+      { m: "vatdue" },
+      { m: "vatcheck", carry: [["vatdue", "vd-out", "vchk-out"], ["vatdue", "vd-in", "vchk-in"]] },
+      { m: "citprep" },
+      { m: "taxadj", carry: [["citprep", "cit-income", "txj-rev"], ["citprep", "cit-adjust", "txj-ad"]] },
+      { m: "taxwarn", carry: [["taxadj", "txj-rev", "tbw-sales"], ["taxadj", "txj-profit", "tbw-profit"]] } ] },
+    { id: "budget", roles: ["4"], no: "⑤", title: "预算与滚动预测", steps: [
+      { m: "bplan" },
+      { m: "rollfc", carry: [["bplan", "bpl-rev", "rl-bud"]] },
+      { m: "rollbudget", carry: [["bplan", "bpl-rev", "rbg-budinc"], ["bplan", "bpl-opex", "rbg-budexp"], ["rollfc", "rl-bud", "rbg-budinc"], ["budgetalert", "bga-budinc", "rbg-budinc"], ["budgetalert", "bga-budexp", "rbg-budexp"]] },
+      { m: "budgetalert", carry: [["bplan", "bpl-rev", "bga-budinc"], ["bplan", "bpl-opex", "bga-budexp"], ["rollbudget", "rbg-budinc", "bga-budinc"], ["rollbudget", "rbg-budexp", "bga-budexp"]] },
+      { m: "expbudget" } ] }
+  ];
+
+  /* 旧版 j-k 索引与 WF_PATHS 前 5 条顺序一致（仅用于迁移） */
+  var WF_LEGACY = [
+    ["expense", "expcheck", "recon", "cashstmt"],
+    ["recon", "trialbal", "triplede", "monthclose"],
+    ["finreport", "ratios", "mgmtpack", "bplan"],
+    ["vatdue", "vatcheck", "citprep", "taxadj", "taxwarn"],
+    ["bplan", "rollfc", "rollbudget", "budgetalert", "expbudget"]
+  ];
+
+  function wfLoad(key) { try { return JSON.parse(localStorage.getItem(key) || "null"); } catch (e) { return null; } }
+  function wfSet(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) {} }
+  function wfPad2(n) { return (n < 10 ? "0" : "") + n; }
+
+  function loadWfDone() { WF_DONE = wfLoad(WF_KEY) || {}; }
+  function loadWfMan() { WF_MAN = wfLoad(WF_MAN_KEY) || {}; }
+  function loadWfSkip() { WF_SKIP = wfLoad(WF_SKIP_KEY) || {}; }
+  function loadWfCust() { var c = wfLoad(WF_CUST_KEY); WF_CUST = Array.isArray(c) ? c : []; WF_CUST_NAME = wfLoad(WF_CUSTNAME_KEY) || ""; }
+  function loadWfNotes() { WF_NOTES = wfLoad(WF_NOTE_KEY) || {}; }
+  function loadWfMeta() { WF_META = wfLoad(WF_META_KEY) || {}; }
+  function loadWfArch() { WF_ARCH = wfLoad(WF_ARCH_KEY) || {}; }
+  function wfManSave() { wfSet(WF_MAN_KEY, WF_MAN); }
+  function wfSkipSave() { wfSet(WF_SKIP_KEY, WF_SKIP); }
+  function wfNoteSave() { wfSet(WF_NOTE_KEY, WF_NOTES); }
+  function wfMetaSave() { wfSet(WF_META_KEY, WF_META); }
+  function saveWfCust() { wfSet(WF_CUST_KEY, WF_CUST); }
+  function wfCustNameSave() { wfSet(WF_CUSTNAME_KEY, WF_CUST_NAME); }
+  function getWfDone() { return WF_DONE; }
+  function getWfMan() { return WF_MAN; }
+  function getWfSkip() { return WF_SKIP; }
+  function getWfCust() { return WF_CUST; }
+  function getWfNotes() { return WF_NOTES; }
+  function getWfMeta() { return WF_META; }
+
   function refreshWfBadge() {
     var tab = document.querySelector('.tab[data-tab="workflow"]');
     if (!tab) return;
@@ -1685,67 +1756,154 @@
     try { man = Object.keys(JSON.parse(localStorage.getItem(WF_MAN_KEY) || "{}")).length; } catch (e) {}
     tab.setAttribute("data-wfbadge", man > 0 ? "本月 " + man : "");
   }
-  function wfSave() { try { localStorage.setItem(WF_KEY, JSON.stringify(WF_DONE)); } catch (e) {} }
-  function getWfDone() { return WF_DONE; }
-  function recordWf(name) {
-    var links = document.querySelectorAll("#panel-workflow a[href^='#']");
-    var known = {};
-    for (var i = 0; i < links.length; i++) {
-      var h = (links[i].getAttribute("href") || "").replace(/^#/, "").split("?")[0];
-      known[h] = 1;
-    }
-    if (known[name] && !WF_DONE[name]) { WF_DONE[name] = 1; wfSave(); }
+
+  function wfKnownMods() {
+    var set = {};
+    for (var i = 0; i < WF_PATHS.length; i++)
+      for (var k = 0; k < WF_PATHS[i].steps.length; k++) set[WF_PATHS[i].steps[k].m] = 1;
+    for (var c = 0; c < WF_CUST.length; c++) set[WF_CUST[c]] = 1;
+    return set;
   }
-  var WF_MAN_KEY = "finance-calc-wfman";
-  var WF_ROLE_KEY = "finance-calc-wfrole";
-  var WF_CUST_KEY = "finance-calc-wfcust";
-  var WF_NOTE_KEY = "finance-calc-wfnotes";
-  var WF_MAN = {};
-  var WF_CUST = [];
-  var WF_NOTES = {};
-  function loadWfMan() { try { WF_MAN = JSON.parse(localStorage.getItem(WF_MAN_KEY) || "{}"); } catch (e) { WF_MAN = {}; } }
-  function wfManSave() { try { localStorage.setItem(WF_MAN_KEY, JSON.stringify(WF_MAN)); } catch (e) {} }
-  function getWfMan() { return WF_MAN; }
-  function toggleWfMan(key) { if (WF_MAN[key]) { delete WF_MAN[key]; } else { WF_MAN[key] = 1; } wfManSave(); }
-  function clearWfMan() { WF_MAN = {}; wfManSave(); }
-  function loadWfCust() { try { WF_CUST = JSON.parse(localStorage.getItem(WF_CUST_KEY) || "[]"); } catch (e) { WF_CUST = []; } }
-  function saveWfCust() { try { localStorage.setItem(WF_CUST_KEY, JSON.stringify(WF_CUST)); } catch (e) {} }
-  function getWfCust() { return WF_CUST; }
-  function loadWfNotes() { try { WF_NOTES = JSON.parse(localStorage.getItem(WF_NOTE_KEY) || "{}"); } catch (e) { WF_NOTES = {}; } }
-  function getWfNotes() { return WF_NOTES; }
-  function wfNoteSave() { try { localStorage.setItem(WF_NOTE_KEY, JSON.stringify(WF_NOTES)); } catch (e) {} }
-  function wfHandoff() {
+  function recordWf(name) {
+    if (wfKnownMods()[name] && !WF_DONE[name]) { WF_DONE[name] = 1; wfSet(WF_KEY, WF_DONE); }
+  }
+
+  function wfStepKey(pathId, mod) { return pathId + ":" + mod; }
+  function wfLegacyToNew(key) {
+    var m = /^(\d+)-(\d+)$/.exec(String(key));
+    if (!m) return null;
+    var j = +m[1], k = +m[2];
+    if (j < WF_LEGACY.length) {
+      var mod = WF_LEGACY[j][k];
+      if (!mod) return null;
+      return (WF_PATHS[j] ? WF_PATHS[j].id : j) + ":" + mod;
+    }
+    if (j === 5 && WF_CUST[k]) return "mine:" + WF_CUST[k];
+    return null;
+  }
+  function wfMigrateLegacy() {
+    var changed = false;
+    var maps = [[WF_MAN, WF_MAN_KEY], [WF_NOTES, WF_NOTE_KEY], [WF_SKIP, WF_SKIP_KEY], [WF_META, WF_META_KEY]];
+    for (var i = 0; i < maps.length; i++) {
+      var obj = maps[i][0], any = false;
+      for (var k in obj) {
+        if (/^\d+-\d+$/.test(k)) {
+          var nk = wfLegacyToNew(k);
+          if (nk) { obj[nk] = obj[k]; delete obj[k]; any = true; }
+        }
+      }
+      if (any) { wfSet(maps[i][1], obj); changed = true; }
+    }
+    return changed;
+  }
+
+  function wfStepState(key) {
+    if (WF_MAN[key]) return "done";
+    if (WF_SKIP[key]) return "skip";
+    return "none";
+  }
+  function toggleWfStep(key) {
+    var s = wfStepState(key);
+    if (s === "none") { WF_MAN[key] = 1; delete WF_SKIP[key]; }
+    else if (s === "done") { delete WF_MAN[key]; WF_SKIP[key] = 1; }
+    else { delete WF_SKIP[key]; }
+    wfManSave(); wfSkipSave();
+  }
+  function wfArchiveMonth() {
+    if (WF_LAST.total <= 0) return;
+    var d = new Date();
+    var ym = d.getFullYear() + "-" + wfPad2(d.getMonth() + 1);
+    WF_ARCH[ym] = { total: WF_LAST.total, done: WF_LAST.done, man: WF_LAST.man, skip: WF_LAST.skip, at: Date.now() };
+    var keys = Object.keys(WF_ARCH).sort();
+    while (keys.length > 12) delete WF_ARCH[keys.shift()];
+    wfSet(WF_ARCH_KEY, WF_ARCH);
+  }
+  function clearWfMan() {
+    wfArchiveMonth();
+    WF_MAN = {}; WF_SKIP = {};
+    wfManSave(); wfSkipSave();
+  }
+
+  function wfVisiblePaths(role) {
+    var paths = [];
+    if (role === "9") {
+      if (WF_CUST.length) paths.push({ id: "mine", roles: ["9"], no: "⑨", title: WF_CUST_NAME || "我的路径", steps: WF_CUST.map(function (m) { return { m: m }; }) });
+      return paths;
+    }
+    for (var i = 0; i < WF_PATHS.length; i++) {
+      var p = WF_PATHS[i];
+      if (role === "0" || p.roles.indexOf(role) >= 0) paths.push(p);
+    }
+    if (role === "0" && WF_CUST.length) paths.push({ id: "mine", roles: ["9"], no: "⑨", title: WF_CUST_NAME || "我的路径", steps: WF_CUST.map(function (m) { return { m: m }; }) });
+    return paths;
+  }
+
+  function wfCarryQuery(carry) {
+    var qm = {}, srcMods = [];
+    if (carry) {
+      for (var ci = 0; ci < carry.length; ci++) {
+        var sv = STORED[carry[ci][1]];
+        if (EDITED[carry[ci][1]] && sv !== undefined && sv !== null && sv !== "") {
+          qm[carry[ci][2]] = String(sv);
+          if (srcMods.indexOf(carry[ci][0]) < 0) srcMods.push(carry[ci][0]);
+        }
+      }
+    }
+    var qs = [];
+    for (var qk in qm) { if (Object.prototype.hasOwnProperty.call(qm, qk)) qs.push(encodeURIComponent(qk) + "=" + encodeURIComponent(qm[qk])); }
+    if (qs.length && srcMods.length) qs.push("_src=" + encodeURIComponent(srcMods.join(",")));
+    return qs.join("&");
+  }
+
+  function wfStepShare(mod) {
+    var panel = document.getElementById("panel-" + mod);
+    if (!panel) return "";
+    var qs = [];
+    var els = panel.querySelectorAll("input[id], select[id]");
+    for (var i = 0; i < els.length && qs.length < 6; i++) {
+      var el = els[i];
+      var v = el.value == null ? "" : el.value;
+      if (el.id && v !== "" && el.type !== "file" && el.type !== "search" && el.type !== "button") qs.push(encodeURIComponent(el.id) + "=" + encodeURIComponent(v));
+    }
+    if (!qs.length) return "";
+    return location.origin + location.pathname + "#" + mod + "?" + qs.join("&");
+  }
+
+  function wfBuildHandoff() {
     var roleEl = $("wf-role");
     var role = roleEl ? roleEl.value : "0";
     var roleName = roleEl && roleEl.selectedIndex >= 0 ? roleEl.options[roleEl.selectedIndex].textContent : "全部路径";
-    var dets = document.querySelectorAll("#panel-workflow .card:not(.res) details");
+    var vpaths = wfVisiblePaths(role);
     var lines = ["# 财务工作流 · 交接单", "", "- 岗位：" + roleName, "- 导出时间：" + new Date().toLocaleString("zh-CN"), ""];
-    var wfDone = getWfDone();
-    var wfMan = getWfMan();
-    for (var j = 0; j < dets.length; j++) {
-      var rr = (dets[j].getAttribute("data-role") || "").split(/\s+/);
-      if (role !== "0" && rr.indexOf(role) < 0) continue;
-      var al = dets[j].querySelectorAll("a[href^='#']");
-      if (!al.length) continue;
-      var sum = dets[j].querySelector("summary");
-      var sumTxt = "";
-      if (sum) {
-        var fn = sum.firstChild;
-        sumTxt = (fn && fn.nodeType === 3) ? fn.nodeValue.trim() : sum.textContent;
-      }
-      lines.push("## " + sumTxt.replace(/^[①-⑨]\s*/, ""));
-      for (var k = 0; k < al.length; k++) {
-        var hh = (al[k].getAttribute("href") || "").replace(/^#/, "").split("?")[0];
-        var key = j + "-" + k;
-        var auto = !!wfDone[hh];
-        var man = !!wfMan[key];
+    var rows = [];
+    for (var pi = 0; pi < vpaths.length; pi++) {
+      var p = vpaths[pi];
+      lines.push("## " + p.title);
+      for (var si = 0; si < p.steps.length; si++) {
+        var step = p.steps[si];
+        var key = wfStepKey(p.id, step.m);
+        var label = cmpTabName(step.m);
+        var stt = wfStepState(key);
+        var auto = !!WF_DONE[step.m];
         var note = (WF_NOTES[key] || "").trim();
-        var mark = man ? "✅ 本月已完成" : (auto ? "🟢 点开过" : "⬜ 未完成");
-        lines.push("- " + (man ? "[x]" : "[ ]") + " " + al[k].textContent.trim() + " — " + mark + (note ? " · 备注：" + note : ""));
+        var meta = WF_META[key] || {};
+        var mark = stt === "done" ? "✅ 本月已完成" : (stt === "skip" ? "⊘ 已跳过" : (auto ? "🟢 点开过" : "⬜ 未完成"));
+        var share = wfStepShare(step.m);
+        var metaTxt = [];
+        if (meta.est) metaTxt.push("约" + meta.est + "分钟");
+        if (meta.due) metaTxt.push("截止" + meta.due);
+        if (share) metaTxt.push("打开即此参数：" + share);
+        var extra = (note ? " · 备注：" + note : "") + (metaTxt.length ? " · " + metaTxt.join(" · ") : "");
+        lines.push("- " + (stt === "done" ? "[x]" : "[ ]") + " " + label + " — " + mark + extra);
+        rows.push([roleName, p.title, label, mark, note, meta.est ? String(meta.est) : "", meta.due || "", share]);
       }
       lines.push("");
     }
-    var blob = new Blob(["\ufeff" + lines.join("\n")], { type: "text/markdown;charset=utf-8" });
+    return { md: lines.join("\n"), rows: rows };
+  }
+  function wfHandoff() {
+    var h = wfBuildHandoff();
+    var blob = new Blob(["\ufeff" + h.md], { type: "text/markdown;charset=utf-8" });
     var link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
     link.download = "财务计算器-工作流交接单.md";
@@ -1755,106 +1913,383 @@
     URL.revokeObjectURL(link.href);
     toast("已导出交接单");
   }
+  function wfHandoffCopy() {
+    var h = wfBuildHandoff();
+    copyText(h.md).then(function () { toast("已复制交接单（Markdown）"); }).catch(function () { toast("复制失败"); });
+  }
+  function wfCsvCell(s) {
+    s = String(s == null ? "" : s);
+    if (/[",\n]/.test(s)) s = '"' + s.replace(/"/g, '""') + '"';
+    return s;
+  }
+  function wfHandoffCsv() {
+    var h = wfBuildHandoff();
+    var out = ["岗位,路径,步骤,状态,备注,预计分钟,截止日期,打开即此参数"];
+    for (var i = 0; i < h.rows.length; i++) {
+      var r = h.rows[i], cells = [];
+      for (var c = 0; c < r.length; c++) cells.push(wfCsvCell(r[c]));
+      out.push(cells.join(","));
+    }
+    var blob = new Blob(["\ufeff" + out.join("\r\n")], { type: "text/csv;charset=utf-8" });
+    var link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "财务计算器-工作流交接单.csv";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+    toast("已导出 CSV");
+  }
+
+  function wfFillCustSel() {
+    var sel = $("wf-cust-add");
+    if (!sel || sel.getAttribute("data-filled")) return;
+    var catList = [];
+    var cats = document.querySelectorAll(".cat[data-cat]");
+    for (var ci = 0; ci < cats.length; ci++) {
+      var cc = cats[ci].getAttribute("data-cat");
+      if (cc === "fav" || cc === "recent") continue;
+      var seen = false;
+      for (var s = 0; s < catList.length; s++) if (catList[s][0] === cc) { seen = true; break; }
+      if (!seen) catList.push([cc, cats[ci].getAttribute("data-label") || cats[ci].textContent.trim()]);
+    }
+    var groups = {};
+    var tabs = document.querySelectorAll(".tab[data-tab]");
+    for (var ti = 0; ti < tabs.length; ti++) {
+      var tid = tabs[ti].getAttribute("data-tab");
+      if (tid === "workflow") continue;
+      var catTok = (tabs[ti].getAttribute("data-cat") || "hot").split(/\s+/)[0];
+      if (catTok === "fav" || catTok === "recent") catTok = "hot";
+      if (!groups[catTok]) groups[catTok] = [];
+      groups[catTok].push([tid, tabs[ti].textContent.replace(/\s+/g, "")]);
+    }
+    for (var gi = 0; gi < catList.length; gi++) {
+      var arr = groups[catList[gi][0]];
+      if (!arr || !arr.length) continue;
+      var og = document.createElement("optgroup");
+      og.label = catList[gi][1];
+      for (var ai = 0; ai < arr.length; ai++) {
+        var op = document.createElement("option");
+        op.value = arr[ai][0];
+        op.textContent = arr[ai][1];
+        og.appendChild(op);
+      }
+      sel.appendChild(og);
+    }
+    sel.setAttribute("data-filled", "1");
+  }
+  function wfBindCustQ() {
+    var qEl = $("wf-cust-q");
+    if (!qEl || qEl.getAttribute("data-bound")) return;
+    qEl.setAttribute("data-bound", "1");
+    qEl.addEventListener("input", function () {
+      var q = (this.value || "").trim().toLowerCase();
+      var sel = $("wf-cust-add");
+      if (!sel) return;
+      var ogs = sel.querySelectorAll("optgroup");
+      for (var i = 0; i < ogs.length; i++) {
+        var any = false;
+        var ops = ogs[i].querySelectorAll("option");
+        for (var oi = 0; oi < ops.length; oi++) {
+          var ok = !q || ops[oi].textContent.toLowerCase().indexOf(q) >= 0;
+          ops[oi].hidden = !ok;
+          if (ok) any = true;
+        }
+        ogs[i].hidden = !any;
+      }
+    });
+  }
+
+  function bindWfDnd() {
+    var box = $("wf-cust-links");
+    if (!box || box.getAttribute("data-dnd")) return;
+    box.setAttribute("data-dnd", "1");
+    var dragIdx = -1;
+    box.addEventListener("dragstart", function (e) {
+      var chip = e.target && e.target.closest ? e.target.closest(".wf-chip") : null;
+      if (!chip) return;
+      dragIdx = +chip.getAttribute("data-idx");
+      try { e.dataTransfer.setData("text/plain", String(dragIdx)); } catch (err) {}
+      chip.classList.add("wf-drag");
+    });
+    box.addEventListener("dragend", function (e) {
+      var chip = e.target && e.target.closest ? e.target.closest(".wf-chip") : null;
+      if (chip) chip.classList.remove("wf-drag");
+      dragIdx = -1;
+    });
+    box.addEventListener("dragover", function (e) {
+      if (dragIdx < 0) return;
+      e.preventDefault();
+      try { e.dataTransfer.dropEffect = "move"; } catch (err) {}
+    });
+    box.addEventListener("drop", function (e) {
+      e.preventDefault();
+      if (dragIdx < 0) return;
+      var chip = e.target && e.target.closest ? e.target.closest(".wf-chip") : null;
+      if (!chip) return;
+      var to = +chip.getAttribute("data-idx");
+      if (to !== dragIdx) {
+        var item = WF_CUST.splice(dragIdx, 1)[0];
+        WF_CUST.splice(to, 0, item);
+        saveWfCust(); runCalc("workflow");
+      }
+      dragIdx = -1;
+    });
+  }
+
+  function wfOpenInline(key, anchor) {
+    var inline = $("wf-inline");
+    if (!inline) return;
+    inline.setAttribute("data-key", key);
+    var ta = $("wf-inline-ta"); if (ta) ta.value = WF_NOTES[key] || "";
+    var meta = WF_META[key] || {};
+    var estEl = $("wf-inline-est"); if (estEl) estEl.value = meta.est || "";
+    var dueEl = $("wf-inline-due"); if (dueEl) dueEl.value = meta.due || "";
+    inline.hidden = false;
+    var r = anchor.getBoundingClientRect();
+    var w = Math.min(340, window.innerWidth - 24);
+    var left = Math.max(12, Math.min(r.left, window.innerWidth - w - 12));
+    var top = r.bottom + 6;
+    if (top + 180 > window.innerHeight) top = Math.max(12, r.top - 180);
+    inline.style.left = left + "px";
+    inline.style.top = top + "px";
+    inline.style.width = w + "px";
+    if (ta) setTimeout(function () { try { ta.focus(); } catch (e) {} }, 30);
+  }
+  function bindWfInline() {
+    var inline = $("wf-inline");
+    if (!inline || inline.getAttribute("data-bound")) return;
+    inline.setAttribute("data-bound", "1");
+    if ($("wf-inline-save")) $("wf-inline-save").addEventListener("click", function () {
+      var key = inline.getAttribute("data-key") || "";
+      if (!key) { inline.hidden = true; return; }
+      var ta = $("wf-inline-ta");
+      if (ta) {
+        var v = (ta.value || "").trim();
+        if (v) WF_NOTES[key] = v; else delete WF_NOTES[key];
+      }
+      var meta = WF_META[key] || {};
+      var estEl = $("wf-inline-est"), dueEl = $("wf-inline-due");
+      if (estEl) { var est = parseInt(estEl.value || "0", 10); if (est > 0) meta.est = est; else delete meta.est; }
+      if (dueEl) { if (dueEl.value) meta.due = dueEl.value; else delete meta.due; }
+      if (Object.keys(meta).length) WF_META[key] = meta; else delete WF_META[key];
+      wfNoteSave(); wfMetaSave();
+      inline.hidden = true;
+      runCalc("workflow");
+    });
+    if ($("wf-inline-cancel")) $("wf-inline-cancel").addEventListener("click", function () { inline.hidden = true; });
+    document.addEventListener("scroll", function () { if (!inline.hidden) inline.hidden = true; }, true);
+    document.addEventListener("click", function (e) {
+      if (!inline.hidden && e.target && !e.target.closest("#wf-inline") && !e.target.closest(".wf-note")) inline.hidden = true;
+    });
+  }
+
+
 
   var WF_AUTO_TIMER = null;
   var WF_AUTO_LIST = [];
   var WF_AUTO_IDX = 0;
+  var WF_AUTO_STEP = false;
   function wfAutoStop() {
     if (WF_AUTO_TIMER) { clearTimeout(WF_AUTO_TIMER); WF_AUTO_TIMER = null; }
     WF_AUTO_LIST = [];
     WF_AUTO_IDX = 0;
+    WF_AUTO_STEP = false;
     var b = $("wf-auto");
     if (b) b.textContent = "一键走完本岗位";
+    wfBar(false);
+  }
+  function wfRenderSummary(list) {
+    var box = $("wf-summary");
+    if (!box) return;
+    box.hidden = false;
+    var plain = [];
+    var html = '<h3>一键走完 · 结果汇总</h3><ol>';
+    for (var i = 0; i < list.length; i++) {
+      var it = list[i];
+      var panel = document.getElementById("panel-" + it.mod);
+      var big = "";
+      if (panel) { var bb = panel.querySelector(".big strong"); if (bb) big = bb.textContent.trim(); }
+      var line = (i + 1) + ". " + it.label + "：" + (big || "—");
+      plain.push(line);
+      html += "<li>" + line.replace(/&/g, "&amp;").replace(/</g, "&lt;") + "</li>";
+    }
+    html += '</ol><button type="button" id="wf-summary-copy" class="ghost sm">复制摘要</button>';
+    box.innerHTML = html;
+    var cp = document.getElementById("wf-summary-copy");
+    if (cp) cp.onclick = function () {
+      copyText("财务工作流 · 一键走完结果\n" + plain.join("\n")).then(function () { toast("已复制摘要"); }).catch(function () { toast("复制失败"); });
+    };
+    toast("已走完 " + list.length + " 步，结果汇总见右侧");
+  }
+  /* 浮动步骤条：切到别的模块后仍能「继续/跳过/结束」 */
+  function wfBar(show, stepMode) {
+    var bar = $("wf-stepbar");
+    if (!show) { if (bar) { bar.hidden = true; bar.innerHTML = ""; } return; }
+    if (!bar) {
+      bar = document.createElement("div");
+      bar.id = "wf-stepbar";
+      bar.className = "wf-stepbar";
+      bar.setAttribute("role", "status");
+      document.body.appendChild(bar);
+    }
+    bar.hidden = false;
+    bar.innerHTML = "";
+    var cur = WF_AUTO_LIST[WF_AUTO_IDX - 1];
+    var lab = document.createElement("span");
+    lab.className = "wf-stepbar-lab";
+    lab.textContent = "工作流 " + WF_AUTO_IDX + "/" + WF_AUTO_LIST.length + (cur ? " · " + cur.label : "");
+    bar.appendChild(lab);
+    if (stepMode) {
+      var nx = document.createElement("button");
+      nx.type = "button"; nx.id = "wf-step-next"; nx.className = "ghost sm"; nx.textContent = "继续下一步 ▸";
+      var sk = document.createElement("button");
+      sk.type = "button"; sk.id = "wf-step-skip"; sk.className = "ghost sm"; sk.textContent = "跳过本步";
+      bar.appendChild(nx); bar.appendChild(sk);
+    }
+    var st = document.createElement("button");
+    st.type = "button"; st.id = "wf-step-stop"; st.className = "ghost sm"; st.textContent = "结束";
+    bar.appendChild(st);
+  }
+  function wfSkipCurrent() {
+    if (!WF_AUTO_STEP || WF_AUTO_IDX <= 0) return;
+    var cur = WF_AUTO_LIST[WF_AUTO_IDX - 1];
+    if (cur && cur.key) { WF_SKIP[cur.key] = 1; delete WF_MAN[cur.key]; wfManSave(); wfSkipSave(); }
+  }
+  function wfAutoNext() {
+    if (!WF_AUTO_LIST.length) return;
+    if (WF_AUTO_IDX >= WF_AUTO_LIST.length) {
+      var doneList = WF_AUTO_LIST;
+      wfAutoStop();
+      wfRenderSummary(doneList);
+      return;
+    }
+    var item = WF_AUTO_LIST[WF_AUTO_IDX];
+    WF_AUTO_IDX++;
+    if (location.hash !== item.href) location.hash = item.href;
+    var speed = $("wf-speed") ? $("wf-speed").value : "1500";
+    var b = $("wf-auto");
+    if (speed === "step") {
+      WF_AUTO_STEP = true;
+      if (b) b.textContent = "继续下一步 ▸（" + WF_AUTO_IDX + "/" + WF_AUTO_LIST.length + "）";
+      wfBar(true, true);
+    } else {
+      var ms = parseInt(speed, 10) || 1500;
+      if (b) b.textContent = "停止走完（" + WF_AUTO_IDX + "/" + WF_AUTO_LIST.length + "）";
+      wfBar(true, false);
+      WF_AUTO_TIMER = setTimeout(wfAutoNext, ms);
+    }
   }
   function wfAutoWalk() {
-    if (WF_AUTO_TIMER) { wfAutoStop(); toast("已停止自动走流程"); return; }
+    if (WF_AUTO_TIMER || WF_AUTO_STEP) {
+      if (WF_AUTO_STEP) { wfAutoNext(); return; }
+      wfAutoStop(); toast("已停止自动走流程"); return;
+    }
     var roleEl = $("wf-role");
     var role = roleEl ? roleEl.value : "0";
-    var dets = document.querySelectorAll("#panel-workflow .card:not(.res) details");
+    var vpaths = wfVisiblePaths(role);
     var list = [];
-    for (var j = 0; j < dets.length; j++) {
-      var rr = (dets[j].getAttribute("data-role") || "").split(/\s+/);
-      if (role !== "0" && rr.indexOf(role) < 0) continue;
-      var al = dets[j].querySelectorAll("a[href^='#']");
-      for (var k = 0; k < al.length; k++) list.push(al[k].getAttribute("href"));
+    for (var i = 0; i < vpaths.length; i++) {
+      for (var k = 0; k < vpaths[i].steps.length; k++) {
+        var step = vpaths[i].steps[k];
+        var q = wfCarryQuery(step.carry);
+        list.push({
+          href: "#" + step.m + (q ? "?" + q : ""),
+          label: cmpTabName(step.m),
+          mod: step.m,
+          key: wfStepKey(vpaths[i].id, step.m)
+        });
+      }
     }
     if (!list.length) { toast("这条路径没有步骤"); return; }
     WF_AUTO_LIST = list;
     WF_AUTO_IDX = 0;
+    WF_AUTO_STEP = false;
     var b = $("wf-auto");
-    if (b) b.textContent = "停止走完（" + list.length + " 步）";
-    var step = function () {
-      if (WF_AUTO_IDX >= WF_AUTO_LIST.length) {
-        var n = WF_AUTO_LIST.length;
-        wfAutoStop();
-        var bb = $("wf-auto");
-        if (bb) bb.textContent = "一键走完本岗位";
-        toast("已按顺序走完 " + n + " 步，可逐个回看结果");
-        return;
-      }
-      var href = WF_AUTO_LIST[WF_AUTO_IDX];
-      WF_AUTO_IDX++;
-      if (location.hash !== href) location.hash = href;
-      WF_AUTO_TIMER = setTimeout(step, 1100);
-    };
-    step();
+    if (b) b.textContent = "停止走完（0/" + list.length + "）";
+    wfAutoNext();
   }
+
   document.addEventListener("click", function (e) {
-    if (WF_AUTO_TIMER && e.target && e.target.closest && e.target.closest(".tab, .cat")) {
+    if ((WF_AUTO_TIMER || WF_AUTO_STEP) && e.target && e.target.closest && e.target.closest(".tab, .cat")) {
       wfAutoStop();
     }
     var t = e.target && e.target.closest ? e.target.closest(".wf-tick") : null;
     if (t) {
-      toggleWfMan(t.getAttribute("data-step") || "");
-      if (typeof refreshWfBadge === "function") refreshWfBadge();
-      if (typeof runCalc === "function") runCalc("workflow");
+      toggleWfStep(t.getAttribute("data-step") || "");
+      refreshWfBadge();
+      runCalc("workflow");
       return;
     }
-    if (e.target && e.target.closest && e.target.closest("#wf-auto")) {
-      wfAutoWalk();
+    if (e.target && e.target.closest && e.target.closest("#wf-auto")) { wfAutoWalk(); return; }
+    if (e.target && e.target.closest && e.target.closest("#wf-step-next")) { wfAutoNext(); return; }
+    if (e.target && e.target.closest && e.target.closest("#wf-step-skip")) {
+      wfSkipCurrent();
+      wfAutoNext();
       return;
+    }
+    if (e.target && e.target.closest && e.target.closest("#wf-step-stop")) {
+      wfAutoStop(); toast("已结束走流程"); return;
     }
     if (e.target && e.target.closest && e.target.closest("#wf-clear")) {
       clearWfMan();
-      if (typeof refreshWfBadge === "function") refreshWfBadge();
-      if (typeof runCalc === "function") runCalc("workflow");
-      toast("已清空本月手动打勾");
+      refreshWfBadge();
+      runCalc("workflow");
+      toast("已归档本月进度，并清空本月打勾/跳过");
       return;
     }
-    if (e.target && e.target.closest && e.target.closest("#wf-handoff")) {
-      wfHandoff();
-      return;
-    }
+    if (e.target && e.target.closest && e.target.closest("#wf-handoff")) { wfHandoff(); return; }
+    if (e.target && e.target.closest && e.target.closest("#wf-handoff-copy")) { wfHandoffCopy(); return; }
+    if (e.target && e.target.closest && e.target.closest("#wf-handoff-csv")) { wfHandoffCsv(); return; }
     var nb = e.target && e.target.closest ? e.target.closest(".wf-note") : null;
     if (nb) {
-      var nkey = nb.getAttribute("data-step") || "";
-      var cur = WF_NOTES[nkey] || "";
-      var v = window.prompt("给这一步写一句备注（交接时能看到，可留空）：", cur);
-      if (v !== null) {
-        if (v.trim()) { WF_NOTES[nkey] = v.trim(); } else { delete WF_NOTES[nkey]; }
-        wfNoteSave();
-        if (typeof runCalc === "function") runCalc("workflow");
-      }
+      wfOpenInline(nb.getAttribute("data-step") || "", nb);
       return;
     }
     if (e.target && e.target.closest && e.target.closest("#wf-cust-addbtn")) {
       var sel = $("wf-cust-add");
       var vv = sel ? sel.value : "";
       if (!vv) { toast("先挑一个模块"); return; }
-      if (WF_CUST.indexOf(vv) < 0) { WF_CUST.push(vv); saveWfCust(); if (typeof runCalc === "function") runCalc("workflow"); }
+      if (WF_CUST.indexOf(vv) >= 0) { toast("这个模块已经在路径里了"); return; }
+      var atSel2 = $("wf-cust-at");
+      var at = atSel2 ? atSel2.value : "end";
+      if (at === "end") WF_CUST.push(vv);
+      else { var pos = parseInt(at, 10); if (pos >= 0 && pos <= WF_CUST.length) WF_CUST.splice(pos, 0, vv); else WF_CUST.push(vv); }
+      saveWfCust();
+      runCalc("workflow");
       return;
     }
     if (e.target && e.target.closest && e.target.closest("#wf-cust-clear")) {
-      WF_CUST = []; saveWfCust(); if (typeof runCalc === "function") runCalc("workflow"); toast("已清空我的路径");
+      WF_CUST = []; saveWfCust(); runCalc("workflow"); toast("已清空我的路径");
+      return;
+    }
+    if (e.target && e.target.closest && e.target.closest("#wf-cust-share")) {
+      if (!WF_CUST.length) { toast("路径还是空的"); return; }
+      var payload = encodeURIComponent(JSON.stringify({ n: WF_CUST_NAME || "我的路径", p: WF_CUST }));
+      var url = location.origin + location.pathname + "#workflow?wfimport=" + payload;
+      copyText(url).then(function () { toast("已复制路径链接，发给同事打开即可导入"); }).catch(function () { toast("复制失败"); });
+      return;
+    }
+    var up = e.target && e.target.closest ? e.target.closest(".wf-cust-up") : null;
+    if (up) {
+      var idx = parseInt(up.getAttribute("data-idx") || "-1", 10);
+      if (idx > 0 && idx < WF_CUST.length) { var tmp = WF_CUST[idx]; WF_CUST[idx] = WF_CUST[idx - 1]; WF_CUST[idx - 1] = tmp; saveWfCust(); runCalc("workflow"); }
+      return;
+    }
+    var dn = e.target && e.target.closest ? e.target.closest(".wf-cust-down") : null;
+    if (dn) {
+      var idx2 = parseInt(dn.getAttribute("data-idx") || "-1", 10);
+      if (idx2 >= 0 && idx2 < WF_CUST.length - 1) { var tmp2 = WF_CUST[idx2]; WF_CUST[idx2] = WF_CUST[idx2 + 1]; WF_CUST[idx2 + 1] = tmp2; saveWfCust(); runCalc("workflow"); }
       return;
     }
     var cd = e.target && e.target.closest ? e.target.closest(".wf-cust-del") : null;
     if (cd) {
-      var idx = parseInt(cd.getAttribute("data-idx") || "-1", 10);
-      if (idx >= 0 && idx < WF_CUST.length) { WF_CUST.splice(idx, 1); saveWfCust(); if (typeof runCalc === "function") runCalc("workflow"); }
+      var idx3 = parseInt(cd.getAttribute("data-idx") || "-1", 10);
+      if (idx3 >= 0 && idx3 < WF_CUST.length) { WF_CUST.splice(idx3, 1); saveWfCust(); runCalc("workflow"); }
       return;
     }
   });
+
 
 
 
@@ -1939,13 +2374,263 @@
     renderLoanTable();
   }
 
+  function calcWorkflow() {
+    loadWfDone();
+    loadWfMan();
+    loadWfSkip();
+    loadWfCust();
+    loadWfNotes();
+    loadWfMeta();
+    loadWfArch();
+    wfMigrateLegacy();
+
+    /* 深链导入自定义路径 #workflow?wfimport=... */
+    var ht = hashTarget();
+    if (ht.name === "workflow" && ht.params) {
+      var pairs = ht.params.split("&");
+      for (var hpi = 0; hpi < pairs.length; hpi++) {
+        if (pairs[hpi].indexOf("wfimport=") === 0) {
+          try {
+            var imp = JSON.parse(decodeURIComponent(pairs[hpi].slice("wfimport=".length)));
+            if (imp && Array.isArray(imp.p) && imp.p.length) {
+              WF_CUST = imp.p.slice(0, 40);
+              WF_CUST_NAME = imp.n ? String(imp.n).slice(0, 12) : WF_CUST_NAME;
+              saveWfCust(); wfCustNameSave();
+              /* 导入后直接切到「我的路径」，否则用户看不到刚导入的东西 */
+              var impRole = $("wf-role");
+              if (impRole) { impRole.value = "9"; try { localStorage.setItem(WF_ROLE_KEY, "9"); } catch (err2) {} }
+              toast("已导入路径「" + (WF_CUST_NAME || "我的路径") + "」(" + WF_CUST.length + " 步)");
+            }
+          } catch (err) {}
+        }
+      }
+    }
+
+    var roleEl = $("wf-role");
+    if (roleEl) {
+      /* 只在本次页面加载后第一次重算时恢复岗位，之后以 select 当前值为准，
+         否则用户刚选的岗位会被存储里的旧值改回去 */
+      if (!WF_ROLE_READY) {
+        var savedRole = "";
+        try { savedRole = localStorage.getItem(WF_ROLE_KEY) || ""; } catch (err) {}
+        if (savedRole) roleEl.value = savedRole;
+        WF_ROLE_READY = true;
+      }
+      try { localStorage.setItem(WF_ROLE_KEY, roleEl.value); } catch (err) {}
+    }
+    var role = roleEl ? roleEl.value : "0";
+    var vpaths = wfVisiblePaths(role);
+    var vpathIds = {};
+    for (var vpi = 0; vpi < vpaths.length; vpi++) vpathIds[vpaths[vpi].id] = 1;
+
+    /* 我的路径控件显隐 */
+    var custOn = role === "9";
+    var ctl1 = $("wf-cust-ctl"), ctl2 = $("wf-cust-ctl2"), ctl3 = $("wf-cust-ctl3");
+    if (ctl1) ctl1.hidden = !custOn;
+    if (ctl2) ctl2.hidden = !custOn;
+    if (ctl3) ctl3.hidden = !custOn;
+    if (custOn) {
+      wfFillCustSel();
+      wfBindCustQ();
+      var atSel = $("wf-cust-at");
+      if (atSel) {
+        atSel.innerHTML = "";
+        var opEnd = document.createElement("option");
+        opEnd.value = "end"; opEnd.textContent = "加到末尾";
+        atSel.appendChild(opEnd);
+        for (var ai = 0; ai <= WF_CUST.length; ai++) {
+          var op = document.createElement("option");
+          op.value = String(ai);
+          op.textContent = "插到第 " + (ai + 1) + " 位";
+          atSel.appendChild(op);
+        }
+      }
+    }
+    var nameInput = $("wf-cust-name");
+    if (nameInput) {
+      if (nameInput.value !== WF_CUST_NAME) nameInput.value = WF_CUST_NAME;
+      nameInput.oninput = function () { WF_CUST_NAME = this.value; wfCustNameSave(); };
+    }
+
+    /* 渲染步骤 */
+    var dets = document.querySelectorAll("#panel-workflow .card:not(.res) details");
+    var total = 0, done = 0, man = 0, skip = 0, dueSoon = 0, nextEl = null;
+    var today0 = new Date(); today0.setHours(0, 0, 0, 0);
+    var weekLater = today0.getTime() + 8 * 86400000;
+    for (var di = 0; di < dets.length; di++) {
+      var pid = dets[di].getAttribute("data-path");
+      var visible = !!vpathIds[pid];
+      dets[di].classList.toggle("wf-hide", !visible);
+      if (!visible) continue;
+      if (pid === "mine" && role === "9") dets[di].open = true;
+      var path = null;
+      for (var pi = 0; pi < vpaths.length; pi++) if (vpaths[pi].id === pid) { path = vpaths[pi]; break; }
+      if (!path) continue;
+      var sum = dets[di].querySelector("summary");
+      if (sum) {
+        var firstTxt = null;
+        for (var cn = 0; cn < sum.childNodes.length; cn++) if (sum.childNodes[cn].nodeType === 3) { firstTxt = sum.childNodes[cn]; break; }
+        var titleText = (path.no ? path.no + " " : "") + path.title;
+        if (firstTxt) firstTxt.nodeValue = titleText + " ";
+        else sum.insertBefore(document.createTextNode(titleText + " "), sum.firstChild);
+      }
+      var box = dets[di].querySelector(".jump");
+      if (!box) continue;
+      box.innerHTML = "";
+      var pTotal = 0, pDone = 0, pMan = 0, pSkip = 0;
+      for (var si = 0; si < path.steps.length; si++) {
+        var step = path.steps[si];
+        var key = wfStepKey(pid, step.m);
+        var q = wfCarryQuery(step.carry);
+        var href = "#" + step.m + (q ? "?" + q : "");
+        var host = box;
+        var chip = null;
+        if (path.id === "mine") {
+          chip = document.createElement("span");
+          chip.className = "wf-chip";
+          chip.setAttribute("draggable", "true");
+          chip.setAttribute("data-idx", String(si));
+          if (si > 0) box.appendChild(document.createTextNode(" "));
+          box.appendChild(chip);
+          host = chip;
+        } else if (si > 0) {
+          box.appendChild(document.createTextNode(" → "));
+        }
+        var aEl = document.createElement("a");
+        aEl.setAttribute("href", href);
+        aEl.setAttribute("data-mod", step.m);
+        aEl.textContent = cmpTabName(step.m);
+        host.appendChild(aEl);
+        var stt = wfStepState(key);
+        if (WF_DONE[step.m]) aEl.classList.add("wf-done");
+        if (stt === "skip") aEl.classList.add("wf-skip");
+        var tick = document.createElement("button");
+        tick.type = "button"; tick.className = "wf-tick"; tick.setAttribute("data-step", key);
+        tick.setAttribute("aria-label", "状态：未做 → 本月完成 → 跳过");
+        tick.textContent = stt === "skip" ? "⊘" : "✓";
+        if (stt === "done") tick.classList.add("on");
+        if (stt === "skip") tick.classList.add("skip");
+        host.appendChild(tick);
+        var nb = document.createElement("button");
+        nb.type = "button"; nb.className = "wf-note"; nb.setAttribute("data-step", key);
+        nb.setAttribute("aria-label", "备注 / 预计分钟 / 截止日期");
+        nb.textContent = "✎";
+        var meta = WF_META[key] || {};
+        var noteTxt = (WF_NOTES[key] || "").trim();
+        if (noteTxt || meta.due || meta.est) nb.classList.add("on");
+        host.appendChild(nb);
+        if (noteTxt || meta.due || meta.est) {
+          var parts = [];
+          if (noteTxt) parts.push(noteTxt);
+          if (meta.est) parts.push("约" + meta.est + "分钟");
+          if (meta.due) parts.push("截止" + meta.due);
+          var nv = document.createElement("span");
+          nv.className = "wf-notev";
+          nv.textContent = parts.join(" · ");
+          host.appendChild(nv);
+        }
+        if (chip) {
+          var upB = document.createElement("button");
+          upB.type = "button"; upB.className = "wf-cust-up"; upB.setAttribute("data-idx", String(si)); upB.title = "上移"; upB.textContent = "↑";
+          var dnB = document.createElement("button");
+          dnB.type = "button"; dnB.className = "wf-cust-down"; dnB.setAttribute("data-idx", String(si)); dnB.title = "下移"; dnB.textContent = "↓";
+          var delB = document.createElement("button");
+          delB.type = "button"; delB.className = "wf-cust-del"; delB.setAttribute("data-idx", String(si)); delB.title = "删除"; delB.textContent = "×";
+          chip.appendChild(upB); chip.appendChild(dnB); chip.appendChild(delB);
+        }
+        pTotal++;
+        if (WF_DONE[step.m]) pDone++;
+        if (stt === "done") pMan++;
+        else if (stt === "skip") pSkip++;
+        if (meta.due) {
+          var dueT = new Date(meta.due + "T00:00:00");
+          if (!isNaN(dueT.getTime()) && dueT.getTime() >= today0.getTime() && dueT.getTime() < weekLater) dueSoon++;
+        }
+        if (!nextEl && stt === "none") nextEl = aEl;
+      }
+      if (path.id === "mine" && path.steps.length === 0) {
+        box.textContent = "还没有步骤：从下面搜模块加进来。";
+      }
+      total += pTotal; done += pDone; man += pMan; skip += pSkip;
+      if (sum) {
+        var oldB = sum.querySelector(".wfp"); if (oldB) oldB.remove();
+        var oldM = sum.querySelector(".wfpm"); if (oldM) oldM.remove();
+        var oldS = sum.querySelector(".wfps"); if (oldS) oldS.remove();
+        var b = document.createElement("span");
+        b.className = "wfp" + (pDone === pTotal && pTotal > 0 ? " wfp-full" : "");
+        b.textContent = pDone + "/" + pTotal;
+        var m2 = document.createElement("span");
+        m2.className = "wfpm" + (pMan === pTotal && pTotal > 0 ? " wfpm-full" : "");
+        m2.textContent = "本月 " + pMan + "/" + pTotal;
+        sum.appendChild(b); sum.appendChild(m2);
+        if (pSkip > 0) {
+          var s2 = document.createElement("span");
+          s2.className = "wfps";
+          s2.textContent = "跳过 " + pSkip;
+          sum.appendChild(s2);
+        }
+      }
+    }
+    WF_LAST = { total: total, done: done, man: man, skip: skip };
+
+    if ($("wf-big")) $("wf-big").textContent = done + "/" + total;
+    if ($("wf-donekv")) $("wf-donekv").textContent = done + " 步";
+    if ($("wf-mankv")) $("wf-mankv").textContent = man + " 步";
+    if ($("wf-skipkv")) $("wf-skipkv").textContent = skip + " 步";
+    if ($("wf-duekv")) $("wf-duekv").textContent = dueSoon + " 步";
+    var hist = Object.keys(WF_ARCH).sort().reverse().slice(0, 3).map(function (ym) {
+      var h = WF_ARCH[ym] || {};
+      return ym + " 完成 " + (h.man || 0) + "/" + (h.total || 0);
+    });
+    if ($("wf-histkv")) $("wf-histkv").textContent = hist.length ? hist.join(" · ") : "还没有存档";
+    var rec = [];
+    for (var ri = 0; ri < recentList.length && rec.length < 5; ri++) {
+      if (recentList[ri] === "workflow") continue;
+      rec.push(cmpTabName(recentList[ri]));
+    }
+    if ($("wf-recentkv")) $("wf-recentkv").textContent = rec.length ? rec.join(" · ") : "还没有记录";
+    if ($("wf-next")) {
+      $("wf-next").textContent = "";
+      if (nextEl) {
+        var na = document.createElement("a");
+        na.setAttribute("href", nextEl.getAttribute("href"));
+        na.textContent = nextEl.textContent.trim() + "（本月还没做）";
+        $("wf-next").appendChild(na);
+      } else {
+        $("wf-next").textContent = "本月全部处理完 ✓";
+      }
+    }
+    var linkBox = $("wf-linkkv");
+    if (linkBox) {
+      linkBox.textContent = "";
+      if (total > 0) {
+        var la = document.createElement("a");
+        la.setAttribute("href", "#monthclose?mw-total=" + encodeURIComponent(total) + "&mw-done=" + encodeURIComponent(man));
+        la.textContent = "→ 把本月完成（" + man + "/" + total + "）带进关账进度";
+        linkBox.appendChild(la);
+      }
+    }
+    var n = $("wf-note");
+    if (n) {
+      var roleName = roleEl && roleEl.options && roleEl.selectedIndex >= 0 ? roleEl.options[roleEl.selectedIndex].textContent : "";
+      var scoped = role !== "0" ? "（当前只看「" + roleName + "」这条）" : "";
+      if (done === 0) n.textContent = "点任意一步开始；点开过的模块自动打绿勾（累计）。「✓」循环：未做 → 本月完成 → 跳过；「✎」写备注、预计分钟、截止日期。月底点「归档并清空本月」。" + scoped;
+      else if (done >= total && total > 0) n.textContent = "当前路径全部点开过一遍。绿勾＝点开过（累计，不清空）；深色✓＝本月完成（每月点一次），⊘＝本月跳过。月底归档。" + scoped;
+      else n.textContent = "已点开 " + done + "/" + total + " 个。绿勾＝点开过（累计），深色✓＝本月完成，⊘＝本月跳过。" + scoped;
+    }
+    bindWfDnd();
+    bindWfInline();
+  }
+
+undefined
+
 undefined
 
   /* ---- 按分类懒加载：只有点到的模块才下载对应 chunk ---- */
   var CHUNK_OF = { "deposit": "save", "loan": "loan", "combo": "loan", "prepay": "loan", "compound": "save", "goal": "save", "installment": "life", "annual": "save", "inflation": "save", "tax": "tax", "deal": "life", "salary": "tax", "rentbuy": "house", "card": "life", "fx": "life", "fund": "loan", "lpr": "loan", "deed": "house", "split": "life", "pension": "tax", "sell": "house", "offset": "loan", "multi": "life", "repayvs": "loan", "edu": "family", "insure": "family", "car": "life", "bonus": "tax", "deduct": "tax", "ladder": "save", "rentyield": "house", "settle": "tax", "balance": "family", "selfins": "tax", "underpay": "tax", "loanways": "loan", "dca": "save", "checkup": "family", "calendar": "save", "cashflow": "family", "zeroloan": "loan", "riskalloc": "family", "penalty": "loan", "debtfree": "life", "fire": "family", "annualfee": "family", "budget": "house", "zhuan": "loan", "medins": "tax", "childcost": "family", "ppension": "tax", "fundlimit": "loan", "emergency": "family", "rule503020": "family", "debtmerge": "life", "freeperiod": "life", "overtime": "tax", "rentup": "house", "ev": "life", "vat": "acct-tax", "vatdue": "acct-tax", "deprec": "acct-cost", "breakeven": "acct-perf", "ratios": "acct-report", "recon": "acct-report", "expense": "acct-report", "aging": "acct-bd", "funding": "acct-cash", "pricing": "acct-perf", "triplede": "acct-report", "multimargin": "acct-perf", "apterms": "acct-bd", "assetledger": "acct-cost", "payage": "acct-bd", "costcard": "acct-cost", "budgetvar": "acct-cost", "finreport": "acct-report", "invoice": "acct-bd", "expbudget": "acct-report", "efficiency": "acct-report", "cashstmt": "acct-report", "invstock": "acct-bd", "exportrebate": "acct-tax", "tieout": "acct-bd", "feetrend": "acct-report2", "mpbe": "acct-perf", "payroll": "acct-perf", "assetdiff": "acct-cost", "monthclose": "acct-report", "factoring": "acct-cash", "deadstock": "acct-bd", "aptalk": "acct-cash", "cash13": "acct-cash", "bill": "acct-cash", "loanreal": "loan", "collect": "acct-bd", "mgmtpack": "acct-report", "settleway": "acct-cash", "creditline": "acct-cash", "impair": "acct-bd", "fxgain": "acct-cash", "taxburden": "acct-tax", "sens": "acct-report", "consol": "acct-report", "eoq": "acct-bd", "bplan": "acct-report", "refundflow": "acct-tax", "costalloc": "acct-cost", "importcost": "acct-perf", "makeorbuy": "acct-cost", "ecl": "acct-bd", "quotefx": "acct-perf", "capacity": "acct-cost", "mold": "acct-cost", "rebate": "acct-perf", "stdcost": "acct-cost", "svc": "acct-bd", "taxadj": "acct-tax", "supplier": "acct-bd", "debtcap": "acct-tax", "accdep": "acct-tax", "custwin": "acct-bd", "upgrade": "acct-cost", "deptalloc": "acct-cost", "payout": "acct-perf", "numwords": "util", "duedate": "util", "workday": "util", "cagr": "util", "apportion": "util", "grossup": "util", "trprice": "acct-cash", "esop": "acct-tax", "rdexp": "acct-tax", "rollfc": "acct-report", "commission": "acct-perf", "capex": "acct-cost", "pooling": "acct-cash", "creditlimit": "acct-cash", "contractperf": "acct-report2", "projrev": "acct-report2", "creditpolicy": "acct-bd", "rateadj": "tax", "invfund": "acct-bd", "machrate": "acct-cost", "govgrant": "acct-tax", "fxtranslate": "acct-report2", "rebateacc": "acct-perf", "pledgeloan": "acct-cash", "labvar": "acct-cost", "rdcap": "acct-tax", "processcost": "acct-cost", "makeoroutsource": "acct-cost", "rebatedta": "acct-tax", "leasebuy": "acct-cash", "welfare": "acct-tax", "inputout": "acct-tax", "stampduty": "acct-tax", "assetdisp": "acct-cost", "headcount": "acct-perf", "markroi": "acct-perf", "rdproject": "acct-cost", "intsvc": "acct-tax", "accrual": "acct-report2", "cfconsol": "acct-report2", "exportcheck": "acct-tax", "vatcheck": "acct-tax", "report": "family", "snaps": "util", "housecash": "house", "planner": "family", "healthcheck": "hot", "salesallow": "acct-tax", "lease": "acct-report2", "gpmix": "acct-report2", "vatchoose": "acct-tax", "datemath": "util", "pct3": "util", "xlhelp": "util", "csvrecon": "util", "bundle": "family", "monthly": "family", "yearcmp": "family", "yearreport": "family", "fifocost": "acct-cost", "hlcost": "acct-cost", "trialbal": "acct-report2", "citprep": "acct-tax", "rollbudget": "acct-report2", "csladv": "acct-report2", "taxwarn": "acct-tax", "loanledger": "acct-cash", "expcheck": "acct-report2", "dtax": "acct-tax", "invimpair": "acct-cost", "budgetalert": "acct-report2", "cashcycle": "acct-report2", "saleexp": "acct-perf", "deptcost": "acct-cost", "invvar": "acct-bd", "aroverdue": "acct-bd", "payterms": "acct-bd", "fxar": "acct-bd", "faimpair": "acct-cost", "costbehav": "acct-cost", "profitcenter": "acct-perf", "invorder": "acct-bd", "creditterm": "acct-bd", "workflow": "life", "excoll": "acct-cash", "assetdisptax": "acct-tax", "tpdocs": "acct-tax", "fxhedge": "acct-cash", "unbilled": "acct-bd", "deferred": "acct-tax", "interco": "acct-report", "sharepay": "acct-cost", "vatrefund": "acct-tax", "smallmicro": "acct-tax", "addcredit": "acct-tax", "losscontract": "acct-report2", "bankacct": "acct-cash", "equitychg": "acct-report2", "estimatechg": "acct-cost", "dtlind": "acct-tax", "relparty": "acct-bd", "repaircap": "acct-cost", "eps": "acct-report2" };
   var TABS = { "deposit": 1, "loan": 1, "combo": 1, "prepay": 1, "compound": 1, "goal": 1, "installment": 1, "annual": 1, "inflation": 1, "tax": 1, "deal": 1, "salary": 1, "rentbuy": 1, "card": 1, "fx": 1, "fund": 1, "lpr": 1, "deed": 1, "split": 1, "pension": 1, "sell": 1, "offset": 1, "multi": 1, "repayvs": 1, "edu": 1, "insure": 1, "car": 1, "bonus": 1, "deduct": 1, "ladder": 1, "rentyield": 1, "settle": 1, "balance": 1, "selfins": 1, "underpay": 1, "loanways": 1, "dca": 1, "checkup": 1, "calendar": 1, "cashflow": 1, "zeroloan": 1, "riskalloc": 1, "penalty": 1, "debtfree": 1, "fire": 1, "annualfee": 1, "budget": 1, "zhuan": 1, "medins": 1, "childcost": 1, "ppension": 1, "fundlimit": 1, "emergency": 1, "rule503020": 1, "debtmerge": 1, "freeperiod": 1, "overtime": 1, "rentup": 1, "ev": 1, "vat": 1, "vatdue": 1, "deprec": 1, "breakeven": 1, "ratios": 1, "recon": 1, "expense": 1, "aging": 1, "funding": 1, "pricing": 1, "triplede": 1, "multimargin": 1, "apterms": 1, "assetledger": 1, "payage": 1, "costcard": 1, "budgetvar": 1, "finreport": 1, "invoice": 1, "expbudget": 1, "efficiency": 1, "cashstmt": 1, "invstock": 1, "exportrebate": 1, "tieout": 1, "feetrend": 1, "mpbe": 1, "payroll": 1, "assetdiff": 1, "monthclose": 1, "factoring": 1, "deadstock": 1, "aptalk": 1, "cash13": 1, "bill": 1, "loanreal": 1, "collect": 1, "mgmtpack": 1, "settleway": 1, "creditline": 1, "impair": 1, "fxgain": 1, "taxburden": 1, "sens": 1, "consol": 1, "eoq": 1, "bplan": 1, "refundflow": 1, "costalloc": 1, "importcost": 1, "makeorbuy": 1, "ecl": 1, "quotefx": 1, "capacity": 1, "mold": 1, "rebate": 1, "stdcost": 1, "svc": 1, "taxadj": 1, "supplier": 1, "debtcap": 1, "accdep": 1, "custwin": 1, "upgrade": 1, "deptalloc": 1, "payout": 1, "numwords": 1, "duedate": 1, "workday": 1, "cagr": 1, "apportion": 1, "grossup": 1, "trprice": 1, "esop": 1, "rdexp": 1, "rollfc": 1, "commission": 1, "capex": 1, "pooling": 1, "creditlimit": 1, "contractperf": 1, "projrev": 1, "creditpolicy": 1, "rateadj": 1, "invfund": 1, "machrate": 1, "govgrant": 1, "fxtranslate": 1, "rebateacc": 1, "pledgeloan": 1, "labvar": 1, "rdcap": 1, "processcost": 1, "makeoroutsource": 1, "rebatedta": 1, "leasebuy": 1, "welfare": 1, "inputout": 1, "stampduty": 1, "assetdisp": 1, "headcount": 1, "markroi": 1, "rdproject": 1, "intsvc": 1, "accrual": 1, "cfconsol": 1, "exportcheck": 1, "vatcheck": 1, "report": 1, "snaps": 1, "housecash": 1, "planner": 1, "healthcheck": 1, "salesallow": 1, "lease": 1, "gpmix": 1, "vatchoose": 1, "datemath": 1, "pct3": 1, "xlhelp": 1, "csvrecon": 1, "bundle": 1, "monthly": 1, "yearcmp": 1, "yearreport": 1, "fifocost": 1, "hlcost": 1, "trialbal": 1, "citprep": 1, "rollbudget": 1, "csladv": 1, "taxwarn": 1, "loanledger": 1, "expcheck": 1, "dtax": 1, "invimpair": 1, "budgetalert": 1, "cashcycle": 1, "saleexp": 1, "deptcost": 1, "invvar": 1, "aroverdue": 1, "payterms": 1, "fxar": 1, "faimpair": 1, "costbehav": 1, "profitcenter": 1, "invorder": 1, "creditterm": 1, "workflow": 1, "excoll": 1, "assetdisptax": 1, "tpdocs": 1, "fxhedge": 1, "unbilled": 1, "deferred": 1, "interco": 1, "sharepay": 1, "vatrefund": 1, "smallmicro": 1, "addcredit": 1, "losscontract": 1, "bankacct": 1, "equitychg": 1, "estimatechg": 1, "dtlind": 1, "relparty": 1, "repaircap": 1, "eps": 1 };
-  var CHUNK_FILES = { "save": "assets/c-save.dc283f584b.js", "loan": "assets/c-loan.378e4b9a03.js", "life": "assets/c-life.ec6499e125.js", "tax": "assets/c-tax.050ae8890d.js", "house": "assets/c-house.56b93221f5.js", "family": "assets/c-family.18e418b0f5.js", "acct-tax": "assets/c-acct-tax.81ff0754f6.js", "acct-cost": "assets/c-acct-cost.f4a9233259.js", "acct-perf": "assets/c-acct-perf.b73e8c48de.js", "acct-report": "assets/c-acct-report.64bc116178.js", "acct-bd": "assets/c-acct-bd.c688fb6be6.js", "acct-cash": "assets/c-acct-cash.580e8981ac.js", "acct-report2": "assets/c-acct-report2.a524c74ea7.js", "util": "assets/c-util.8cb38dd51a.js", "hot": "assets/c-hot.d5b64c4275.js" };
-  var CORE_CALC = { "loan": calcLoan };
+  var CHUNK_FILES = { "save": "assets/c-save.81b7cccc5d.js", "loan": "assets/c-loan.8d2c7c1947.js", "life": "assets/c-life.91b18adf27.js", "tax": "assets/c-tax.b398101a5b.js", "house": "assets/c-house.6071a0bb66.js", "family": "assets/c-family.0c5427beee.js", "acct-tax": "assets/c-acct-tax.62e56f5e96.js", "acct-cost": "assets/c-acct-cost.341a413e79.js", "acct-perf": "assets/c-acct-perf.75eeec0222.js", "acct-report": "assets/c-acct-report.b71aae8f97.js", "acct-bd": "assets/c-acct-bd.023463bdee.js", "acct-cash": "assets/c-acct-cash.842b295c8e.js", "acct-report2": "assets/c-acct-report2.990a2aa8a6.js", "util": "assets/c-util.5a1a167b48.js", "hot": "assets/c-hot.eb520e685e.js" };
+  var CORE_CALC = { "loan": calcLoan, "workflow": calcWorkflow };
   var calcMap = {};
   Object.keys(CORE_CALC).forEach(function (k) { calcMap[k] = CORE_CALC[k]; });
   var chunkReady = {};
@@ -2549,7 +3234,7 @@ undefined
   var KEY = "finance-calc-v63";
   var CAT_KEY = "finance-calc-cat";
   /* 构建时由 build.mjs 注入为 "v<内容哈希>"，页脚展示，方便核对版本 */
-  var BUILD_TAG = "v584e422ad6";
+  var BUILD_TAG = "v599025c511";
 
   /* ---------------- 现金流月历 ---------------- */
 
@@ -3632,10 +4317,14 @@ undefined
     FIELDS.forEach(function (f) { var el = $(f); if (el && el.value !== "") data[f] = el.value; });
     var cat = "hot";
     try { cat = localStorage.getItem(CAT_KEY) || "hot"; } catch (e) {}
+    loadWfDone(); loadWfMan(); loadWfSkip(); loadWfCust(); loadWfNotes(); loadWfMeta(); loadWfArch();
+    var wfRole = "";
+    try { wfRole = localStorage.getItem(WF_ROLE_KEY) || ""; } catch (e) {}
     dlJson("财务计算器-备份-" + stamp() + ".json", {
       app: "finance-calc", kind: "all", v: 1, at: new Date().toISOString(),
       fields: data, fav: favList, presets: presets, snaps: loadSnaps(), cat: cat,
-      theme: document.documentElement.getAttribute("data-theme") || "light"
+      theme: document.documentElement.getAttribute("data-theme") || "light",
+      wf: { done: WF_DONE, man: WF_MAN, skip: WF_SKIP, notes: WF_NOTES, meta: WF_META, cust: WF_CUST, custname: WF_CUST_NAME, role: wfRole, arch: WF_ARCH }
     });
     flash(this, "已备份");
   });
@@ -3656,6 +4345,17 @@ undefined
         if (obj.snaps) localStorage.setItem(SNAP_KEY, JSON.stringify(obj.snaps.slice(0, 20)));
         if (obj.cat) localStorage.setItem(CAT_KEY, obj.cat);
         if (obj.theme) localStorage.setItem(THEME_KEY, obj.theme);
+        if (obj.wf) {
+          if (obj.wf.done) localStorage.setItem(WF_KEY, JSON.stringify(obj.wf.done));
+          if (obj.wf.man) localStorage.setItem(WF_MAN_KEY, JSON.stringify(obj.wf.man));
+          if (obj.wf.skip) localStorage.setItem(WF_SKIP_KEY, JSON.stringify(obj.wf.skip));
+          if (obj.wf.notes) localStorage.setItem(WF_NOTE_KEY, JSON.stringify(obj.wf.notes));
+          if (obj.wf.meta) localStorage.setItem(WF_META_KEY, JSON.stringify(obj.wf.meta));
+          if (obj.wf.cust) localStorage.setItem(WF_CUST_KEY, JSON.stringify(obj.wf.cust));
+          if (obj.wf.custname !== undefined) localStorage.setItem(WF_CUSTNAME_KEY, JSON.stringify(obj.wf.custname));
+          if (obj.wf.role) localStorage.setItem(WF_ROLE_KEY, obj.wf.role);
+          if (obj.wf.arch) localStorage.setItem(WF_ARCH_KEY, JSON.stringify(obj.wf.arch));
+        }
         save();
       } catch (e) {}
       location.reload();
@@ -3910,7 +4610,7 @@ undefined
   });
 
   /* chunk 里要用到的工具函数，统一挂到 window.FC */
-  window.FC = { $, BUILD_TAG, CAT_KEY, CAT_LABEL, CHUNK_FILES, CHUNK_OF, CMP_KEY, CORE_CALC, CURS, DEFERRED_TAPS, DIVISOR, EDITED, ERR_BOX, FAV_KEY, FIELDS, FIRST_ACTIVATE, KEY, LAST_KEY, MONTH_CATS, MONTH_TABLE, NEXT_OF, PALETTE_EL, PENDING_PARAMS, PRE_KEY, QUOTA_WARNED, RECENT_KEY, SAVE_TIMER, SEARCH_KEY, SNAP_KEY, SNAP_PICK, STORED, TABS, THEME_KEY, TOAST_EL, UNITS, WF_AUTO_IDX, WF_AUTO_LIST, WF_AUTO_TIMER, WF_CUST, WF_CUST_KEY, WF_DONE, WF_KEY, WF_MAN, WF_MAN_KEY, WF_NOTES, WF_NOTE_KEY, WF_ROLE_KEY, XL_ROWS, YEAR_TABLE, _onPanels, activate, addMonths, annuityPV, annuityPayment, applyFilter, applyParams, applyStoredTo, bizAdd, bonusSoloTax, buildLoanSchedule, buildShare, buildTabBadges, calcLoan, calcMap, clearWfMan, closePalette, cmpTabName, cnUpper, combineTax, convertTemp, copyText, cumulativeTax, curCat, currentSnap, diagText, dlJson, doPrint, drawMonthCats, drawMonthStack, drawReportCharts, drawRpMini, drawnMonthlyChart, drawnYearChart, enhanceNums, enhancePanelUi, ensureChunk, evalExpr, favList, fillCmpMod, fillMonthGrid, fillUnits, flash, flushParams, flushSave, fmt, fmtAt, fmtDate, fx, gauss, getWfCust, getWfDone, getWfMan, getWfNotes, hashTarget, isFav, lastName, leftAfter, linkTo, loadCmpA, loadSnaps, loadWfCust, loadWfDone, loadWfMan, loadWfNotes, loanRows, makeSnap, markBadInputs, matchQ, money, monthToDate, monthlyIRR, months, npvDiff, num, numBlur, numFocus, numInput, numKey, numOf, openPalette, palKey, panelEls, panelParams, parseAmounts, parseDate, parseNum, pct, percentile, plRank, plScoreCov, plScoreDsr, plScoreEmg, plScoreLev, plScoreSave, prePanels, presets, printCover, pushRecent, pushSearch, quickOf, rateOf, readJsonFile, readMonthGrid, recentList, recordWf, refreshCounts, refreshTableTools, refreshTrackMods, refreshWfBadge, renderLoanTable, renderNext, renderPalette, renderPresets, renderSearchHist, renderSnapCompare, renderSnapList, renderTrack, rentBuyAt, restore, runCalc, runDeferredTaps, save, saveCmpA, saveFav, savePresets, saveSnaps, saveWfCust, savedCat, scrollResultIfDeepLink, searchHist, setCat, setSub, setTheme, showErrorBox, showUpdateBar, snapNameOf, snapshot, st0, stamp, startName, tabCatLabel, tap, taxBy, toast, toggleWfMan, trimNum, unitFor, updShown, wfAutoStop, wfAutoWalk, wfHandoff, wfManSave, wfNoteSave, wfSave, yuan, zOf };
+  window.FC = { $, BUILD_TAG, CAT_KEY, CAT_LABEL, CHUNK_FILES, CHUNK_OF, CMP_KEY, CORE_CALC, CURS, DEFERRED_TAPS, DIVISOR, EDITED, ERR_BOX, FAV_KEY, FIELDS, FIRST_ACTIVATE, KEY, LAST_KEY, MONTH_CATS, MONTH_TABLE, NEXT_OF, PALETTE_EL, PENDING_PARAMS, PRE_KEY, QUOTA_WARNED, RECENT_KEY, SAVE_TIMER, SEARCH_KEY, SNAP_KEY, SNAP_PICK, STORED, TABS, THEME_KEY, TOAST_EL, UNITS, WF_ARCH_KEY, WF_AUTO_IDX, WF_AUTO_LIST, WF_AUTO_STEP, WF_AUTO_TIMER, WF_CUSTNAME_KEY, WF_CUST_KEY, WF_CUST_NAME, WF_DONE, WF_KEY, WF_LAST, WF_LEGACY, WF_MAN_KEY, WF_META_KEY, WF_NOTE_KEY, WF_PATHS, WF_ROLE_KEY, WF_ROLE_READY, WF_SKIP_KEY, XL_ROWS, YEAR_TABLE, _onPanels, activate, addMonths, annuityPV, annuityPayment, applyFilter, applyParams, applyStoredTo, bindWfDnd, bindWfInline, bizAdd, bonusSoloTax, buildLoanSchedule, buildShare, buildTabBadges, calcLoan, calcMap, calcWorkflow, clearWfMan, closePalette, cmpTabName, cnUpper, combineTax, convertTemp, copyText, cumulativeTax, curCat, currentSnap, diagText, dlJson, doPrint, drawMonthCats, drawMonthStack, drawReportCharts, drawRpMini, drawnMonthlyChart, drawnYearChart, enhanceNums, enhancePanelUi, ensureChunk, evalExpr, favList, fillCmpMod, fillMonthGrid, fillUnits, flash, flushParams, flushSave, fmt, fmtAt, fmtDate, fx, gauss, getWfCust, getWfDone, getWfMan, getWfMeta, getWfNotes, getWfSkip, hashTarget, isFav, lastName, leftAfter, linkTo, loadCmpA, loadSnaps, loadWfArch, loadWfCust, loadWfDone, loadWfMan, loadWfMeta, loadWfNotes, loadWfSkip, loanRows, makeSnap, markBadInputs, matchQ, money, monthToDate, monthlyIRR, months, npvDiff, num, numBlur, numFocus, numInput, numKey, numOf, openPalette, palKey, panelEls, panelParams, parseAmounts, parseDate, parseNum, pct, percentile, plRank, plScoreCov, plScoreDsr, plScoreEmg, plScoreLev, plScoreSave, prePanels, presets, printCover, pushRecent, pushSearch, quickOf, rateOf, readJsonFile, readMonthGrid, recentList, recordWf, refreshCounts, refreshTableTools, refreshTrackMods, refreshWfBadge, renderLoanTable, renderNext, renderPalette, renderPresets, renderSearchHist, renderSnapCompare, renderSnapList, renderTrack, rentBuyAt, restore, runCalc, runDeferredTaps, save, saveCmpA, saveFav, savePresets, saveSnaps, saveWfCust, savedCat, scrollResultIfDeepLink, searchHist, setCat, setSub, setTheme, showErrorBox, showUpdateBar, snapNameOf, snapshot, st0, stamp, startName, tabCatLabel, tap, taxBy, toast, toggleWfStep, trimNum, unitFor, updShown, wfArchiveMonth, wfAutoNext, wfAutoStop, wfAutoWalk, wfBar, wfBindCustQ, wfBuildHandoff, wfCarryQuery, wfCsvCell, wfCustNameSave, wfFillCustSel, wfHandoff, wfHandoffCopy, wfHandoffCsv, wfKnownMods, wfLegacyToNew, wfLoad, wfManSave, wfMetaSave, wfMigrateLegacy, wfNoteSave, wfOpenInline, wfPad2, wfRenderSummary, wfSet, wfSkipCurrent, wfSkipSave, wfStepKey, wfStepShare, wfStepState, wfVisiblePaths, yuan, zOf };
 
   /* ---------------- 启动 ---------------- */
   enhanceNums(document);
@@ -3927,6 +4627,7 @@ undefined
   var st0 = hashTarget();
   var lastName = "";
   try { lastName = localStorage.getItem(LAST_KEY) || ""; } catch (e) {}
+  loadWfCust();
   loadWfDone();
   refreshWfBadge();
   var startName = TABS[st0.name] ? st0.name : (TABS[lastName] ? lastName : "deposit");

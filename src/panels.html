@@ -9223,51 +9223,84 @@
           <option value="9">我的路径</option>
         </select></label></p>
         <p class="hint" id="wf-note"></p>
-        <details class="hintd" open data-role="1">
+        <details class="hintd" open data-path="cash">
           <summary>① 报销 → 记账 → 出报表</summary>
-          <p class="jump"><a href="#expense">差旅报销</a> → <a href="#expcheck">报销合规自查</a> → <a href="#recon">银行余额调节</a> → <a href="#cashstmt">现金流量表</a></p>
+          <p class="jump"></p>
         </details>
-        <details class="hintd" data-role="2">
+        <details class="hintd" data-path="close">
           <summary>② 月度结账</summary>
-          <p class="jump"><a href="#recon">银行余额调节</a> → <a href="#trialbal">试算平衡</a> → <a href="#triplede">三表勾稽</a> → <a href="#monthclose">关账进度</a></p>
+          <p class="jump"></p>
         </details>
-        <details class="hintd" data-role="2">
+        <details class="hintd" data-path="report">
           <summary>③ 报表与分析</summary>
-          <p class="jump"><a href="#finreport">月度利润表</a> → <a href="#ratios">杜邦分析</a> → <a href="#mgmtpack">经营数据包</a> → <a href="#bplan">年度预算联动</a></p>
+          <p class="jump"></p>
         </details>
-        <details class="hintd" data-role="3">
+        <details class="hintd" data-path="tax">
           <summary>④ 报税（增值税 + 所得税）</summary>
-          <p class="jump"><a href="#vatdue">增值税与附加</a> → <a href="#vatcheck">申报勾稽</a> → <a href="#citprep">季度所得税预缴</a> → <a href="#taxadj">汇算清缴</a> → <a href="#taxwarn">综合税负预警</a></p>
+          <p class="jump"></p>
         </details>
-        <details class="hintd" data-role="4">
+        <details class="hintd" data-path="budget">
           <summary>⑤ 预算与滚动预测</summary>
-          <p class="jump"><a href="#bplan">年度预算联动</a> → <a href="#rollfc">滚动预测</a> → <a href="#rollbudget">预算滚动预测</a> → <a href="#budgetalert">偏差预警</a> → <a href="#expbudget">费用预算差异</a></p>
+          <p class="jump"></p>
         </details>
-        <details class="hintd" data-role="9" id="wf-cust-details">
+        <details class="hintd" data-path="mine" id="wf-cust-details">
           <summary>⑨ 我的路径</summary>
           <p class="jump" id="wf-cust-links"></p>
         </details>
         <p class="wfctl" id="wf-cust-ctl" hidden>
+          <label>路径名 <input id="wf-cust-name" class="ghost sm" placeholder="我的路径" maxlength="12"></label>
+          <button type="button" id="wf-cust-share" class="ghost sm">复制路径链接</button>
+        </p>
+        <p class="wfctl" id="wf-cust-ctl2" hidden>
+          <input id="wf-cust-q" class="ghost sm" type="search" placeholder="搜模块（名称/拼音首字母）">
           <select id="wf-cust-add" class="ghost sm"></select>
+          <select id="wf-cust-at" class="ghost sm"></select>
           <button type="button" id="wf-cust-addbtn" class="ghost sm">加进我的路径</button>
           <button type="button" id="wf-cust-clear" class="ghost sm">清空</button>
         </p>
-        <p class="wfctl"><button type="button" id="wf-auto" class="ghost sm">一键走完本岗位</button> <button type="button" id="wf-clear" class="ghost sm">清空本月手动打勾</button> <button type="button" id="wf-handoff" class="ghost sm">导出交接单</button></p>
+        <p class="wfctl">
+          <button type="button" id="wf-auto" class="ghost sm">一键走完本岗位</button>
+          <select id="wf-speed" class="ghost sm" title="每步停留时长">
+            <option value="1500">每步 1.5 秒</option>
+            <option value="800">每步 0.8 秒</option>
+            <option value="3000">每步 3 秒</option>
+            <option value="step">逐步确认</option>
+          </select>
+        </p>
+        <p class="wfctl">
+          <button type="button" id="wf-clear" class="ghost sm">归档并清空本月</button>
+          <button type="button" id="wf-handoff" class="ghost sm">导出交接单 .md</button>
+          <button type="button" id="wf-handoff-copy" class="ghost sm">复制交接单</button>
+          <button type="button" id="wf-handoff-csv" class="ghost sm">导出 CSV</button>
+        </p>
       </div>
       <div class="card res">
         <h2>说明</h2>
-        <div class="big"><span class="k">完成进度</span><strong id="wf-big">0/22</strong><span class="unit">步</span></div>
+        <div class="big"><span class="k">累计点开</span><strong id="wf-big">0/22</strong><span class="unit">步</span></div>
         <ul class="kv">
-          <li><span>已点开</span><b id="wf-donekv">0 步</b></li>
-          <li><span>完成率</span><b id="wf-pctkv">0.0%</b></li>
-          <li><span>本月手动完成</span><b id="wf-mankv">0/22</b></li>
+          <li><span>已点开（累计）</span><b id="wf-donekv">0 步</b></li>
+          <li><span>本月完成</span><b id="wf-mankv">0 步</b></li>
+          <li><span>本月跳过</span><b id="wf-skipkv">0 步</b></li>
           <li><span>下一步建议</span><b id="wf-next">—</b></li>
+          <li><span>本周到期（7 天内）</span><b id="wf-duekv">0 步</b></li>
+          <li><span>归档历史</span><b id="wf-histkv">还没有存档</b></li>
+          <li><span>最近用过</span><b id="wf-recentkv">—</b></li>
         </ul>
-        <p class="hint">每一步跳到模块后，都能继续用模块底部的「下一步常用」往下走；这条面板只是把整条岗位路径先串起来。</p>
+        <p class="hint">点开模块自动打绿勾（累计）；「✓」循环：未做 → 本月完成 → 跳过；「✎」写备注、预计分钟、截止日期。月底点「归档并清空本月」。</p>
+        <p class="hint" id="wf-linkkv"></p>
+        <div id="wf-summary" class="wf-summary" hidden></div>
+      </div>
+    </div>
+    <div id="wf-inline" class="wf-inline" hidden>
+      <textarea id="wf-inline-ta" rows="3" placeholder="这一步的备注（交接时能看到）"></textarea>
+      <div class="wf-inline-btns">
+        <label>预计 <input id="wf-inline-est" type="number" min="0" step="5"> 分钟</label>
+        <label>截止 <input id="wf-inline-due" type="date"></label>
+        <button type="button" id="wf-inline-save" class="ghost sm">保存</button>
+        <button type="button" id="wf-inline-cancel" class="ghost sm">取消</button>
       </div>
     </div>
   </section>
-
   <section class="panel" id="panel-excoll">
     <div class="cols">
       <div class="card">
