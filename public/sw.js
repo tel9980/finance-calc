@@ -1,7 +1,7 @@
 /* 自动生成，勿手改 */
-const VERSION = "fc-0aae8cb790";
-const SHELL = ["/","./assets/app.ba61854434.js","./assets/style.9b0d947b96.css","./manifest.webmanifest","./icon-192.png"];
-const RUNTIME = "fc-rt-0aae8cb790";
+const VERSION = "fc-68426bcf30";
+const SHELL = ["/","./assets/app.151feb52b8.js","./assets/style.0203613501.css","./manifest.webmanifest","./icon-192.png"];
+const RUNTIME = "fc-rt-68426bcf30";
 /* 财务计算器 service worker 主体（VERSION / SHELL 由 scripts/build.mjs 注入） */
 self.addEventListener("install", function (e) {
   e.waitUntil(
@@ -52,6 +52,25 @@ self.addEventListener("fetch", function (e) {
         }
         return r;
       });
+    })
+  );
+});
+
+/* 点到期提醒：聚焦已开的窗口并跳到工作流，没有窗口就新开一个 */
+self.addEventListener("notificationclick", function (e) {
+  e.notification.close();
+  var target = "./#workflow";
+  try { if (e.notification.data && e.notification.data.url) target = e.notification.data.url; } catch (err) {}
+  e.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(function (list) {
+      for (var i = 0; i < list.length; i++) {
+        var c = list[i];
+        if (c.url.indexOf(location.origin) === 0 && "focus" in c) {
+          try { c.navigate(target); } catch (err) {}
+          return c.focus();
+        }
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(target);
     })
   );
 });

@@ -9272,6 +9272,11 @@
           <button type="button" id="wf-handoff" class="ghost sm">导出交接单 .md</button>
           <button type="button" id="wf-handoff-copy" class="ghost sm">复制交接单</button>
           <button type="button" id="wf-handoff-csv" class="ghost sm">导出 CSV</button>
+          <button type="button" id="wf-handoff-print" class="ghost sm">打印交接单</button>
+        </p>
+        <p class="wfctl">
+          <button type="button" id="wf-notify" class="ghost sm">开启到期提醒</button>
+          <span class="hint" id="wf-notify-st">到期前 1 天在手机上提醒</span>
         </p>
       </div>
       <div class="card res">
@@ -9289,8 +9294,13 @@
         <p class="hint">点开模块自动打绿勾（累计）；「✓」循环：未做 → 本月完成 → 跳过；「✎」写备注、预计分钟、截止日期。月底点「归档并清空本月」。</p>
         <p class="hint" id="wf-linkkv"></p>
         <div id="wf-summary" class="wf-summary" hidden></div>
+        <details class="hintd" id="wf-detail-card">
+          <summary>本月明细（哪几步没做 / 跳过，为什么）</summary>
+          <div id="wf-detaillist" class="wf-detaillist"></div>
+        </details>
       </div>
     </div>
+    <div id="wf-printbox" class="wf-printbox" hidden></div>
     <div id="wf-inline" class="wf-inline" hidden>
       <textarea id="wf-inline-ta" rows="3" placeholder="这一步的备注（交接时能看到）"></textarea>
       <div class="wf-inline-btns">

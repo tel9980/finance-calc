@@ -2060,6 +2060,19 @@
     });
   }
 
+  function wfPlaceInline(anchor) {
+    var inline = $("wf-inline");
+    if (!inline || !anchor) return;
+    var r = anchor.getBoundingClientRect();
+    if (r.bottom < 0 || r.top > window.innerHeight) { inline.hidden = true; return; }
+    var w = Math.min(340, window.innerWidth - 24);
+    var left = Math.max(12, Math.min(r.left, window.innerWidth - w - 12));
+    var top = r.bottom + 6;
+    if (top + 180 > window.innerHeight) top = Math.max(12, r.top - 180);
+    inline.style.left = left + "px";
+    inline.style.top = top + "px";
+    inline.style.width = w + "px";
+  }
   function wfOpenInline(key, anchor) {
     var inline = $("wf-inline");
     if (!inline) return;
@@ -2069,14 +2082,9 @@
     var estEl = $("wf-inline-est"); if (estEl) estEl.value = meta.est || "";
     var dueEl = $("wf-inline-due"); if (dueEl) dueEl.value = meta.due || "";
     inline.hidden = false;
-    var r = anchor.getBoundingClientRect();
-    var w = Math.min(340, window.innerWidth - 24);
-    var left = Math.max(12, Math.min(r.left, window.innerWidth - w - 12));
-    var top = r.bottom + 6;
-    if (top + 180 > window.innerHeight) top = Math.max(12, r.top - 180);
-    inline.style.left = left + "px";
-    inline.style.top = top + "px";
-    inline.style.width = w + "px";
+    inline.__anchor = anchor;
+    inline.__opened = new Date().getTime();
+    wfPlaceInline(anchor);
     if (ta) setTimeout(function () { try { ta.focus(); } catch (e) {} }, 30);
   }
   function bindWfInline() {
@@ -2101,10 +2109,343 @@
       runCalc("workflow");
     });
     if ($("wf-inline-cancel")) $("wf-inline-cancel").addEventListener("click", function () { inline.hidden = true; });
-    document.addEventListener("scroll", function () { if (!inline.hidden) inline.hidden = true; }, true);
+    /* 滚动时跟着锚点走，而不是直接关掉（手机上点按钮常会带一次自动滚动，原来会把弹层秒关） */
+    var rafPending = false;
+    document.addEventListener("scroll", function () {
+      if (inline.hidden || rafPending) return;
+      rafPending = true;
+      setTimeout(function () { rafPending = false; if (!inline.hidden) wfPlaceInline(inline.__anchor); }, 60);
+    }, true);
     document.addEventListener("click", function (e) {
       if (!inline.hidden && e.target && !e.target.closest("#wf-inline") && !e.target.closest(".wf-note")) inline.hidden = true;
     });
+    document.addEventListener("keydown", function (e) {
+      if (!inline.hidden && (e.key === "Escape" || e.keyCode === 27)) inline.hidden = true;
+    });
+  }
+
+  /* ---------------- 上一步算过没有 ---------------- */
+  /* 某一步 carry 的来源字段，用户没改过（EDITED 为空）就算「没算」，带过去的是默认值 */
+  function wfCarryMissing(step) {
+    var miss = [];
+    if (!step || !step.carry) return miss;
+    for (var i = 0; i < step.carry.length; i++) {
+      var src = step.carry[i][0], field = step.carry[i][1];
+      var v = STORED[field];
+      var ok = EDITED[field] && v !== undefined && v !== null && v !== "";
+      if (!ok && miss.indexOf(src) < 0) miss.push(src);
+    }
+    return miss;
+  }
+  function wfCarryWarn(miss) {
+    if (!miss || !miss.length) return;
+    var bar = $("wf-carrybar");
+    if (!bar) {
+      bar = document.createElement("div");
+      bar.id = "wf-carrybar";
+      bar.className = "instbar wf-carrybar";
+      bar.setAttribute("role", "status");
+      document.body.appendChild(bar);
+    }
+    bar.hidden = false;
+    bar.innerHTML = "";
+    var names = [];
+    for (var i = 0; i < miss.length; i++) names.push(cmpTabName(miss[i]));
+    var sp = document.createElement("span");
+    sp.className = "wf-carry-tx";
+    sp.textContent = "这一步要用「" + names.join(" / ") + "」的结果，那边还没算过，带过来的会是默认值。";
+    bar.appendChild(sp);
+    var go = document.createElement("button");
+    go.type = "button"; go.className = "inst-go";
+    go.textContent = "先去算 " + cmpTabName(miss[0]) + " ▸";
+    go.onclick = function () { bar.hidden = true; location.hash = "#" + miss[0]; };
+    bar.appendChild(go);
+    var x = document.createElement("button");
+    x.type = "button"; x.className = "inst-x"; x.setAttribute("aria-label", "关闭");
+    x.textContent = "×";
+    x.onclick = function () { bar.hidden = true; bar.innerHTML = ""; };
+    bar.appendChild(x);
+  }
+
+  /* ---------------- 首页「今天做什么」 ---------------- */
+  var TODAYBAR_KEY = "finance-calc-todayhide";
+  function wfRoleSaved() {
+    var r = "";
+    try { r = localStorage.getItem(WF_ROLE_KEY) || ""; } catch (e) {}
+    return r || "0";
+  }
+  function wfAllPaths() {
+    var all = [];
+    for (var i = 0; i < WF_PATHS.length; i++) all.push(WF_PATHS[i]);
+    if (WF_CUST && WF_CUST.length) {
+      var steps = [];
+      for (var k = 0; k < WF_CUST.length; k++) steps.push({ m: WF_CUST[k] });
+      all.push({ id: "mine", no: "", title: WF_CUST_NAME || "我的路径", steps: steps });
+    }
+    return all;
+  }
+  function wfScopedPaths() {
+    var role = wfRoleSaved();
+    var vp = wfVisiblePaths(role);
+    return vp && vp.length ? vp : wfAllPaths();
+  }
+  function wfProgress(paths) {
+    var t = { total: 0, none: 0, man: 0, skip: 0 };
+    for (var i = 0; i < paths.length; i++) {
+      for (var s = 0; s < paths[i].steps.length; s++) {
+        var key = wfStepKey(paths[i].id, paths[i].steps[s].m);
+        t.total++;
+        var st = wfStepState(key);
+        if (st === "done") t.man++;
+        else if (st === "skip") t.skip++;
+        else t.none++;
+      }
+    }
+    return t;
+  }
+  /* 优先取「截止最近的未做步骤」，没有截止日期就取第一个未做 */
+  function wfTodayPick(paths) {
+    var first = null, best = null, i, s;
+    for (i = 0; i < paths.length; i++) {
+      for (s = 0; s < paths[i].steps.length; s++) {
+        var step = paths[i].steps[s], key = wfStepKey(paths[i].id, step.m);
+        if (wfStepState(key) !== "none") continue;
+        var meta = WF_META[key] || {};
+        var item = { step: step, path: paths[i], key: key, due: meta.due || "", est: meta.est || 0 };
+        if (!first) first = item;
+        if (meta.due && (!best || meta.due < best.due)) best = item;
+      }
+    }
+    return best || first;
+  }
+  function wfDayDiff(ymd) {
+    if (!ymd) return null;
+    var d = new Date(ymd + "T00:00:00");
+    if (isNaN(d.getTime())) return null;
+    var t = new Date(); t.setHours(0, 0, 0, 0);
+    return Math.round((d.getTime() - t.getTime()) / 86400000);
+  }
+  function wfTodayStr() {
+    var d = new Date();
+    return d.getFullYear() + "-" + wfPad2(d.getMonth() + 1) + "-" + wfPad2(d.getDate());
+  }
+  function wfHasAnyData() {
+    var k;
+    for (k in WF_DONE) if (WF_DONE[k]) return true;
+    for (k in WF_MAN) if (WF_MAN[k]) return true;
+    for (k in WF_SKIP) if (WF_SKIP[k]) return true;
+    for (k in WF_META) if (WF_META[k]) return true;
+    for (k in WF_NOTES) if (WF_NOTES[k]) return true;
+    if (WF_CUST && WF_CUST.length) return true;
+    return false;
+  }
+  function renderTodayBar() {
+    var bar = $("todaybar");
+    if (!bar) return;
+    var hide = "";
+    try { hide = localStorage.getItem(TODAYBAR_KEY) || ""; } catch (e) {}
+    if (hide === wfTodayStr() || !wfHasAnyData()) { bar.hidden = true; bar.innerHTML = ""; return; }
+    var paths = wfScopedPaths();
+    var prog = wfProgress(paths);
+    var pick = wfTodayPick(paths);
+    bar.hidden = false;
+    bar.innerHTML = "";
+    var lab = document.createElement("span");
+    lab.className = "todaybar-lab";
+    if (pick) {
+      lab.textContent = "今天：";
+      var a = document.createElement("a");
+      var q = wfCarryQuery(pick.step.carry);
+      a.href = "#" + pick.step.m + (q ? "?" + q : "");
+      a.textContent = cmpTabName(pick.step.m);
+      bar.appendChild(lab);
+      bar.appendChild(a);
+      var tail = [];
+      if (pick.est) tail.push("预计 " + pick.est + " 分钟");
+      var dd = wfDayDiff(pick.due);
+      if (dd !== null) tail.push(dd < 0 ? "已逾期 " + (-dd) + " 天" : (dd === 0 ? "今天截止" : dd + " 天后截止"));
+      tail.push("本月已完成 " + prog.man + "/" + prog.total);
+      var t2 = document.createElement("span");
+      t2.className = "todaybar-tail";
+      t2.textContent = " · " + tail.join(" · ");
+      bar.appendChild(t2);
+    } else {
+      lab.textContent = "本月工作流已全部处理完 ✓（完成 " + prog.man + "/" + prog.total + "，跳过 " + prog.skip + "）";
+      bar.appendChild(lab);
+    }
+    var go = document.createElement("a");
+    go.className = "todaybar-go";
+    go.href = "#workflow";
+    go.textContent = "工作流 ▸";
+    bar.appendChild(go);
+    var x = document.createElement("button");
+    x.type = "button"; x.className = "todaybar-x"; x.setAttribute("aria-label", "今天不再显示");
+    x.textContent = "×";
+    x.onclick = function () { try { localStorage.setItem(TODAYBAR_KEY, wfTodayStr()); } catch (e) {} bar.hidden = true; };
+    bar.appendChild(x);
+  }
+
+  /* ---------------- 到期提醒（本地通知） ---------------- */
+  var WF_NOTIFY_KEY = "finance-calc-wfnotify";
+  var WF_NOTIFIED_KEY = "finance-calc-wfnotified";
+  function wfNotifyGranted() { return ("Notification" in window) && Notification.permission === "granted"; }
+  function wfNotifyPref() { try { return localStorage.getItem(WF_NOTIFY_KEY) === "1"; } catch (e) { return false; } }
+  function wfNotifySetPref(on) { try { localStorage.setItem(WF_NOTIFY_KEY, on ? "1" : "0"); } catch (e) {} }
+  function wfNotifyStatus() {
+    var st = $("wf-notify-st"), b = $("wf-notify");
+    var on = wfNotifyGranted() && wfNotifyPref();
+    if (b) b.textContent = on ? "关掉到期提醒" : "开启到期提醒";
+    if (!st) return;
+    if (!("Notification" in window)) st.textContent = "这个浏览器不支持通知；iPhone 要先「添加到主屏幕」再开";
+    else if (Notification.permission === "denied") st.textContent = "浏览器已拒绝通知权限，需到站点设置里手动允许";
+    else if (on) st.textContent = "到期前 1 天和当天各提醒一次，点提醒直接回到工作流";
+    else st.textContent = "到期前 1 天在手机上提醒";
+  }
+  function wfNotifySend(title, body) {
+    function fallback() { try { new Notification(title, { body: body, icon: "./icon-192.png" }); } catch (e) {} }
+    try {
+      if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+        navigator.serviceWorker.ready.then(function (reg) {
+          if (reg && reg.showNotification) {
+            try {
+              reg.showNotification(title, { body: body, icon: "./icon-192.png", badge: "./icon-192.png", tag: "fc-wf-due", data: { url: "./#workflow" } });
+            } catch (e) { fallback(); }
+          } else fallback();
+        }).catch(fallback);
+      } else fallback();
+    } catch (e) { fallback(); }
+  }
+  function wfNotifyCheck() {
+    if (!wfNotifyGranted() || !wfNotifyPref()) return;
+    var paths = wfScopedPaths();
+    var sent = wfLoad(WF_NOTIFIED_KEY) || {};
+    var todayS = wfTodayStr(), used = {}, queue = [], i, s;
+    for (i = 0; i < paths.length; i++) {
+      for (s = 0; s < paths[i].steps.length; s++) {
+        var step = paths[i].steps[s], key = wfStepKey(paths[i].id, step.m);
+        if (wfStepState(key) !== "none") continue;
+        var meta = WF_META[key] || {};
+        var dd = wfDayDiff(meta.due);
+        if (dd === null || dd > 1) continue;
+        if (sent[key] === todayS) { used[key] = todayS; continue; }
+        var when = dd < 0 ? ("已逾期 " + (-dd) + " 天") : (dd === 0 ? "今天到期" : "明天到期");
+        queue.push({
+          t: cmpTabName(step.m) + " · " + when,
+          b: "财务工作流 · " + paths[i].title + (meta.est ? "（约 " + meta.est + " 分钟）" : "")
+        });
+        used[key] = todayS;
+      }
+    }
+    if (!queue.length) return;
+    for (i = 0; i < queue.length && i < 3; i++) wfNotifySend(queue[i].t, queue[i].b);
+    wfSet(WF_NOTIFIED_KEY, used);
+  }
+  function wfNotifyToggle() {
+    if (!("Notification" in window)) { toast("这个浏览器不支持通知；iPhone 请先「添加到主屏幕」再开"); return; }
+    if (wfNotifyGranted() && wfNotifyPref()) {
+      wfNotifySetPref(false);
+      wfNotifyStatus();
+      toast("已关闭到期提醒");
+      return;
+    }
+    function got(p) {
+      if (p === "granted") {
+        wfNotifySetPref(true); wfNotifyStatus(); toast("到期提醒已开启");
+        wfNotifyCheck();
+      } else {
+        wfNotifySetPref(false); wfNotifyStatus();
+        toast(p === "denied" ? "浏览器拒绝了通知权限，需到站点设置里允许" : "没拿到通知权限，可以再点一次");
+      }
+    }
+    try {
+      var pr = Notification.requestPermission(got);
+      if (pr && pr.then) pr.then(got);
+    } catch (e) { toast("开启提醒失败"); }
+  }
+
+  /* ---------------- 本月明细 ---------------- */
+  function wfDetailRender(paths) {
+    var box = $("wf-detaillist");
+    if (!box) return;
+    var g = { skip: [], none: [], done: [] };
+    var i, s;
+    for (i = 0; i < paths.length; i++) {
+      for (s = 0; s < paths[i].steps.length; s++) {
+        var step = paths[i].steps[s], key = wfStepKey(paths[i].id, step.m);
+        var st = wfStepState(key);
+        var meta = WF_META[key] || {};
+        g[st].push({
+          label: cmpTabName(step.m), path: paths[i].title, mod: step.m,
+          note: (WF_NOTES[key] || "").trim(), est: meta.est || 0, due: meta.due || ""
+        });
+      }
+    }
+    box.innerHTML = "";
+    var secs = [
+      ["skip", "⊘ 本月跳过", "跳过不是「做完」，下月会自动回到未做"],
+      ["none", "⬜ 本月没做", ""],
+      ["done", "✅ 本月已完成", ""]
+    ];
+    for (i = 0; i < secs.length; i++) {
+      var arr = g[secs[i][0]];
+      if (!arr.length) continue;
+      var h = document.createElement("p");
+      h.className = "wf-detail-h";
+      h.textContent = secs[i][1] + "（" + arr.length + "）" + (secs[i][2] ? " · " + secs[i][2] : "");
+      box.appendChild(h);
+      var ul = document.createElement("ul");
+      ul.className = "wf-detail-ul";
+      for (s = 0; s < arr.length; s++) {
+        var it = arr[s], li = document.createElement("li");
+        var a = document.createElement("a");
+        a.href = "#" + it.mod;
+        a.textContent = it.label;
+        li.appendChild(a);
+        var extra = [];
+        extra.push(it.path);
+        if (it.est) extra.push("约" + it.est + "分钟");
+        if (it.due) extra.push("截止" + it.due);
+        if (it.note) extra.push("备注：" + it.note);
+        var sp = document.createElement("span");
+        sp.className = "wf-detail-meta";
+        sp.textContent = " — " + extra.join(" · ");
+        li.appendChild(sp);
+        ul.appendChild(li);
+      }
+      box.appendChild(ul);
+    }
+    if (!g.skip.length && !g.none.length && !g.done.length) box.textContent = "这条路径没有步骤。";
+  }
+
+  /* ---------------- 打印交接单 ---------------- */
+  function wfHandoffPrint() {
+    var box = $("wf-printbox");
+    if (!box) return;
+    var h = wfBuildHandoff();
+    function esc(v) {
+      return String(v == null ? "" : v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+    var html = '<h2>财务工作流 · 交接单</h2><p class="wf-print-meta">导出时间：' + esc(new Date().toLocaleString("zh-CN")) + " · 共 " + h.rows.length + " 步</p>";
+    html += '<table class="wf-print-tb"><thead><tr><th>路径</th><th>步骤</th><th>状态</th><th>备注</th><th>预计</th><th>截止</th></tr></thead><tbody>';
+    for (var i = 0; i < h.rows.length; i++) {
+      var r = h.rows[i];
+      html += "<tr><td>" + esc(r[1]) + "</td><td>" + esc(r[2]) + "</td><td>" + esc(r[3]) + "</td><td>" + esc(r[4]) + "</td><td>" + (r[5] ? esc(r[5]) + " 分钟" : "") + "</td><td>" + esc(r[6]) + "</td></tr>";
+    }
+    html += '</tbody></table><p class="wf-print-sign">交接人：____________　接收人：____________　日期：____________</p>';
+    box.innerHTML = html;
+    box.hidden = false;
+    document.body.classList.add("wf-printing");
+    var done = false;
+    function after() {
+      if (done) return;
+      done = true;
+      document.body.classList.remove("wf-printing");
+      box.hidden = true;
+      box.innerHTML = "";
+    }
+    window.addEventListener("afterprint", after);
+    try { window.print(); } catch (e) { after(); }
+    setTimeout(after, 60000);
   }
 
 
@@ -2264,6 +2605,8 @@
     if (e.target && e.target.closest && e.target.closest("#wf-handoff")) { wfHandoff(); return; }
     if (e.target && e.target.closest && e.target.closest("#wf-handoff-copy")) { wfHandoffCopy(); return; }
     if (e.target && e.target.closest && e.target.closest("#wf-handoff-csv")) { wfHandoffCsv(); return; }
+    if (e.target && e.target.closest && e.target.closest("#wf-handoff-print")) { wfHandoffPrint(); return; }
+    if (e.target && e.target.closest && e.target.closest("#wf-notify")) { wfNotifyToggle(); return; }
     var nb = e.target && e.target.closest ? e.target.closest(".wf-note") : null;
     if (nb) {
       wfOpenInline(nb.getAttribute("data-step") || "", nb);
@@ -2525,6 +2868,13 @@
         aEl.setAttribute("data-mod", step.m);
         aEl.textContent = cmpTabName(step.m);
         host.appendChild(aEl);
+        /* 上一步没算过：标一下，点进去时提示 */
+        (function (mm) {
+          if (!mm.length) return;
+          aEl.classList.add("wf-miss");
+          aEl.setAttribute("title", "这一步要用「" + cmpTabName(mm[0]) + "」的结果，那边还没算过");
+          aEl.addEventListener("click", function () { setTimeout(function () { wfCarryWarn(mm); }, 80); });
+        })(wfCarryMissing(step));
         var stt = wfStepState(key);
         if (WF_DONE[step.m]) aEl.classList.add("wf-done");
         if (stt === "skip") aEl.classList.add("wf-skip");
@@ -2645,6 +2995,10 @@
     }
     bindWfDnd();
     bindWfInline();
+    wfNotifyStatus();
+    wfDetailRender(vpaths);
+    renderTodayBar();
+    wfNotifyCheck();
   }
 
 undefined
@@ -2654,7 +3008,7 @@ undefined
   /* ---- 按分类懒加载：只有点到的模块才下载对应 chunk ---- */
   var CHUNK_OF = { "deposit": "save", "loan": "loan", "combo": "loan", "prepay": "loan", "compound": "save", "goal": "save", "installment": "life", "annual": "save", "inflation": "save", "tax": "tax", "deal": "life", "salary": "tax", "rentbuy": "house", "card": "life", "fx": "life", "fund": "loan", "lpr": "loan", "deed": "house", "split": "life", "pension": "tax", "sell": "house", "offset": "loan", "multi": "life", "repayvs": "loan", "edu": "family", "insure": "family", "car": "life", "bonus": "tax", "deduct": "tax", "ladder": "save", "rentyield": "house", "settle": "tax", "balance": "family", "selfins": "tax", "underpay": "tax", "loanways": "loan", "dca": "save", "checkup": "family", "calendar": "save", "cashflow": "family", "zeroloan": "loan", "riskalloc": "family", "penalty": "loan", "debtfree": "life", "fire": "family", "annualfee": "family", "budget": "house", "zhuan": "loan", "medins": "tax", "childcost": "family", "ppension": "tax", "fundlimit": "loan", "emergency": "family", "rule503020": "family", "debtmerge": "life", "freeperiod": "life", "overtime": "tax", "rentup": "house", "ev": "life", "vat": "acct-tax", "vatdue": "acct-tax", "deprec": "acct-cost", "breakeven": "acct-perf", "ratios": "acct-report", "recon": "acct-report", "expense": "acct-report", "aging": "acct-bd", "funding": "acct-cash", "pricing": "acct-perf", "triplede": "acct-report", "multimargin": "acct-perf", "apterms": "acct-bd", "assetledger": "acct-cost", "payage": "acct-bd", "costcard": "acct-cost", "budgetvar": "acct-cost", "finreport": "acct-report", "invoice": "acct-bd", "expbudget": "acct-report", "efficiency": "acct-report", "cashstmt": "acct-report", "invstock": "acct-bd", "exportrebate": "acct-tax", "tieout": "acct-bd", "feetrend": "acct-report2", "mpbe": "acct-perf", "payroll": "acct-perf", "assetdiff": "acct-cost", "monthclose": "acct-report", "factoring": "acct-cash", "deadstock": "acct-bd", "aptalk": "acct-cash", "cash13": "acct-cash", "bill": "acct-cash", "loanreal": "loan", "collect": "acct-bd", "mgmtpack": "acct-report", "settleway": "acct-cash", "creditline": "acct-cash", "impair": "acct-bd", "fxgain": "acct-cash", "taxburden": "acct-tax", "sens": "acct-report", "consol": "acct-report", "eoq": "acct-bd", "bplan": "acct-report", "refundflow": "acct-tax", "costalloc": "acct-cost", "importcost": "acct-perf", "makeorbuy": "acct-cost", "ecl": "acct-bd", "quotefx": "acct-perf", "capacity": "acct-cost", "mold": "acct-cost", "rebate": "acct-perf", "stdcost": "acct-cost", "svc": "acct-bd", "taxadj": "acct-tax", "supplier": "acct-bd", "debtcap": "acct-tax", "accdep": "acct-tax", "custwin": "acct-bd", "upgrade": "acct-cost", "deptalloc": "acct-cost", "payout": "acct-perf", "numwords": "util", "duedate": "util", "workday": "util", "cagr": "util", "apportion": "util", "grossup": "util", "trprice": "acct-cash", "esop": "acct-tax", "rdexp": "acct-tax", "rollfc": "acct-report", "commission": "acct-perf", "capex": "acct-cost", "pooling": "acct-cash", "creditlimit": "acct-cash", "contractperf": "acct-report2", "projrev": "acct-report2", "creditpolicy": "acct-bd", "rateadj": "tax", "invfund": "acct-bd", "machrate": "acct-cost", "govgrant": "acct-tax", "fxtranslate": "acct-report2", "rebateacc": "acct-perf", "pledgeloan": "acct-cash", "labvar": "acct-cost", "rdcap": "acct-tax", "processcost": "acct-cost", "makeoroutsource": "acct-cost", "rebatedta": "acct-tax", "leasebuy": "acct-cash", "welfare": "acct-tax", "inputout": "acct-tax", "stampduty": "acct-tax", "assetdisp": "acct-cost", "headcount": "acct-perf", "markroi": "acct-perf", "rdproject": "acct-cost", "intsvc": "acct-tax", "accrual": "acct-report2", "cfconsol": "acct-report2", "exportcheck": "acct-tax", "vatcheck": "acct-tax", "report": "family", "snaps": "util", "housecash": "house", "planner": "family", "healthcheck": "hot", "salesallow": "acct-tax", "lease": "acct-report2", "gpmix": "acct-report2", "vatchoose": "acct-tax", "datemath": "util", "pct3": "util", "xlhelp": "util", "csvrecon": "util", "bundle": "family", "monthly": "family", "yearcmp": "family", "yearreport": "family", "fifocost": "acct-cost", "hlcost": "acct-cost", "trialbal": "acct-report2", "citprep": "acct-tax", "rollbudget": "acct-report2", "csladv": "acct-report2", "taxwarn": "acct-tax", "loanledger": "acct-cash", "expcheck": "acct-report2", "dtax": "acct-tax", "invimpair": "acct-cost", "budgetalert": "acct-report2", "cashcycle": "acct-report2", "saleexp": "acct-perf", "deptcost": "acct-cost", "invvar": "acct-bd", "aroverdue": "acct-bd", "payterms": "acct-bd", "fxar": "acct-bd", "faimpair": "acct-cost", "costbehav": "acct-cost", "profitcenter": "acct-perf", "invorder": "acct-bd", "creditterm": "acct-bd", "workflow": "life", "excoll": "acct-cash", "assetdisptax": "acct-tax", "tpdocs": "acct-tax", "fxhedge": "acct-cash", "unbilled": "acct-bd", "deferred": "acct-tax", "interco": "acct-report", "sharepay": "acct-cost", "vatrefund": "acct-tax", "smallmicro": "acct-tax", "addcredit": "acct-tax", "losscontract": "acct-report2", "bankacct": "acct-cash", "equitychg": "acct-report2", "estimatechg": "acct-cost", "dtlind": "acct-tax", "relparty": "acct-bd", "repaircap": "acct-cost", "eps": "acct-report2" };
   var TABS = { "deposit": 1, "loan": 1, "combo": 1, "prepay": 1, "compound": 1, "goal": 1, "installment": 1, "annual": 1, "inflation": 1, "tax": 1, "deal": 1, "salary": 1, "rentbuy": 1, "card": 1, "fx": 1, "fund": 1, "lpr": 1, "deed": 1, "split": 1, "pension": 1, "sell": 1, "offset": 1, "multi": 1, "repayvs": 1, "edu": 1, "insure": 1, "car": 1, "bonus": 1, "deduct": 1, "ladder": 1, "rentyield": 1, "settle": 1, "balance": 1, "selfins": 1, "underpay": 1, "loanways": 1, "dca": 1, "checkup": 1, "calendar": 1, "cashflow": 1, "zeroloan": 1, "riskalloc": 1, "penalty": 1, "debtfree": 1, "fire": 1, "annualfee": 1, "budget": 1, "zhuan": 1, "medins": 1, "childcost": 1, "ppension": 1, "fundlimit": 1, "emergency": 1, "rule503020": 1, "debtmerge": 1, "freeperiod": 1, "overtime": 1, "rentup": 1, "ev": 1, "vat": 1, "vatdue": 1, "deprec": 1, "breakeven": 1, "ratios": 1, "recon": 1, "expense": 1, "aging": 1, "funding": 1, "pricing": 1, "triplede": 1, "multimargin": 1, "apterms": 1, "assetledger": 1, "payage": 1, "costcard": 1, "budgetvar": 1, "finreport": 1, "invoice": 1, "expbudget": 1, "efficiency": 1, "cashstmt": 1, "invstock": 1, "exportrebate": 1, "tieout": 1, "feetrend": 1, "mpbe": 1, "payroll": 1, "assetdiff": 1, "monthclose": 1, "factoring": 1, "deadstock": 1, "aptalk": 1, "cash13": 1, "bill": 1, "loanreal": 1, "collect": 1, "mgmtpack": 1, "settleway": 1, "creditline": 1, "impair": 1, "fxgain": 1, "taxburden": 1, "sens": 1, "consol": 1, "eoq": 1, "bplan": 1, "refundflow": 1, "costalloc": 1, "importcost": 1, "makeorbuy": 1, "ecl": 1, "quotefx": 1, "capacity": 1, "mold": 1, "rebate": 1, "stdcost": 1, "svc": 1, "taxadj": 1, "supplier": 1, "debtcap": 1, "accdep": 1, "custwin": 1, "upgrade": 1, "deptalloc": 1, "payout": 1, "numwords": 1, "duedate": 1, "workday": 1, "cagr": 1, "apportion": 1, "grossup": 1, "trprice": 1, "esop": 1, "rdexp": 1, "rollfc": 1, "commission": 1, "capex": 1, "pooling": 1, "creditlimit": 1, "contractperf": 1, "projrev": 1, "creditpolicy": 1, "rateadj": 1, "invfund": 1, "machrate": 1, "govgrant": 1, "fxtranslate": 1, "rebateacc": 1, "pledgeloan": 1, "labvar": 1, "rdcap": 1, "processcost": 1, "makeoroutsource": 1, "rebatedta": 1, "leasebuy": 1, "welfare": 1, "inputout": 1, "stampduty": 1, "assetdisp": 1, "headcount": 1, "markroi": 1, "rdproject": 1, "intsvc": 1, "accrual": 1, "cfconsol": 1, "exportcheck": 1, "vatcheck": 1, "report": 1, "snaps": 1, "housecash": 1, "planner": 1, "healthcheck": 1, "salesallow": 1, "lease": 1, "gpmix": 1, "vatchoose": 1, "datemath": 1, "pct3": 1, "xlhelp": 1, "csvrecon": 1, "bundle": 1, "monthly": 1, "yearcmp": 1, "yearreport": 1, "fifocost": 1, "hlcost": 1, "trialbal": 1, "citprep": 1, "rollbudget": 1, "csladv": 1, "taxwarn": 1, "loanledger": 1, "expcheck": 1, "dtax": 1, "invimpair": 1, "budgetalert": 1, "cashcycle": 1, "saleexp": 1, "deptcost": 1, "invvar": 1, "aroverdue": 1, "payterms": 1, "fxar": 1, "faimpair": 1, "costbehav": 1, "profitcenter": 1, "invorder": 1, "creditterm": 1, "workflow": 1, "excoll": 1, "assetdisptax": 1, "tpdocs": 1, "fxhedge": 1, "unbilled": 1, "deferred": 1, "interco": 1, "sharepay": 1, "vatrefund": 1, "smallmicro": 1, "addcredit": 1, "losscontract": 1, "bankacct": 1, "equitychg": 1, "estimatechg": 1, "dtlind": 1, "relparty": 1, "repaircap": 1, "eps": 1 };
-  var CHUNK_FILES = { "save": "assets/c-save.3337331c4d.js", "loan": "assets/c-loan.0e18a90462.js", "life": "assets/c-life.3380016fae.js", "tax": "assets/c-tax.5a7bdc4f6b.js", "house": "assets/c-house.3dac07bdb8.js", "family": "assets/c-family.e6bfe3cf52.js", "acct-tax": "assets/c-acct-tax.1940f89925.js", "acct-cost": "assets/c-acct-cost.82a20390ff.js", "acct-perf": "assets/c-acct-perf.866a2b5592.js", "acct-report": "assets/c-acct-report.fb1d27230f.js", "acct-bd": "assets/c-acct-bd.9d16ba476f.js", "acct-cash": "assets/c-acct-cash.80f4d632d8.js", "acct-report2": "assets/c-acct-report2.feb554d529.js", "util": "assets/c-util.0794dc99c5.js", "hot": "assets/c-hot.d24efcb651.js" };
+  var CHUNK_FILES = { "save": "assets/c-save.92e0e1d5f8.js", "loan": "assets/c-loan.c54b9d4dcf.js", "life": "assets/c-life.2415c640cb.js", "tax": "assets/c-tax.489efb14bc.js", "house": "assets/c-house.64be597fb5.js", "family": "assets/c-family.f6df2ff59a.js", "acct-tax": "assets/c-acct-tax.4b971ead1d.js", "acct-cost": "assets/c-acct-cost.9db6b2dcd0.js", "acct-perf": "assets/c-acct-perf.122103ae7a.js", "acct-report": "assets/c-acct-report.63999dbd77.js", "acct-bd": "assets/c-acct-bd.3bb29442bd.js", "acct-cash": "assets/c-acct-cash.e3360a512e.js", "acct-report2": "assets/c-acct-report2.4cbd5f340f.js", "util": "assets/c-util.83d2d7c14b.js", "hot": "assets/c-hot.6816bd1753.js" };
   var CORE_CALC = { "loan": calcLoan, "workflow": calcWorkflow };
   var calcMap = {};
   Object.keys(CORE_CALC).forEach(function (k) { calcMap[k] = CORE_CALC[k]; });
@@ -2951,6 +3305,7 @@ undefined
     try { localStorage.setItem(LAST_KEY, name); } catch (e) {}
     markBadInputs(document.querySelector(".panel.is-on"));
     renderNext(name);
+    renderTodayBar();
   }
 
   $("tabs").addEventListener("click", function (e) {
@@ -3259,7 +3614,7 @@ undefined
   var KEY = "finance-calc-v63";
   var CAT_KEY = "finance-calc-cat";
   /* 构建时由 build.mjs 注入为 "v<内容哈希>"，页脚展示，方便核对版本 */
-  var BUILD_TAG = "v0aae8cb790";
+  var BUILD_TAG = "v68426bcf30";
 
   /* ---------------- 现金流月历 ---------------- */
 
@@ -4762,7 +5117,7 @@ undefined
   });
 
   /* chunk 里要用到的工具函数，统一挂到 window.FC */
-  window.FC = { $, BUILD_TAG, CAT_KEY, CAT_LABEL, CHUNK_FILES, CHUNK_OF, CMP_KEY, CORE_CALC, CURS, DEFERRED_TAPS, DIVISOR, EDITED, ERR_BOX, FAV_KEY, FIELDS, FIRST_ACTIVATE, INSTALL_HIDE_KEY, KEY, LAST_KEY, MONTH_CATS, MONTH_TABLE, NEXT_OF, PALETTE_EL, PENDING_PARAMS, PRE_KEY, QUOTA_WARNED, RECENT_KEY, SAVE_TIMER, SEARCH_KEY, SNAP_KEY, SNAP_PICK, STORED, TABS, THEME_KEY, TOAST_EL, UNITS, WF_ARCH_KEY, WF_AUTO_IDX, WF_AUTO_LIST, WF_AUTO_STEP, WF_AUTO_TIMER, WF_CUSTNAME_KEY, WF_CUST_KEY, WF_CUST_NAME, WF_DONE, WF_KEY, WF_LAST, WF_LEGACY, WF_MAN_KEY, WF_META_KEY, WF_MONTH_KEY, WF_NOTE_KEY, WF_PATHS, WF_ROLE_KEY, WF_ROLE_READY, WF_SKIP_KEY, XL_ROWS, YEAR_TABLE, _onPanels, activate, addMonths, annuityPV, annuityPayment, applyFilter, applyParams, applyStoredTo, bindWfDnd, bindWfInline, bizAdd, bonusSoloTax, buildLoanSchedule, buildShare, buildTabBadges, calcLoan, calcMap, calcWorkflow, clearWfMan, closePalette, cmpTabName, cnUpper, combineTax, convertTemp, copyText, cumulativeTax, curCat, currentSnap, diagText, dlJson, doInstall, doPrint, drawMonthCats, drawMonthStack, drawReportCharts, drawRpMini, drawnMonthlyChart, drawnYearChart, enhanceNums, enhancePanelUi, ensureChunk, evalExpr, favList, fillCmpMod, fillMonthGrid, fillUnits, flash, flushParams, flushSave, fmt, fmtAt, fmtDate, fx, gauss, getWfCust, getWfDone, getWfMan, getWfMeta, getWfNotes, getWfSkip, hashTarget, installEvt, installHintHide, installHintOff, iosInstallTip, iosLike, isFav, lastName, leftAfter, linkTo, loadCmpA, loadSnaps, loadWfArch, loadWfCust, loadWfDone, loadWfMan, loadWfMeta, loadWfNotes, loadWfSkip, loanRows, makeSnap, markBadInputs, matchQ, money, monthToDate, monthlyIRR, months, npvDiff, num, numBlur, numFocus, numInput, numKey, numOf, openPalette, palKey, panelEls, panelParams, parseAmounts, parseDate, parseNum, pct, percentile, plRank, plScoreCov, plScoreDsr, plScoreEmg, plScoreLev, plScoreSave, prePanels, prefetchAllChunks, presets, printCover, pushRecent, pushSearch, pwaStandalone, quickOf, rateOf, readJsonFile, readMonthGrid, recentList, recordWf, refreshCounts, refreshTableTools, refreshTrackMods, refreshWfBadge, renderLoanTable, renderNext, renderPalette, renderPresets, renderSearchHist, renderSnapCompare, renderSnapList, renderTrack, rentBuyAt, restore, runCalc, runDeferredTaps, save, saveCmpA, saveFav, savePresets, saveSnaps, saveWfCust, savedCat, scrollResultIfDeepLink, searchHist, setCat, setSub, setTheme, showErrorBox, showInstBar, showUpdateBar, snapNameOf, snapshot, st0, stamp, startName, syncInstallUi, tabCatLabel, tap, taxBy, toast, toggleWfStep, trimNum, unitFor, updShown, wfArchiveMonth, wfArchivePut, wfAutoNext, wfAutoStop, wfAutoWalk, wfBar, wfBindCustQ, wfBuildHandoff, wfCarryQuery, wfCsvCell, wfCustNameSave, wfFillCustSel, wfHandoff, wfHandoffCopy, wfHandoffCsv, wfKnownMods, wfLegacyToNew, wfLoad, wfManSave, wfMetaSave, wfMigrateLegacy, wfMonthKey, wfMonthRoll, wfMonthTouch, wfNoteSave, wfOpenInline, wfPad2, wfRenderSummary, wfSet, wfSkipCurrent, wfSkipSave, wfStepKey, wfStepShare, wfStepState, wfVisiblePaths, yuan, zOf };
+  window.FC = { $, BUILD_TAG, CAT_KEY, CAT_LABEL, CHUNK_FILES, CHUNK_OF, CMP_KEY, CORE_CALC, CURS, DEFERRED_TAPS, DIVISOR, EDITED, ERR_BOX, FAV_KEY, FIELDS, FIRST_ACTIVATE, INSTALL_HIDE_KEY, KEY, LAST_KEY, MONTH_CATS, MONTH_TABLE, NEXT_OF, PALETTE_EL, PENDING_PARAMS, PRE_KEY, QUOTA_WARNED, RECENT_KEY, SAVE_TIMER, SEARCH_KEY, SNAP_KEY, SNAP_PICK, STORED, TABS, THEME_KEY, TOAST_EL, TODAYBAR_KEY, UNITS, WF_ARCH_KEY, WF_AUTO_IDX, WF_AUTO_LIST, WF_AUTO_STEP, WF_AUTO_TIMER, WF_CUSTNAME_KEY, WF_CUST_KEY, WF_CUST_NAME, WF_DONE, WF_KEY, WF_LAST, WF_LEGACY, WF_MAN_KEY, WF_META_KEY, WF_MONTH_KEY, WF_NOTE_KEY, WF_NOTIFIED_KEY, WF_NOTIFY_KEY, WF_PATHS, WF_ROLE_KEY, WF_ROLE_READY, WF_SKIP_KEY, XL_ROWS, YEAR_TABLE, _onPanels, activate, addMonths, annuityPV, annuityPayment, applyFilter, applyParams, applyStoredTo, bindWfDnd, bindWfInline, bizAdd, bonusSoloTax, buildLoanSchedule, buildShare, buildTabBadges, calcLoan, calcMap, calcWorkflow, clearWfMan, closePalette, cmpTabName, cnUpper, combineTax, convertTemp, copyText, cumulativeTax, curCat, currentSnap, diagText, dlJson, doInstall, doPrint, drawMonthCats, drawMonthStack, drawReportCharts, drawRpMini, drawnMonthlyChart, drawnYearChart, enhanceNums, enhancePanelUi, ensureChunk, evalExpr, favList, fillCmpMod, fillMonthGrid, fillUnits, flash, flushParams, flushSave, fmt, fmtAt, fmtDate, fx, gauss, getWfCust, getWfDone, getWfMan, getWfMeta, getWfNotes, getWfSkip, hashTarget, installEvt, installHintHide, installHintOff, iosInstallTip, iosLike, isFav, lastName, leftAfter, linkTo, loadCmpA, loadSnaps, loadWfArch, loadWfCust, loadWfDone, loadWfMan, loadWfMeta, loadWfNotes, loadWfSkip, loanRows, makeSnap, markBadInputs, matchQ, money, monthToDate, monthlyIRR, months, npvDiff, num, numBlur, numFocus, numInput, numKey, numOf, openPalette, palKey, panelEls, panelParams, parseAmounts, parseDate, parseNum, pct, percentile, plRank, plScoreCov, plScoreDsr, plScoreEmg, plScoreLev, plScoreSave, prePanels, prefetchAllChunks, presets, printCover, pushRecent, pushSearch, pwaStandalone, quickOf, rateOf, readJsonFile, readMonthGrid, recentList, recordWf, refreshCounts, refreshTableTools, refreshTrackMods, refreshWfBadge, renderLoanTable, renderNext, renderPalette, renderPresets, renderSearchHist, renderSnapCompare, renderSnapList, renderTodayBar, renderTrack, rentBuyAt, restore, runCalc, runDeferredTaps, save, saveCmpA, saveFav, savePresets, saveSnaps, saveWfCust, savedCat, scrollResultIfDeepLink, searchHist, setCat, setSub, setTheme, showErrorBox, showInstBar, showUpdateBar, snapNameOf, snapshot, st0, stamp, startName, syncInstallUi, tabCatLabel, tap, taxBy, toast, toggleWfStep, trimNum, unitFor, updShown, wfAllPaths, wfArchiveMonth, wfArchivePut, wfAutoNext, wfAutoStop, wfAutoWalk, wfBar, wfBindCustQ, wfBuildHandoff, wfCarryMissing, wfCarryQuery, wfCarryWarn, wfCsvCell, wfCustNameSave, wfDayDiff, wfDetailRender, wfFillCustSel, wfHandoff, wfHandoffCopy, wfHandoffCsv, wfHandoffPrint, wfHasAnyData, wfKnownMods, wfLegacyToNew, wfLoad, wfManSave, wfMetaSave, wfMigrateLegacy, wfMonthKey, wfMonthRoll, wfMonthTouch, wfNoteSave, wfNotifyCheck, wfNotifyGranted, wfNotifyPref, wfNotifySend, wfNotifySetPref, wfNotifyStatus, wfNotifyToggle, wfOpenInline, wfPad2, wfPlaceInline, wfProgress, wfRenderSummary, wfRoleSaved, wfScopedPaths, wfSet, wfSkipCurrent, wfSkipSave, wfStepKey, wfStepShare, wfStepState, wfTodayPick, wfTodayStr, wfVisiblePaths, yuan, zOf };
 
   /* ---------------- 启动 ---------------- */
   enhanceNums(document);
@@ -4781,7 +5136,9 @@ undefined
   try { lastName = localStorage.getItem(LAST_KEY) || ""; } catch (e) {}
   loadWfCust();
   loadWfDone();
+  loadWfMan(); loadWfSkip(); loadWfNotes(); loadWfMeta(); loadWfArch();
   refreshWfBadge();
+  renderTodayBar();
   var startName = TABS[st0.name] ? st0.name : (TABS[lastName] ? lastName : "deposit");
   activate(startName);
   if (st0.params) { applyParams(st0.params); runCalc(startName); }

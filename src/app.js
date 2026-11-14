@@ -10853,6 +10853,19 @@
     });
   }
 
+  function wfPlaceInline(anchor) {
+    var inline = $("wf-inline");
+    if (!inline || !anchor) return;
+    var r = anchor.getBoundingClientRect();
+    if (r.bottom < 0 || r.top > window.innerHeight) { inline.hidden = true; return; }
+    var w = Math.min(340, window.innerWidth - 24);
+    var left = Math.max(12, Math.min(r.left, window.innerWidth - w - 12));
+    var top = r.bottom + 6;
+    if (top + 180 > window.innerHeight) top = Math.max(12, r.top - 180);
+    inline.style.left = left + "px";
+    inline.style.top = top + "px";
+    inline.style.width = w + "px";
+  }
   function wfOpenInline(key, anchor) {
     var inline = $("wf-inline");
     if (!inline) return;
@@ -10862,14 +10875,9 @@
     var estEl = $("wf-inline-est"); if (estEl) estEl.value = meta.est || "";
     var dueEl = $("wf-inline-due"); if (dueEl) dueEl.value = meta.due || "";
     inline.hidden = false;
-    var r = anchor.getBoundingClientRect();
-    var w = Math.min(340, window.innerWidth - 24);
-    var left = Math.max(12, Math.min(r.left, window.innerWidth - w - 12));
-    var top = r.bottom + 6;
-    if (top + 180 > window.innerHeight) top = Math.max(12, r.top - 180);
-    inline.style.left = left + "px";
-    inline.style.top = top + "px";
-    inline.style.width = w + "px";
+    inline.__anchor = anchor;
+    inline.__opened = new Date().getTime();
+    wfPlaceInline(anchor);
     if (ta) setTimeout(function () { try { ta.focus(); } catch (e) {} }, 30);
   }
   function bindWfInline() {
@@ -10894,10 +10902,343 @@
       runCalc("workflow");
     });
     if ($("wf-inline-cancel")) $("wf-inline-cancel").addEventListener("click", function () { inline.hidden = true; });
-    document.addEventListener("scroll", function () { if (!inline.hidden) inline.hidden = true; }, true);
+    /* 滚动时跟着锚点走，而不是直接关掉（手机上点按钮常会带一次自动滚动，原来会把弹层秒关） */
+    var rafPending = false;
+    document.addEventListener("scroll", function () {
+      if (inline.hidden || rafPending) return;
+      rafPending = true;
+      setTimeout(function () { rafPending = false; if (!inline.hidden) wfPlaceInline(inline.__anchor); }, 60);
+    }, true);
     document.addEventListener("click", function (e) {
       if (!inline.hidden && e.target && !e.target.closest("#wf-inline") && !e.target.closest(".wf-note")) inline.hidden = true;
     });
+    document.addEventListener("keydown", function (e) {
+      if (!inline.hidden && (e.key === "Escape" || e.keyCode === 27)) inline.hidden = true;
+    });
+  }
+
+  /* ---------------- 上一步算过没有 ---------------- */
+  /* 某一步 carry 的来源字段，用户没改过（EDITED 为空）就算「没算」，带过去的是默认值 */
+  function wfCarryMissing(step) {
+    var miss = [];
+    if (!step || !step.carry) return miss;
+    for (var i = 0; i < step.carry.length; i++) {
+      var src = step.carry[i][0], field = step.carry[i][1];
+      var v = STORED[field];
+      var ok = EDITED[field] && v !== undefined && v !== null && v !== "";
+      if (!ok && miss.indexOf(src) < 0) miss.push(src);
+    }
+    return miss;
+  }
+  function wfCarryWarn(miss) {
+    if (!miss || !miss.length) return;
+    var bar = $("wf-carrybar");
+    if (!bar) {
+      bar = document.createElement("div");
+      bar.id = "wf-carrybar";
+      bar.className = "instbar wf-carrybar";
+      bar.setAttribute("role", "status");
+      document.body.appendChild(bar);
+    }
+    bar.hidden = false;
+    bar.innerHTML = "";
+    var names = [];
+    for (var i = 0; i < miss.length; i++) names.push(cmpTabName(miss[i]));
+    var sp = document.createElement("span");
+    sp.className = "wf-carry-tx";
+    sp.textContent = "这一步要用「" + names.join(" / ") + "」的结果，那边还没算过，带过来的会是默认值。";
+    bar.appendChild(sp);
+    var go = document.createElement("button");
+    go.type = "button"; go.className = "inst-go";
+    go.textContent = "先去算 " + cmpTabName(miss[0]) + " ▸";
+    go.onclick = function () { bar.hidden = true; location.hash = "#" + miss[0]; };
+    bar.appendChild(go);
+    var x = document.createElement("button");
+    x.type = "button"; x.className = "inst-x"; x.setAttribute("aria-label", "关闭");
+    x.textContent = "×";
+    x.onclick = function () { bar.hidden = true; bar.innerHTML = ""; };
+    bar.appendChild(x);
+  }
+
+  /* ---------------- 首页「今天做什么」 ---------------- */
+  var TODAYBAR_KEY = "finance-calc-todayhide";
+  function wfRoleSaved() {
+    var r = "";
+    try { r = localStorage.getItem(WF_ROLE_KEY) || ""; } catch (e) {}
+    return r || "0";
+  }
+  function wfAllPaths() {
+    var all = [];
+    for (var i = 0; i < WF_PATHS.length; i++) all.push(WF_PATHS[i]);
+    if (WF_CUST && WF_CUST.length) {
+      var steps = [];
+      for (var k = 0; k < WF_CUST.length; k++) steps.push({ m: WF_CUST[k] });
+      all.push({ id: "mine", no: "", title: WF_CUST_NAME || "我的路径", steps: steps });
+    }
+    return all;
+  }
+  function wfScopedPaths() {
+    var role = wfRoleSaved();
+    var vp = wfVisiblePaths(role);
+    return vp && vp.length ? vp : wfAllPaths();
+  }
+  function wfProgress(paths) {
+    var t = { total: 0, none: 0, man: 0, skip: 0 };
+    for (var i = 0; i < paths.length; i++) {
+      for (var s = 0; s < paths[i].steps.length; s++) {
+        var key = wfStepKey(paths[i].id, paths[i].steps[s].m);
+        t.total++;
+        var st = wfStepState(key);
+        if (st === "done") t.man++;
+        else if (st === "skip") t.skip++;
+        else t.none++;
+      }
+    }
+    return t;
+  }
+  /* 优先取「截止最近的未做步骤」，没有截止日期就取第一个未做 */
+  function wfTodayPick(paths) {
+    var first = null, best = null, i, s;
+    for (i = 0; i < paths.length; i++) {
+      for (s = 0; s < paths[i].steps.length; s++) {
+        var step = paths[i].steps[s], key = wfStepKey(paths[i].id, step.m);
+        if (wfStepState(key) !== "none") continue;
+        var meta = WF_META[key] || {};
+        var item = { step: step, path: paths[i], key: key, due: meta.due || "", est: meta.est || 0 };
+        if (!first) first = item;
+        if (meta.due && (!best || meta.due < best.due)) best = item;
+      }
+    }
+    return best || first;
+  }
+  function wfDayDiff(ymd) {
+    if (!ymd) return null;
+    var d = new Date(ymd + "T00:00:00");
+    if (isNaN(d.getTime())) return null;
+    var t = new Date(); t.setHours(0, 0, 0, 0);
+    return Math.round((d.getTime() - t.getTime()) / 86400000);
+  }
+  function wfTodayStr() {
+    var d = new Date();
+    return d.getFullYear() + "-" + wfPad2(d.getMonth() + 1) + "-" + wfPad2(d.getDate());
+  }
+  function wfHasAnyData() {
+    var k;
+    for (k in WF_DONE) if (WF_DONE[k]) return true;
+    for (k in WF_MAN) if (WF_MAN[k]) return true;
+    for (k in WF_SKIP) if (WF_SKIP[k]) return true;
+    for (k in WF_META) if (WF_META[k]) return true;
+    for (k in WF_NOTES) if (WF_NOTES[k]) return true;
+    if (WF_CUST && WF_CUST.length) return true;
+    return false;
+  }
+  function renderTodayBar() {
+    var bar = $("todaybar");
+    if (!bar) return;
+    var hide = "";
+    try { hide = localStorage.getItem(TODAYBAR_KEY) || ""; } catch (e) {}
+    if (hide === wfTodayStr() || !wfHasAnyData()) { bar.hidden = true; bar.innerHTML = ""; return; }
+    var paths = wfScopedPaths();
+    var prog = wfProgress(paths);
+    var pick = wfTodayPick(paths);
+    bar.hidden = false;
+    bar.innerHTML = "";
+    var lab = document.createElement("span");
+    lab.className = "todaybar-lab";
+    if (pick) {
+      lab.textContent = "今天：";
+      var a = document.createElement("a");
+      var q = wfCarryQuery(pick.step.carry);
+      a.href = "#" + pick.step.m + (q ? "?" + q : "");
+      a.textContent = cmpTabName(pick.step.m);
+      bar.appendChild(lab);
+      bar.appendChild(a);
+      var tail = [];
+      if (pick.est) tail.push("预计 " + pick.est + " 分钟");
+      var dd = wfDayDiff(pick.due);
+      if (dd !== null) tail.push(dd < 0 ? "已逾期 " + (-dd) + " 天" : (dd === 0 ? "今天截止" : dd + " 天后截止"));
+      tail.push("本月已完成 " + prog.man + "/" + prog.total);
+      var t2 = document.createElement("span");
+      t2.className = "todaybar-tail";
+      t2.textContent = " · " + tail.join(" · ");
+      bar.appendChild(t2);
+    } else {
+      lab.textContent = "本月工作流已全部处理完 ✓（完成 " + prog.man + "/" + prog.total + "，跳过 " + prog.skip + "）";
+      bar.appendChild(lab);
+    }
+    var go = document.createElement("a");
+    go.className = "todaybar-go";
+    go.href = "#workflow";
+    go.textContent = "工作流 ▸";
+    bar.appendChild(go);
+    var x = document.createElement("button");
+    x.type = "button"; x.className = "todaybar-x"; x.setAttribute("aria-label", "今天不再显示");
+    x.textContent = "×";
+    x.onclick = function () { try { localStorage.setItem(TODAYBAR_KEY, wfTodayStr()); } catch (e) {} bar.hidden = true; };
+    bar.appendChild(x);
+  }
+
+  /* ---------------- 到期提醒（本地通知） ---------------- */
+  var WF_NOTIFY_KEY = "finance-calc-wfnotify";
+  var WF_NOTIFIED_KEY = "finance-calc-wfnotified";
+  function wfNotifyGranted() { return ("Notification" in window) && Notification.permission === "granted"; }
+  function wfNotifyPref() { try { return localStorage.getItem(WF_NOTIFY_KEY) === "1"; } catch (e) { return false; } }
+  function wfNotifySetPref(on) { try { localStorage.setItem(WF_NOTIFY_KEY, on ? "1" : "0"); } catch (e) {} }
+  function wfNotifyStatus() {
+    var st = $("wf-notify-st"), b = $("wf-notify");
+    var on = wfNotifyGranted() && wfNotifyPref();
+    if (b) b.textContent = on ? "关掉到期提醒" : "开启到期提醒";
+    if (!st) return;
+    if (!("Notification" in window)) st.textContent = "这个浏览器不支持通知；iPhone 要先「添加到主屏幕」再开";
+    else if (Notification.permission === "denied") st.textContent = "浏览器已拒绝通知权限，需到站点设置里手动允许";
+    else if (on) st.textContent = "到期前 1 天和当天各提醒一次，点提醒直接回到工作流";
+    else st.textContent = "到期前 1 天在手机上提醒";
+  }
+  function wfNotifySend(title, body) {
+    function fallback() { try { new Notification(title, { body: body, icon: "./icon-192.png" }); } catch (e) {} }
+    try {
+      if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+        navigator.serviceWorker.ready.then(function (reg) {
+          if (reg && reg.showNotification) {
+            try {
+              reg.showNotification(title, { body: body, icon: "./icon-192.png", badge: "./icon-192.png", tag: "fc-wf-due", data: { url: "./#workflow" } });
+            } catch (e) { fallback(); }
+          } else fallback();
+        }).catch(fallback);
+      } else fallback();
+    } catch (e) { fallback(); }
+  }
+  function wfNotifyCheck() {
+    if (!wfNotifyGranted() || !wfNotifyPref()) return;
+    var paths = wfScopedPaths();
+    var sent = wfLoad(WF_NOTIFIED_KEY) || {};
+    var todayS = wfTodayStr(), used = {}, queue = [], i, s;
+    for (i = 0; i < paths.length; i++) {
+      for (s = 0; s < paths[i].steps.length; s++) {
+        var step = paths[i].steps[s], key = wfStepKey(paths[i].id, step.m);
+        if (wfStepState(key) !== "none") continue;
+        var meta = WF_META[key] || {};
+        var dd = wfDayDiff(meta.due);
+        if (dd === null || dd > 1) continue;
+        if (sent[key] === todayS) { used[key] = todayS; continue; }
+        var when = dd < 0 ? ("已逾期 " + (-dd) + " 天") : (dd === 0 ? "今天到期" : "明天到期");
+        queue.push({
+          t: cmpTabName(step.m) + " · " + when,
+          b: "财务工作流 · " + paths[i].title + (meta.est ? "（约 " + meta.est + " 分钟）" : "")
+        });
+        used[key] = todayS;
+      }
+    }
+    if (!queue.length) return;
+    for (i = 0; i < queue.length && i < 3; i++) wfNotifySend(queue[i].t, queue[i].b);
+    wfSet(WF_NOTIFIED_KEY, used);
+  }
+  function wfNotifyToggle() {
+    if (!("Notification" in window)) { toast("这个浏览器不支持通知；iPhone 请先「添加到主屏幕」再开"); return; }
+    if (wfNotifyGranted() && wfNotifyPref()) {
+      wfNotifySetPref(false);
+      wfNotifyStatus();
+      toast("已关闭到期提醒");
+      return;
+    }
+    function got(p) {
+      if (p === "granted") {
+        wfNotifySetPref(true); wfNotifyStatus(); toast("到期提醒已开启");
+        wfNotifyCheck();
+      } else {
+        wfNotifySetPref(false); wfNotifyStatus();
+        toast(p === "denied" ? "浏览器拒绝了通知权限，需到站点设置里允许" : "没拿到通知权限，可以再点一次");
+      }
+    }
+    try {
+      var pr = Notification.requestPermission(got);
+      if (pr && pr.then) pr.then(got);
+    } catch (e) { toast("开启提醒失败"); }
+  }
+
+  /* ---------------- 本月明细 ---------------- */
+  function wfDetailRender(paths) {
+    var box = $("wf-detaillist");
+    if (!box) return;
+    var g = { skip: [], none: [], done: [] };
+    var i, s;
+    for (i = 0; i < paths.length; i++) {
+      for (s = 0; s < paths[i].steps.length; s++) {
+        var step = paths[i].steps[s], key = wfStepKey(paths[i].id, step.m);
+        var st = wfStepState(key);
+        var meta = WF_META[key] || {};
+        g[st].push({
+          label: cmpTabName(step.m), path: paths[i].title, mod: step.m,
+          note: (WF_NOTES[key] || "").trim(), est: meta.est || 0, due: meta.due || ""
+        });
+      }
+    }
+    box.innerHTML = "";
+    var secs = [
+      ["skip", "⊘ 本月跳过", "跳过不是「做完」，下月会自动回到未做"],
+      ["none", "⬜ 本月没做", ""],
+      ["done", "✅ 本月已完成", ""]
+    ];
+    for (i = 0; i < secs.length; i++) {
+      var arr = g[secs[i][0]];
+      if (!arr.length) continue;
+      var h = document.createElement("p");
+      h.className = "wf-detail-h";
+      h.textContent = secs[i][1] + "（" + arr.length + "）" + (secs[i][2] ? " · " + secs[i][2] : "");
+      box.appendChild(h);
+      var ul = document.createElement("ul");
+      ul.className = "wf-detail-ul";
+      for (s = 0; s < arr.length; s++) {
+        var it = arr[s], li = document.createElement("li");
+        var a = document.createElement("a");
+        a.href = "#" + it.mod;
+        a.textContent = it.label;
+        li.appendChild(a);
+        var extra = [];
+        extra.push(it.path);
+        if (it.est) extra.push("约" + it.est + "分钟");
+        if (it.due) extra.push("截止" + it.due);
+        if (it.note) extra.push("备注：" + it.note);
+        var sp = document.createElement("span");
+        sp.className = "wf-detail-meta";
+        sp.textContent = " — " + extra.join(" · ");
+        li.appendChild(sp);
+        ul.appendChild(li);
+      }
+      box.appendChild(ul);
+    }
+    if (!g.skip.length && !g.none.length && !g.done.length) box.textContent = "这条路径没有步骤。";
+  }
+
+  /* ---------------- 打印交接单 ---------------- */
+  function wfHandoffPrint() {
+    var box = $("wf-printbox");
+    if (!box) return;
+    var h = wfBuildHandoff();
+    function esc(v) {
+      return String(v == null ? "" : v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+    var html = '<h2>财务工作流 · 交接单</h2><p class="wf-print-meta">导出时间：' + esc(new Date().toLocaleString("zh-CN")) + " · 共 " + h.rows.length + " 步</p>";
+    html += '<table class="wf-print-tb"><thead><tr><th>路径</th><th>步骤</th><th>状态</th><th>备注</th><th>预计</th><th>截止</th></tr></thead><tbody>';
+    for (var i = 0; i < h.rows.length; i++) {
+      var r = h.rows[i];
+      html += "<tr><td>" + esc(r[1]) + "</td><td>" + esc(r[2]) + "</td><td>" + esc(r[3]) + "</td><td>" + esc(r[4]) + "</td><td>" + (r[5] ? esc(r[5]) + " 分钟" : "") + "</td><td>" + esc(r[6]) + "</td></tr>";
+    }
+    html += '</tbody></table><p class="wf-print-sign">交接人：____________　接收人：____________　日期：____________</p>';
+    box.innerHTML = html;
+    box.hidden = false;
+    document.body.classList.add("wf-printing");
+    var done = false;
+    function after() {
+      if (done) return;
+      done = true;
+      document.body.classList.remove("wf-printing");
+      box.hidden = true;
+      box.innerHTML = "";
+    }
+    window.addEventListener("afterprint", after);
+    try { window.print(); } catch (e) { after(); }
+    setTimeout(after, 60000);
   }
 
   function calcWorkflow() {
@@ -11028,6 +11369,13 @@
         aEl.setAttribute("data-mod", step.m);
         aEl.textContent = cmpTabName(step.m);
         host.appendChild(aEl);
+        /* 上一步没算过：标一下，点进去时提示 */
+        (function (mm) {
+          if (!mm.length) return;
+          aEl.classList.add("wf-miss");
+          aEl.setAttribute("title", "这一步要用「" + cmpTabName(mm[0]) + "」的结果，那边还没算过");
+          aEl.addEventListener("click", function () { setTimeout(function () { wfCarryWarn(mm); }, 80); });
+        })(wfCarryMissing(step));
         var stt = wfStepState(key);
         if (WF_DONE[step.m]) aEl.classList.add("wf-done");
         if (stt === "skip") aEl.classList.add("wf-skip");
@@ -11148,6 +11496,10 @@
     }
     bindWfDnd();
     bindWfInline();
+    wfNotifyStatus();
+    wfDetailRender(vpaths);
+    renderTodayBar();
+    wfNotifyCheck();
   }
 
   var WF_AUTO_TIMER = null;
@@ -11305,6 +11657,8 @@
     if (e.target && e.target.closest && e.target.closest("#wf-handoff")) { wfHandoff(); return; }
     if (e.target && e.target.closest && e.target.closest("#wf-handoff-copy")) { wfHandoffCopy(); return; }
     if (e.target && e.target.closest && e.target.closest("#wf-handoff-csv")) { wfHandoffCsv(); return; }
+    if (e.target && e.target.closest && e.target.closest("#wf-handoff-print")) { wfHandoffPrint(); return; }
+    if (e.target && e.target.closest && e.target.closest("#wf-notify")) { wfNotifyToggle(); return; }
     var nb = e.target && e.target.closest ? e.target.closest(".wf-note") : null;
     if (nb) {
       wfOpenInline(nb.getAttribute("data-step") || "", nb);
@@ -12048,6 +12402,7 @@
     try { localStorage.setItem(LAST_KEY, name); } catch (e) {}
     markBadInputs(document.querySelector(".panel.is-on"));
     renderNext(name);
+    renderTodayBar();
   }
 
   $("tabs").addEventListener("click", function (e) {
@@ -14125,7 +14480,9 @@
   try { lastName = localStorage.getItem(LAST_KEY) || ""; } catch (e) {}
   loadWfCust();
   loadWfDone();
+  loadWfMan(); loadWfSkip(); loadWfNotes(); loadWfMeta(); loadWfArch();
   refreshWfBadge();
+  renderTodayBar();
   var startName = TABS[st0.name] ? st0.name : (TABS[lastName] ? lastName : "deposit");
   activate(startName);
   if (st0.params) { applyParams(st0.params); if (calcMap[startName]) calcMap[startName](); }

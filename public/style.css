@@ -536,3 +536,46 @@ html[data-theme="dark"] .wf-chip a { color: #93b4f7; }
 .wf-stepbar-lab { font-size: 12px; color: var(--ink3, #475569); max-width: 40vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wf-stepbar button { font-size: 12px; padding: 4px 10px; }
 html[data-theme="dark"] .wf-stepbar { background: #1e293b; border-color: #334155; }
+
+/* 首页「今天做什么」 */
+.todaybar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 10px; padding: 9px 12px; background: linear-gradient(135deg, #eef4ff, #eefbf6); border: 1px solid var(--line, #d7deeb); border-left: 4px solid #1e3a8a; border-radius: 10px; font-size: 13px; }
+.todaybar[hidden] { display: none; }
+.todaybar-lab { color: var(--ink3, #475569); }
+.todaybar a { color: #1e3a8a; font-weight: 600; text-decoration: none; }
+.todaybar a:hover { text-decoration: underline; }
+.todaybar-tail { color: var(--ink3, #475569); font-size: 12px; }
+.todaybar-go { margin-left: auto; font-size: 12px; }
+.todaybar-x { border: 0; background: transparent; color: var(--ink3, #475569); font-size: 15px; line-height: 1; cursor: pointer; padding: 2px 6px; border-radius: 6px; }
+.todaybar-x:hover { background: #dbe4f5; }
+html[data-theme="dark"] .todaybar { background: linear-gradient(135deg, #16233a, #12241f); border-color: #26364a; border-left-color: #7aa5ff; }
+html[data-theme="dark"] .todaybar a { color: #93b4f7; }
+html[data-theme="dark"] .todaybar-x:hover { background: #26364a; }
+
+/* 上一步没算过的提示 */
+a.wf-miss { border-bottom: 1px dashed #d97706; }
+a.wf-miss::after { content: "!"; font-size: 9px; vertical-align: super; color: #b45309; margin-left: 1px; }
+.wf-carrybar { align-items: flex-start; }
+.wf-carrybar .wf-carry-tx { flex: 1 1 220px; line-height: 1.45; font-size: 12.5px; }
+@media print { .wf-carrybar { display: none !important; } }
+
+/* 本月明细 */
+.wf-detaillist { font-size: 12.5px; line-height: 1.6; }
+.wf-detail-h { margin: 8px 0 2px; font-weight: 600; color: var(--ink, #0f172a); }
+.wf-detail-ul { margin: 0 0 6px; padding-left: 18px; }
+.wf-detail-ul li { margin: 1px 0; }
+.wf-detail-ul a { color: #1e3a8a; }
+.wf-detail-meta { color: var(--ink3, #475569); }
+html[data-theme="dark"] .wf-detail-h { color: #dbe7ff; }
+html[data-theme="dark"] .wf-detail-ul a { color: #93b4f7; }
+
+/* 打印交接单：只留打印区 */
+.wf-printbox { display: none; }
+.wf-printbox[hidden] { display: none; }
+body.wf-printing .wf-printbox { display: block; }
+body.wf-printing > *:not(.wf-printbox) { display: none !important; }
+.wf-printbox h2 { font-size: 17px; margin: 0 0 4px; }
+.wf-print-meta { font-size: 12px; color: #475569; margin: 0 0 10px; }
+.wf-print-tb { width: 100%; border-collapse: collapse; font-size: 12px; }
+.wf-print-tb th, .wf-print-tb td { border: 1px solid #cbd5e1; padding: 5px 6px; text-align: left; vertical-align: top; }
+.wf-print-tb th { background: #eef2ff; }
+.wf-print-sign { margin-top: 18px; font-size: 12px; }

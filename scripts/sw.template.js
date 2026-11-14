@@ -51,3 +51,22 @@ self.addEventListener("fetch", function (e) {
     })
   );
 });
+
+/* 点到期提醒：聚焦已开的窗口并跳到工作流，没有窗口就新开一个 */
+self.addEventListener("notificationclick", function (e) {
+  e.notification.close();
+  var target = "./#workflow";
+  try { if (e.notification.data && e.notification.data.url) target = e.notification.data.url; } catch (err) {}
+  e.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(function (list) {
+      for (var i = 0; i < list.length; i++) {
+        var c = list[i];
+        if (c.url.indexOf(location.origin) === 0 && "focus" in c) {
+          try { c.navigate(target); } catch (err) {}
+          return c.focus();
+        }
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(target);
+    })
+  );
+});

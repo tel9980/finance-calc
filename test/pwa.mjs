@@ -127,6 +127,48 @@ await ctx3.setOffline(false);
 await ctx3.close();
 
 ok(errs.length === 0, '控制台报错：' + errs.join(' | '));
+
+/* ---------- 5. 到期提醒（本地通知，只有装到主屏/授权后才发） ---------- */
+const ctx5 = await browser.newContext({ permissions: ['notifications'] });
+await ctx5.addInitScript(() => {
+  window.__notified = [];
+  if (navigator.serviceWorker) {
+    navigator.serviceWorker.ready.then(reg => {
+      const orig = reg.showNotification.bind(reg);
+      reg.showNotification = (t, o) => { window.__notified.push(t); return orig(t, o); };
+    });
+  }
+});
+const p5 = await ctx5.newPage();
+const e5 = [];
+p5.on('pageerror', e => e5.push('PE:' + e.message));
+await p5.goto(BASE + '#workflow', { waitUntil: 'load' });
+await p5.waitForTimeout(800);
+await p5.evaluate(() => ['wfman', 'wfmeta', 'wfnotify', 'wfnotified'].forEach(k => localStorage.removeItem('finance-calc-' + k)));
+await p5.goto(BASE + '#workflow', { waitUntil: 'load' });
+await p5.waitForTimeout(700);
+await p5.click('#wf-notify');
+await p5.waitForTimeout(600);
+const nst = await p5.evaluate(() => ({
+  pref: localStorage.getItem('finance-calc-wfnotify'),
+  txt: document.getElementById('wf-notify').textContent.trim(),
+  st: document.getElementById('wf-notify-st').textContent.trim()
+}));
+ok(nst.pref === '1' && nst.txt.indexOf('关掉') >= 0, '开启到期提醒没生效（' + JSON.stringify(nst) + '）');
+/* 造一个「今天到期」的未做步骤，重进工作流应发一条提醒 */
+await p5.evaluate(() => {
+  localStorage.setItem('finance-calc-wfmeta', JSON.stringify({ 'cash:expcheck': { est: 8, due: new Date().toISOString().slice(0, 10) } }));
+  localStorage.removeItem('finance-calc-wfnotified');
+});
+await p5.goto(BASE + '#deposit', { waitUntil: 'load' });
+await p5.waitForTimeout(400);
+await p5.goto(BASE + '#workflow', { waitUntil: 'load' });
+await p5.waitForTimeout(1600);
+const nt = await p5.evaluate(() => window.__notified || []);
+ok(nt.length >= 1 && nt.join(' ').indexOf('到期') >= 0, '到期提醒没发出去（' + JSON.stringify(nt) + '）');
+ok(e5.length === 0, '到期提醒相关报错：' + e5.join(' | '));
+await ctx5.close();
+
 console.log(bad.length ? '❌ 安装/离线项失败：\n- ' + bad.join('\n- ') : '✅ 安装与离线项全部通过');
 await browser.close();
 process.exit(bad.length ? 1 : 0);

@@ -189,6 +189,56 @@ ok(wfImp.role === '9' && wfImp.name === '回归路径' && wfImp.chips === 2, '�
 await page.click('#wf-clear'); await page.waitForTimeout(600);
 ok(/20\d\d-\d\d/.test(await page.textContent('#wf-histkv')), '清空本月没有写归档历史');
 
+/* 依赖提示：上一步没算过的步骤要标出来，点进去要提示 */
+await page.evaluate(() => ['wfdone','wfman','wfskip','wfnotes','wfmeta','wfcust','wfrole','wfarch','wfmonth','wfnotify','wfnotified','todayhide'].forEach(k => localStorage.removeItem('finance-calc-' + k)));
+await page.goto(BASE + '#workflow', { waitUntil: 'load' }); await page.waitForTimeout(700);
+await page.selectOption('#wf-role', '0'); await page.waitForTimeout(500);
+ok((await page.$$('a.wf-miss')).length > 0, '上一步没算的步骤没被标出来');
+await page.evaluate(() => [...document.querySelectorAll('#panel-workflow details[data-path]')].forEach(d => { d.open = true; }));
+await page.waitForTimeout(250);
+await page.locator('[data-path="report"] a.wf-miss').first().click(); await page.waitForTimeout(500);
+const carryTx = await page.evaluate(() => { const b = document.getElementById('wf-carrybar'); return b && !b.hidden ? b.textContent : ''; });
+ok(carryTx.indexOf('先去算') >= 0, '点进缺依赖的步骤没给提示条（' + carryTx.slice(0, 40) + '）');
+
+/* 备注弹层：长页面上点按钮会带一次自动滚动，弹层不能因此秒关 */
+await page.goto(BASE + '#workflow', { waitUntil: 'load' }); await page.waitForTimeout(600);
+await page.evaluate(() => [...document.querySelectorAll('#panel-workflow details[data-path]')].forEach(d => { d.open = true; }));
+await page.waitForTimeout(250);
+await page.locator('[data-path="cash"] .wf-tick').first().click(); await page.waitForTimeout(300);
+await page.locator('[data-path="cash"] .wf-note').nth(1).click(); await page.waitForTimeout(400);
+ok(!(await page.isHidden('#wf-inline')), '备注弹层被自动滚动关掉了');
+await page.fill('#wf-inline-ta', '今日条测试'); await page.fill('#wf-inline-est', '9');
+await page.fill('#wf-inline-due', new Date(Date.now() + 86400000).toISOString().slice(0, 10));
+await page.click('#wf-inline-save'); await page.waitForTimeout(450);
+
+/* 首页「今天做什么」 */
+await page.goto(BASE + '#deposit', { waitUntil: 'load' }); await page.waitForTimeout(650);
+const todayTx = await page.evaluate(() => { const b = document.getElementById('todaybar'); return b && !b.hidden ? b.textContent.replace(/\s+/g, ' ') : ''; });
+ok(todayTx.indexOf('今天：') >= 0, '首页没有「今天做什么」提示条（' + todayTx.slice(0, 40) + '）');
+await page.click('#todaybar .todaybar-x'); await page.waitForTimeout(250);
+ok(await page.evaluate(() => document.getElementById('todaybar').hidden), '今日条点 × 后没隐藏');
+
+/* 本月明细 + 打印交接单 */
+await page.goto(BASE + '#workflow', { waitUntil: 'load' }); await page.waitForTimeout(650);
+const det = await page.evaluate(() => {
+  const b = document.getElementById('wf-detaillist');
+  return { h: b.querySelectorAll('.wf-detail-h').length, li: b.querySelectorAll('.wf-detail-ul li').length };
+});
+ok(det.h >= 1 && det.li >= 1, '本月明细没渲染（' + JSON.stringify(det) + '）');
+await page.evaluate(() => {
+  window.__pr = 0;
+  window.print = () => {
+    window.__pr++;
+    window.__snap = document.querySelectorAll('#wf-printbox tbody tr').length;
+    window.__sign = !!document.querySelector('.wf-print-sign');
+    window.dispatchEvent(new Event('afterprint'));
+  };
+});
+await page.click('#wf-handoff-print'); await page.waitForTimeout(400);
+const pr = await page.evaluate(() => ({ n: window.__pr, rows: window.__snap, sign: window.__sign, hidden: document.getElementById('wf-printbox').hidden, cls: document.body.className }));
+ok(pr.n === 1 && pr.rows > 10 && pr.sign, '打印交接单没出表（' + JSON.stringify(pr) + '）');
+ok(pr.hidden && pr.cls.indexOf('wf-printing') < 0, '打印完没清理打印区（' + JSON.stringify(pr) + '）');
+
 /* 错误自检浮层 */
 await page.evaluate(() => { setTimeout(() => { throw new Error('自检测试'); }, 0); });
 let hasBox = false;
