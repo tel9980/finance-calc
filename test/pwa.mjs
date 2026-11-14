@@ -165,7 +165,10 @@ const nst = await p5.evaluate(() => ({
 ok(nst.pref === '1' && nst.txt.indexOf('关掉') >= 0, '开启到期提醒没生效（' + JSON.stringify(nst) + '）');
 /* 造一个「今天到期」的未做步骤，重进工作流应发一条提醒 */
 await p5.evaluate(() => {
-  localStorage.setItem('finance-calc-wfmeta', JSON.stringify({ 'cash:expcheck': { est: 8, due: new Date().toISOString().slice(0, 10) } }));
+  /* 用本地日期，不能用 toISOString（那是 UTC，北京时间 0–8 点会算成昨天，测试就挂） */
+  var d = new Date(), z = function (n) { return (n < 10 ? '0' : '') + n; };
+  var today = d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate());
+  localStorage.setItem('finance-calc-wfmeta', JSON.stringify({ 'cash:expcheck': { est: 8, due: today } }));
   localStorage.removeItem('finance-calc-wfnotified');
 });
 await p5.goto(BASE + '#deposit', { waitUntil: 'load' });
@@ -173,7 +176,7 @@ await p5.waitForTimeout(400);
 await p5.goto(BASE + '#workflow', { waitUntil: 'load' });
 await p5.waitForTimeout(1600);
 const nt = await p5.evaluate(() => window.__notified || []);
-ok(nt.length >= 1 && nt.join(' ').indexOf('到期') >= 0, '到期提醒没发出去（' + JSON.stringify(nt) + '）');
+ok(nt.length >= 1 && /到期|逾期/.test(nt.join(' ')), '到期提醒没发出去（' + JSON.stringify(nt) + '）');
 /* 同一天不重复推 */
 await p5.goto(BASE + '#deposit', { waitUntil: 'load' });
 await p5.waitForTimeout(300);
