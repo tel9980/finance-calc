@@ -239,6 +239,62 @@ const pr = await page.evaluate(() => ({ n: window.__pr, rows: window.__snap, sig
 ok(pr.n === 1 && pr.rows > 10 && pr.sign, '打印交接单没出表（' + JSON.stringify(pr) + '）');
 ok(pr.hidden && pr.cls.indexOf('wf-printing') < 0, '打印完没清理打印区（' + JSON.stringify(pr) + '）');
 
+/* 内置路径编辑：隐藏/恢复/调顺序 */
+await page.evaluate(() => ['wfedit','wftasks'].forEach(k => localStorage.removeItem('finance-calc-' + k)));
+await page.goto(BASE + '#deposit', { waitUntil: 'load' }); await page.waitForTimeout(300);
+await page.goto(BASE + '#workflow', { waitUntil: 'load' }); await page.waitForTimeout(650);
+await page.selectOption('#wf-role', '0'); await page.waitForTimeout(450);
+const big0 = (await page.textContent('#wf-big')).trim();
+await page.click('#wf-edit'); await page.waitForTimeout(400);
+ok(!(await page.isHidden('#wf-edit-reset')), '编辑模式下没有「恢复默认」按钮');
+ok((await page.$$('[data-path="report"] .wf-hide')).length > 0, '编辑模式下没出现隐藏按钮');
+await page.locator('[data-path="report"] .wf-hide[data-mod="bplan"]').click(); await page.waitForTimeout(450);
+ok((await page.textContent('#wf-big')).trim() === big0.replace(/\/(\d+)/, (m, n) => '/' + (parseInt(n, 10) - 1)), '隐藏一步后总数没变（' + (await page.textContent('#wf-big')) + '）');
+ok((await page.textContent('[data-path="report"] .wf-hidnote')).indexOf('已隐藏 1 步') >= 0, '没有显示「已隐藏」和恢复入口');
+await page.locator('[data-path="report"] .wf-unhide[data-mod="bplan"]').click(); await page.waitForTimeout(450);
+ok((await page.textContent('#wf-big')).trim() === big0, '恢复隐藏后总数没回到 ' + big0);
+await page.locator('[data-path="report"] .wf-up[data-mod="ratios"]').click(); await page.waitForTimeout(450);
+const order = await page.$$eval('[data-path="report"] .jump a', els => els.map(e => e.dataset.mod));
+ok(order[0] === 'ratios', '上移没生效（' + JSON.stringify(order) + '）');
+await page.click('#wf-edit-reset'); await page.waitForTimeout(450);
+const order2 = await page.$$eval('[data-path="report"] .jump a', els => els.map(e => e.dataset.mod));
+ok(order2[0] === 'finreport', '恢复默认没还原顺序（' + JSON.stringify(order2) + '）');
+
+/* 步骤子清单 */
+await page.locator('[data-path="report"] .wf-task').first().click(); await page.waitForTimeout(350);
+ok(await page.isVisible('#wf-taskbox'), '子清单弹层没打开');
+await page.fill('#wf-task-in', '收集上月报表'); await page.press('#wf-task-in', 'Enter'); await page.waitForTimeout(400);
+await page.fill('#wf-task-in', '核对成本口径'); await page.click('#wf-task-add'); await page.waitForTimeout(400);
+ok((await page.$$('.wf-trow')).length === 2, '子清单没加上两条');
+await page.locator('.wf-trow .wf-tchk').first().click(); await page.waitForTimeout(400);
+ok((await page.textContent('[data-path="report"] .wf-task')).indexOf('1/2') >= 0, '子清单勾选后角标没更新');
+const tstore = await page.evaluate(() => JSON.parse(localStorage.getItem('finance-calc-wftasks') || '{}'));
+const tfirst = Object.keys(tstore)[0] || '';
+ok(tfirst && tstore[tfirst][0].d === 1, '子清单勾选没落盘（' + JSON.stringify(tstore) + '）');
+await page.locator('.wf-trow .wf-tdel').nth(1).click(); await page.waitForTimeout(400);
+ok((await page.$$('.wf-trow')).length === 1, '子清单删除没生效');
+await page.evaluate(() => { const b = document.getElementById('wf-taskbox'); if (b) b.hidden = true; });
+
+/* 换月：备注/预计跟着归档，过期截止清掉 */
+await page.evaluate(() => {
+  localStorage.setItem('finance-calc-wfman', JSON.stringify({ 'report:ratios': 1 }));
+  localStorage.setItem('finance-calc-wfmonth', JSON.stringify({ m: '2026-10', total: 22, done: 5, man: 2, skip: 1 }));
+  localStorage.setItem('finance-calc-wfmeta', JSON.stringify({ 'report:ratios': { est: 12, due: '2026-10-05' }, 'cash:expense': { est: 8, due: '2099-12-20' } }));
+  localStorage.setItem('finance-calc-wfnotes', JSON.stringify({ 'cash:expense': '上月留下的备注' }));
+  localStorage.removeItem('finance-calc-wfarch');
+});
+await page.goto(BASE + '#deposit', { waitUntil: 'load' }); await page.waitForTimeout(300);
+await page.goto(BASE + '#workflow', { waitUntil: 'load' }); await page.waitForTimeout(800);
+const roll = await page.evaluate(() => ({
+  arch: JSON.parse(localStorage.getItem('finance-calc-wfarch') || '{}'),
+  meta: JSON.parse(localStorage.getItem('finance-calc-wfmeta') || '{}'),
+  man: localStorage.getItem('finance-calc-wfman')
+}));
+ok(roll.arch['2026-10'] && roll.arch['2026-10'].notes && roll.arch['2026-10'].notes['cash:expense'], '换月归档没带上备注（' + JSON.stringify(roll.arch) + '）');
+ok(!roll.meta['report:ratios'].due && roll.meta['report:ratios'].est === 12, '过期截止没清掉 / 预计分钟没保留（' + JSON.stringify(roll.meta) + '）');
+ok(roll.meta['cash:expense'] && roll.meta['cash:expense'].due === '2099-12-20', '未来的截止日期被误删（' + JSON.stringify(roll.meta) + '）');
+ok(roll.man === '{}' || roll.man === null, '换月后本月勾选没清空（' + roll.man + '）');
+
 /* 错误自检浮层 */
 await page.evaluate(() => { setTimeout(() => { throw new Error('自检测试'); }, 0); });
 let hasBox = false;

@@ -10479,10 +10479,13 @@
   var WF_META_KEY = "finance-calc-wfmeta";     // {key:{due:"YYYY-MM-DD",est:分钟}}
   var WF_ARCH_KEY = "finance-calc-wfarch";     // {"YYYY-MM":{total,done,man,skip,at}}
   var WF_MONTH_KEY = "finance-calc-wfmonth";   // {m:"YYYY-MM",total,done,man,skip} 上次渲染的月份快照，用于换月自动归档
+  var WF_EDIT_KEY = "finance-calc-wfedit";     // 内置路径调整 {hidden:{路径id:[模块]}, order:{路径id:[模块]}}
+  var WF_TASK_KEY = "finance-calc-wftasks";    // 步骤子清单 {步骤key:[{t:子任务,d:0|1}]}
 
   var WF_DONE = {}, WF_MAN = {}, WF_SKIP = {}, WF_CUST = [], WF_NOTES = {}, WF_META = {}, WF_ARCH = {};
   var WF_CUST_NAME = "";
   var WF_LAST = { total: 0, done: 0, man: 0, skip: 0 };
+  var WF_EDIT = { hidden: {}, order: {} }, WF_TASK = {}, WF_EDIT_ON = false;
   var WF_ROLE_READY = false;
 
   /* 路径定义：标题、岗位、步骤、带参跳转的单一数据源（carry = [[src模块, 源字段, 目标字段]...]） */
@@ -10531,6 +10534,10 @@
   function loadWfNotes() { WF_NOTES = wfLoad(WF_NOTE_KEY) || {}; }
   function loadWfMeta() { WF_META = wfLoad(WF_META_KEY) || {}; }
   function loadWfArch() { WF_ARCH = wfLoad(WF_ARCH_KEY) || {}; }
+  function loadWfEdit() { var e = wfLoad(WF_EDIT_KEY) || {}; WF_EDIT = { hidden: e.hidden || {}, order: e.order || {} }; }
+  function loadWfTask() { WF_TASK = wfLoad(WF_TASK_KEY) || {}; }
+  function wfEditSave() { wfSet(WF_EDIT_KEY, WF_EDIT); }
+  function wfTaskSave() { wfSet(WF_TASK_KEY, WF_TASK); }
   function wfManSave() { wfSet(WF_MAN_KEY, WF_MAN); }
   function wfSkipSave() { wfSet(WF_SKIP_KEY, WF_SKIP); }
   function wfNoteSave() { wfSet(WF_NOTE_KEY, WF_NOTES); }
@@ -10607,6 +10614,8 @@
   function wfArchivePut(ym, snap) {
     if (!ym || !snap) return;
     WF_ARCH[ym] = { total: snap.total || 0, done: snap.done || 0, man: snap.man || 0, skip: snap.skip || 0, at: Date.now() };
+    if (snap.notes && Object.keys(snap.notes).length) WF_ARCH[ym].notes = snap.notes;  /* 备注随月份一起存档，月底能回看 */
+    if (snap.meta && Object.keys(snap.meta).length) WF_ARCH[ym].meta = snap.meta;
     var keys = Object.keys(WF_ARCH).sort();
     while (keys.length > 12) delete WF_ARCH[keys.shift()];
     wfSet(WF_ARCH_KEY, WF_ARCH);
@@ -10628,16 +10637,84 @@
     var rec = wfLoad(WF_MONTH_KEY);
     if (rec && rec.m && rec.m !== now) {
       if ((rec.man || 0) + (rec.skip || 0) > 0) {
-        wfArchivePut(rec.m, rec);
+        var snap = { total: rec.total, done: rec.done, man: rec.man, skip: rec.skip, notes: WF_NOTES, meta: WF_META };
+        wfArchivePut(rec.m, snap);
         toast("上个月（" + rec.m + "）的进度已归档");
       }
       WF_MAN = {}; WF_SKIP = {};
       wfManSave(); wfSkipSave();
+      /* 上个月的截止日期已经过去了，留着没意义；预计分钟是工时估算，留到下个月复用 */
+      var tstr = wfTodayStr(), pruned = 0, mk;
+      for (mk in WF_META) {
+        if (!Object.prototype.hasOwnProperty.call(WF_META, mk)) continue;
+        if (WF_META[mk] && WF_META[mk].due && WF_META[mk].due < tstr) { delete WF_META[mk].due; pruned++; }
+      }
+      if (pruned) { wfMetaSave(); toast("上个月的截止日期已清掉（预计分钟保留）"); }
     }
     wfSet(WF_MONTH_KEY, { m: now, total: (rec && rec.m === now ? rec.total : 0) || 0 });
   }
   function wfMonthTouch(total, done, man, skip) {
     wfSet(WF_MONTH_KEY, { m: wfMonthKey(), total: total, done: done, man: man, skip: skip });
+  }
+
+  /* 内置路径也能调：隐藏不适用的步骤、调顺序（我的路径用拖动/上下移，机制不同） */
+  function wfPathMods(pid) {
+    var base = null;
+    for (var i = 0; i < WF_PATHS.length; i++) if (WF_PATHS[i].id === pid) { base = WF_PATHS[i]; break; }
+    if (!base) return [];
+    var hid = WF_EDIT.hidden[pid] || [], ord = WF_EDIT.order[pid] || [], mods = [];
+    for (var k = 0; k < base.steps.length; k++) if (hid.indexOf(base.steps[k].m) < 0) mods.push(base.steps[k].m);
+    if (ord.length) mods.sort(function (x, y) {
+      var ix = ord.indexOf(x), iy = ord.indexOf(y);
+      if (ix < 0) ix = 999; if (iy < 0) iy = 999;
+      return ix - iy;
+    });
+    return mods;
+  }
+  function wfEditPath(p) {
+    if (p.id === "mine") return p;
+    var hid = (WF_EDIT.hidden[p.id] || []).slice(0);
+    var mods = wfPathMods(p.id), steps = [];
+    for (var i = 0; i < mods.length; i++) {
+      for (var k = 0; k < p.steps.length; k++) if (p.steps[k].m === mods[i]) { steps.push(p.steps[k]); break; }
+    }
+    return { id: p.id, roles: p.roles, no: p.no, title: p.title, steps: steps, hidden: hid };
+  }
+  function wfMoveStep(pid, mod, delta) {
+    var mods = wfPathMods(pid), i = mods.indexOf(mod), j = i + delta;
+    if (i < 0 || j < 0 || j >= mods.length) return;
+    var t = mods[i]; mods[i] = mods[j]; mods[j] = t;
+    WF_EDIT.order[pid] = mods;
+    wfEditSave(); runCalc("workflow");
+  }
+  function wfHideStep(pid, mod) {
+    var hid = WF_EDIT.hidden[pid] || [];
+    if (hid.indexOf(mod) < 0) hid.push(mod);
+    WF_EDIT.hidden[pid] = hid;
+    var ord = WF_EDIT.order[pid];
+    if (ord) { var i = ord.indexOf(mod); if (i >= 0) ord.splice(i, 1); }
+    wfEditSave(); runCalc("workflow");
+    toast("已隐藏这一步（点下面「已隐藏」里的按钮可以恢复）");
+  }
+  function wfUnhideStep(pid, mod) {
+    var hid = WF_EDIT.hidden[pid] || [], i = hid.indexOf(mod);
+    if (i >= 0) hid.splice(i, 1);
+    WF_EDIT.hidden[pid] = hid;
+    var ord = WF_EDIT.order[pid];
+    if (ord && ord.indexOf(mod) < 0) ord.push(mod);
+    wfEditSave(); runCalc("workflow");
+  }
+  function wfEditReset() {
+    WF_EDIT = { hidden: {}, order: {} };
+    wfEditSave(); runCalc("workflow");
+    toast("内置路径已恢复默认");
+  }
+  function wfEditToggle() {
+    WF_EDIT_ON = !WF_EDIT_ON;
+    var b = $("wf-edit"), r = $("wf-edit-reset");
+    if (b) { b.textContent = WF_EDIT_ON ? "编辑步骤（进行中）" : "编辑步骤"; b.classList.toggle("on", WF_EDIT_ON); }
+    if (r) r.hidden = !WF_EDIT_ON;
+    runCalc("workflow");
   }
 
   function wfVisiblePaths(role) {
@@ -10648,7 +10725,7 @@
     }
     for (var i = 0; i < WF_PATHS.length; i++) {
       var p = WF_PATHS[i];
-      if (role === "0" || p.roles.indexOf(role) >= 0) paths.push(p);
+      if (role === "0" || p.roles.indexOf(role) >= 0) paths.push(wfEditPath(p));
     }
     if (role === "0" && WF_CUST.length) paths.push({ id: "mine", roles: ["9"], no: "⑨", title: WF_CUST_NAME || "我的路径", steps: WF_CUST.map(function (m) { return { m: m }; }) });
     return paths;
@@ -10914,6 +10991,11 @@
     });
     document.addEventListener("keydown", function (e) {
       if (!inline.hidden && (e.key === "Escape" || e.keyCode === 27)) inline.hidden = true;
+      var tb = $("wf-taskbox");
+      if (tb && !tb.hidden) {
+        if (e.key === "Escape" || e.keyCode === 27) tb.hidden = true;
+        if ((e.key === "Enter" || e.keyCode === 13) && e.target && e.target.id === "wf-task-in") { e.preventDefault(); wfTaskAdd(); }
+      }
     });
   }
 
@@ -11245,6 +11327,117 @@
     setTimeout(after, 60000);
   }
 
+  /* ---------- 步骤子清单 ---------- */
+  function wfPlaceNear(el, anchor, h) {
+    if (!el || !anchor) return;
+    var r = anchor.getBoundingClientRect();
+    if (r.bottom < 0 || r.top > window.innerHeight) { el.hidden = true; return; }
+    var w = Math.min(320, window.innerWidth - 24);
+    var left = Math.max(12, Math.min(r.left, window.innerWidth - w - 12));
+    var top = r.bottom + 6;
+    if (top + h > window.innerHeight - 8) top = Math.max(12, r.top - h);
+    el.style.left = left + "px";
+    el.style.top = top + "px";
+    el.style.width = w + "px";
+  }
+  function wfTaskBox() {
+    var el = $("wf-taskbox");
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "wf-taskbox";
+      el.className = "wf-inline wf-taskbox";
+      el.hidden = true;
+      document.body.appendChild(el);
+    }
+    return el;
+  }
+  function wfOpenTasks(key, anchor) {
+    var box = wfTaskBox();
+    box.setAttribute("data-key", key || "");
+    box.__anchor = anchor || box.__anchor;
+    box.innerHTML = "";
+    var list = WF_TASK[key] || [];
+    var hd = document.createElement("div");
+    hd.className = "wf-inline-h";
+    hd.textContent = "子清单 · " + cmpTabName((key || "").split(":")[1] || "");
+    box.appendChild(hd);
+    var ul = document.createElement("div");
+    ul.className = "wf-tlist";
+    if (!list.length) {
+      var em = document.createElement("p");
+      em.className = "wf-thint";
+      em.textContent = "把这一步拆成几个小动作，做完一个勾一个。";
+      ul.appendChild(em);
+    }
+    for (var i = 0; i < list.length; i++) {
+      var row = document.createElement("div");
+      row.className = "wf-trow" + (list[i].d ? " done" : "");
+      var cb = document.createElement("input");
+      cb.type = "checkbox"; cb.className = "wf-tchk"; cb.setAttribute("data-idx", String(i));
+      cb.checked = !!list[i].d;
+      var sp = document.createElement("span");
+      sp.textContent = list[i].t;
+      var del = document.createElement("button");
+      del.type = "button"; del.className = "wf-tdel"; del.setAttribute("data-idx", String(i)); del.title = "删掉这条"; del.textContent = "×";
+      row.appendChild(cb); row.appendChild(sp); row.appendChild(del);
+      ul.appendChild(row);
+    }
+    box.appendChild(ul);
+    var inp = document.createElement("input");
+    inp.type = "text"; inp.id = "wf-task-in"; inp.className = "wf-inline-in";
+    inp.placeholder = "加一条，例如：收集本月发票";
+    box.appendChild(inp);
+    var bar = document.createElement("div");
+    bar.className = "wf-inline-bar";
+    var add = document.createElement("button");
+    add.type = "button"; add.id = "wf-task-add"; add.className = "primary"; add.textContent = "添加";
+    var cl = document.createElement("button");
+    cl.type = "button"; cl.id = "wf-task-close"; cl.textContent = "关闭";
+    bar.appendChild(add); bar.appendChild(cl);
+    box.appendChild(bar);
+    box.hidden = false;
+    wfPlaceNear(box, box.__anchor, 220);
+    setTimeout(function () { try { inp.focus(); } catch (e) {} }, 30);
+  }
+  function wfTaskAdd() {
+    var box = $("wf-taskbox"), inp = $("wf-task-in");
+    var key = box ? (box.getAttribute("data-key") || "") : "";
+    var v = inp ? String(inp.value || "").replace(/^\s+|\s+$/g, "") : "";
+    if (!key || !v) { if (inp) inp.focus(); return; }
+    var list = WF_TASK[key] || [];
+    list.push({ t: v, d: 0 });
+    WF_TASK[key] = list;
+    wfTaskSave();
+    wfOpenTasks(key, box.__anchor);
+    runCalc("workflow");
+  }
+  function wfTaskDel(idx) {
+    var box = $("wf-taskbox");
+    var key = box ? (box.getAttribute("data-key") || "") : "";
+    var list = WF_TASK[key] || [];
+    if (idx < 0 || idx >= list.length) return;
+    list.splice(idx, 1);
+    if (list.length) WF_TASK[key] = list; else delete WF_TASK[key];
+    wfTaskSave();
+    wfOpenTasks(key, box.__anchor);
+    runCalc("workflow");
+  }
+  function wfTaskToggle(idx) {
+    var box = $("wf-taskbox");
+    var key = box ? (box.getAttribute("data-key") || "") : "";
+    var list = WF_TASK[key] || [];
+    if (idx < 0 || idx >= list.length) return;
+    list[idx].d = list[idx].d ? 0 : 1;
+    wfTaskSave();
+    wfOpenTasks(key, box.__anchor);
+    runCalc("workflow");
+  }
+  function wfTaskPending(key) {
+    var list = WF_TASK[key] || [], n = 0;
+    for (var i = 0; i < list.length; i++) if (!list[i].d) n++;
+    return n;
+  }
+
   function calcWorkflow() {
     loadWfDone();
     loadWfMan();
@@ -11252,7 +11445,7 @@
     loadWfCust();
     loadWfNotes();
     loadWfMeta();
-    loadWfArch();
+    loadWfArch(); loadWfEdit(); loadWfTask();
     wfMigrateLegacy();
     wfMonthRoll();
 
@@ -11335,6 +11528,7 @@
       dets[di].classList.toggle("wf-hide", !visible);
       if (!visible) continue;
       if (pid === "mine" && role === "9") dets[di].open = true;
+      if (WF_EDIT_ON) dets[di].open = true; /* 编辑步骤时把各条路径都摊开 */
       var path = null;
       for (var pi = 0; pi < vpaths.length; pi++) if (vpaths[pi].id === pid) { path = vpaths[pi]; break; }
       if (!path) continue;
@@ -11408,6 +11602,15 @@
           nv.textContent = parts.join(" · ");
           host.appendChild(nv);
         }
+        if (path.id !== "mine" && WF_EDIT_ON) {
+          var eu = document.createElement("button");
+          eu.type = "button"; eu.className = "wf-up"; eu.setAttribute("data-mod", step.m); eu.title = "这一步上移"; eu.textContent = "↑";
+          var ed = document.createElement("button");
+          ed.type = "button"; ed.className = "wf-down"; ed.setAttribute("data-mod", step.m); ed.title = "这一步下移"; ed.textContent = "↓";
+          var eh = document.createElement("button");
+          eh.type = "button"; eh.className = "wf-hide"; eh.setAttribute("data-mod", step.m); eh.title = "这一步不适用，隐藏"; eh.textContent = "×";
+          host.appendChild(eu); host.appendChild(ed); host.appendChild(eh);
+        }
         if (chip) {
           var upB = document.createElement("button");
           upB.type = "button"; upB.className = "wf-cust-up"; upB.setAttribute("data-idx", String(si)); upB.title = "上移"; upB.textContent = "↑";
@@ -11416,6 +11619,21 @@
           var delB = document.createElement("button");
           delB.type = "button"; delB.className = "wf-cust-del"; delB.setAttribute("data-idx", String(si)); delB.title = "删除"; delB.textContent = "×";
           chip.appendChild(upB); chip.appendChild(dnB); chip.appendChild(delB);
+        }
+        var tlst = WF_TASK[key] || [];
+        var tdn = 0, tfirst = "";
+        for (var ti = 0; ti < tlst.length; ti++) { if (tlst[ti].d) tdn++; else if (!tfirst) tfirst = tlst[ti].t; }
+        var tbtn = document.createElement("button");
+        tbtn.type = "button"; tbtn.className = "wf-task"; tbtn.setAttribute("data-step", key);
+        tbtn.setAttribute("aria-label", "子清单");
+        tbtn.textContent = tlst.length ? ("☑ " + tdn + "/" + tlst.length) : "☑";
+        if (tlst.length && tdn === tlst.length) tbtn.classList.add("on");
+        host.appendChild(tbtn);
+        if (tfirst) {
+          var tv = document.createElement("span");
+          tv.className = "wf-taskv";
+          tv.textContent = "· " + tfirst;
+          host.appendChild(tv);
         }
         pTotal++;
         if (WF_DONE[step.m]) pDone++;
@@ -11429,6 +11647,21 @@
       }
       if (path.id === "mine" && path.steps.length === 0) {
         box.textContent = "还没有步骤：从下面搜模块加进来。";
+      }
+      var oldHn = dets[di].querySelectorAll(".wf-hidnote");
+      for (var oi = 0; oi < oldHn.length; oi++) oldHn[oi].parentNode.removeChild(oldHn[oi]);
+      if (path.id !== "mine" && path.hidden && path.hidden.length) {
+        var hn = document.createElement("p");
+        hn.className = "wf-hidnote";
+        hn.appendChild(document.createTextNode("已隐藏 " + path.hidden.length + " 步："));
+        for (var hi2 = 0; hi2 < path.hidden.length; hi2++) {
+          if (hi2) hn.appendChild(document.createTextNode(" · "));
+          var hbtn = document.createElement("button");
+          hbtn.type = "button"; hbtn.className = "wf-unhide"; hbtn.setAttribute("data-mod", path.hidden[hi2]);
+          hbtn.textContent = cmpTabName(path.hidden[hi2]) + " ↺";
+          hn.appendChild(hbtn);
+        }
+        box.parentNode.insertBefore(hn, box.nextSibling);
       }
       total += pTotal; done += pDone; man += pMan; skip += pSkip;
       if (sum) {
@@ -11663,6 +11896,30 @@
     if (e.target && e.target.closest && e.target.closest("#wf-handoff-csv")) { wfHandoffCsv(); return; }
     if (e.target && e.target.closest && e.target.closest("#wf-handoff-print")) { wfHandoffPrint(); return; }
     if (e.target && e.target.closest && e.target.closest("#wf-notify")) { wfNotifyToggle(); return; }
+    if (e.target && e.target.closest && e.target.closest("#wf-edit")) { wfEditToggle(); return; }
+    if (e.target && e.target.closest && e.target.closest("#wf-edit-reset")) { wfEditReset(); return; }
+    var pidOf = function (el) {
+      var d = el && el.closest ? el.closest("details[data-path]") : null;
+      return d ? (d.getAttribute("data-path") || "") : "";
+    };
+    var eUp = e.target && e.target.closest ? e.target.closest(".wf-up") : null;
+    if (eUp) { wfMoveStep(pidOf(eUp), eUp.getAttribute("data-mod") || "", -1); return; }
+    var eDn = e.target && e.target.closest ? e.target.closest(".wf-down") : null;
+    if (eDn) { wfMoveStep(pidOf(eDn), eDn.getAttribute("data-mod") || "", 1); return; }
+    var eHd = e.target && e.target.closest ? e.target.closest(".wf-hide") : null;
+    if (eHd) { wfHideStep(pidOf(eHd), eHd.getAttribute("data-mod") || ""); return; }
+    var eUh = e.target && e.target.closest ? e.target.closest(".wf-unhide") : null;
+    if (eUh) { wfUnhideStep(pidOf(eUh), eUh.getAttribute("data-mod") || ""); return; }
+    var tsk = e.target && e.target.closest ? e.target.closest(".wf-task") : null;
+    if (tsk) { wfOpenTasks(tsk.getAttribute("data-step") || "", tsk); return; }
+    if (e.target && e.target.closest && e.target.closest("#wf-task-add")) { wfTaskAdd(); return; }
+    if (e.target && e.target.closest && e.target.closest("#wf-task-close")) {
+      var tb = $("wf-taskbox"); if (tb) tb.hidden = true; return;
+    }
+    var td = e.target && e.target.closest ? e.target.closest(".wf-tdel") : null;
+    if (td) { wfTaskDel(parseInt(td.getAttribute("data-idx") || "-1", 10)); return; }
+    var tc = e.target && e.target.closest ? e.target.closest(".wf-tchk") : null;
+    if (tc) { wfTaskToggle(parseInt(tc.getAttribute("data-idx") || "-1", 10)); return; }
     var nb = e.target && e.target.closest ? e.target.closest(".wf-note") : null;
     if (nb) {
       wfOpenInline(nb.getAttribute("data-step") || "", nb);
@@ -14181,7 +14438,7 @@
       app: "finance-calc", kind: "all", v: 1, at: new Date().toISOString(),
       fields: data, fav: favList, presets: presets, snaps: loadSnaps(), cat: cat,
       theme: document.documentElement.getAttribute("data-theme") || "light",
-      wf: { done: WF_DONE, man: WF_MAN, skip: WF_SKIP, notes: WF_NOTES, meta: WF_META, cust: WF_CUST, custname: WF_CUST_NAME, role: wfRole, arch: WF_ARCH, month: wfLoad(WF_MONTH_KEY) }
+      wf: { done: WF_DONE, man: WF_MAN, skip: WF_SKIP, notes: WF_NOTES, meta: WF_META, cust: WF_CUST, custname: WF_CUST_NAME, role: wfRole, arch: WF_ARCH, month: wfLoad(WF_MONTH_KEY), edit: WF_EDIT, tasks: WF_TASK }
     });
     flash(this, "已备份");
   });
@@ -14213,6 +14470,8 @@
           if (obj.wf.role) localStorage.setItem(WF_ROLE_KEY, obj.wf.role);
           if (obj.wf.arch) localStorage.setItem(WF_ARCH_KEY, JSON.stringify(obj.wf.arch));
           if (obj.wf.month) localStorage.setItem(WF_MONTH_KEY, JSON.stringify(obj.wf.month));
+          if (obj.wf.edit) localStorage.setItem(WF_EDIT_KEY, JSON.stringify(obj.wf.edit));
+          if (obj.wf.tasks) localStorage.setItem(WF_TASK_KEY, JSON.stringify(obj.wf.tasks));
         }
         save();
       } catch (e) {}
@@ -14484,7 +14743,7 @@
   try { lastName = localStorage.getItem(LAST_KEY) || ""; } catch (e) {}
   loadWfCust();
   loadWfDone();
-  loadWfMan(); loadWfSkip(); loadWfNotes(); loadWfMeta(); loadWfArch();
+  loadWfMan(); loadWfSkip(); loadWfNotes(); loadWfMeta(); loadWfArch(); loadWfEdit(); loadWfTask();
   refreshWfBadge();
   renderTodayBar();
   var startName = TABS[st0.name] ? st0.name : (TABS[lastName] ? lastName : "deposit");

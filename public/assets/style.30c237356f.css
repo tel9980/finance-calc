@@ -579,3 +579,20 @@ body.wf-printing > *:not(.wf-printbox) { display: none !important; }
 .wf-print-tb th, .wf-print-tb td { border: 1px solid #cbd5e1; padding: 5px 6px; text-align: left; vertical-align: top; }
 .wf-print-tb th { background: #eef2ff; }
 .wf-print-sign { margin-top: 18px; font-size: 12px; }
+
+/* 内置路径编辑（↑↓×）与子清单 */
+.wf-up,.wf-down,.wf-hide,.wf-task,.wf-unhide{font:inherit;font-size:12px;line-height:1;border:1px solid var(--line,#d3dae3);background:var(--card,#fff);color:var(--ink-2,#5b6675);border-radius:6px;padding:2px 5px;margin-left:3px;cursor:pointer;vertical-align:middle}
+.wf-up:hover,.wf-down:hover,.wf-task:hover{border-color:var(--primary,#1e3a8a);color:var(--primary,#1e3a8a)}
+.wf-hide:hover{color:#b91c1c;border-color:#b91c1c}
+.wf-task.on{border-color:#15803d;color:#15803d}
+.wf-taskv{font-size:12px;color:var(--muted,#77828f);margin-left:4px}
+.wf-hidnote{font-size:12px;color:var(--muted,#77828f);margin:6px 0 0}
+.wf-unhide{border-style:dashed}
+#wf-edit.on{background:var(--primary,#1e3a8a);color:#fff;border-color:var(--primary,#1e3a8a)}
+.wf-taskbox .wf-tlist{max-height:200px;overflow:auto;margin:2px 0 6px}
+.wf-trow{display:flex;align-items:center;gap:6px;padding:3px 0;font-size:13px}
+.wf-trow.done span{text-decoration:line-through;color:var(--muted,#77828f)}
+.wf-trow span{flex:1;word-break:break-word}
+.wf-tdel{font:inherit;font-size:12px;line-height:1;border:0;background:none;color:var(--muted,#77828f);cursor:pointer;padding:2px 4px}
+.wf-tdel:hover{color:#b91c1c}
+.wf-thint{font-size:12px;color:var(--muted,#77828f);margin:2px 0 6px}
