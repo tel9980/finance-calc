@@ -71,6 +71,66 @@
       var ok = /^-?(\d+(\.\d+)?|\.\d+)(万|亿|千|[kKwW])?$/.test(s) || (/[+\-*/()]/.test(s) && isFinite(evalExpr(s)));
       el.classList.toggle("bad", s !== "" && !ok);
     }
+    checkInputs(root || document.querySelector(".panel.is-on"));
+  }
+
+  /* ---- 输入体检：明显不合常理的值标一行红字，但不拦计算 ----
+     只挑「十有八九填错了」的：超出声明范围、百分比用小数、>100%、年化离谱。 */
+  function inputIssue(el) {
+    var lab = el.closest ? el.closest("label.f") : null;
+    if (!lab) return "";
+    var nameEl = lab.querySelector("span");
+    var name = nameEl ? nameEl.textContent.trim() : "";
+    /* 括号里的说明常带「率」「%」字样但其实不是百分比（如「销售额（元，算税负率用）」），先去掉 */
+    var core = name.replace(/（[^）]*）/g, "").replace(/\([^)]*\)/g, "").trim();
+    var raw = String(el.value || "").replace(/[\s,，_]/g, "");
+    if (raw === "" || el.classList.contains("bad")) return "";
+    var v = parseNum(el.value);
+    if (!isFinite(v)) return "";
+    var min = parseFloat(el.getAttribute("min")), max = parseFloat(el.getAttribute("max"));
+    if (isFinite(max) && v > max) return "超出这个模块的范围（一般不超过 " + trimNum(max) + "），结果可能不是你要的";
+    if (isFinite(min) && v < min) return "低于这个模块的下限（一般不低于 " + trimNum(min) + "）";
+    /* 只在「年化/年利率」这类明确按 % 填的字段上怀疑小数误填（日利率、费率本来就可能是 0.0x） */
+    if (/^(年|贷款年|投资年)?(利率|化收益率|收益率)/.test(core) && /%|利率|收益率/.test(core) && v > 0 && v < 1) {
+      return "这个格子按 % 填：填 3 就是 3%，确认不是把 3% 写成了 0.03";
+    }
+    if (/年.*(利率|化收益率|收益率)/.test(core) && v > 36) return "年化超过 36%，确认单位和数据（一般写 3.1 这种）";
+    if (/%/.test(core) && v > 100 && !/元|美元|万元/.test(core)) return "百分比超过 100%，确认一下";
+    return "";
+  }
+  function checkInputs(root) {
+    var panel = root || document.querySelector(".panel.is-on");
+    if (!panel || !panel.querySelectorAll) return 0;
+    var list = panel.querySelectorAll("input.num"), n = 0;
+    for (var i = 0; i < list.length; i++) {
+      var el = list[i], lab = el.closest ? el.closest("label.f") : null;
+      if (!lab) continue;
+      var msg = inputIssue(el);
+      var h = lab.querySelector(".fwarn");
+      if (msg) {
+        n++;
+        if (!h) { h = document.createElement("em"); h.className = "fwarn"; lab.appendChild(h); }
+        if (h.textContent !== msg) h.textContent = msg;
+      } else if (h && h.parentNode) {
+        h.parentNode.removeChild(h);
+      }
+    }
+    var res = panel.querySelector(".card.res");
+    if (res) {
+      var box = res.querySelector(".inp-warn");
+      if (!n) { if (box && box.parentNode) box.parentNode.removeChild(box); }
+      else {
+        if (!box) {
+          box = document.createElement("p");
+          box.className = "inp-warn";
+          var h2 = res.querySelector("h2");
+          if (h2 && h2.parentNode === res) res.insertBefore(box, h2.nextSibling);
+          else res.appendChild(box);
+        }
+        box.textContent = "有 " + n + " 项输入看着不太对（已在下面标红字），结果照你填的算了，拿去用之前确认一下。";
+      }
+    }
+    return n;
   }
 
   /* ---- 数字输入增强：千分位显示、1.5万/2k 简写、上下键步进 ---- */
@@ -13793,15 +13853,33 @@
       + "\n视口：" + window.innerWidth + "×" + window.innerHeight
       + "\n错误：" + msg;
   }
+  /* 把技术报错翻成人话：多数用户只想知道「是我填错了，还是它坏了，我该点哪儿」 */
+  function errHuman(msg) {
+    var t = String(msg || "");
+    if (/QuotaExceeded|quota|storage is full/i.test(t)) {
+      return { h: "本机存储满了", d: "浏览器给这个站点留的空间用完了，新的记录存不进去。删几条方案快照、或在设置里清掉本站数据后就能继续。" };
+    }
+    if (/Failed to fetch|NetworkError|Load failed|import|Loading chunk|dynamically imported/i.test(t)) {
+      return { h: "有一块内容没下载下来", d: "多半是网络断了或弱网。点「重新加载」再试一次，已经填过的数字还在。" };
+    }
+    if (/Unexpected token|SyntaxError/i.test(t)) {
+      return { h: "页面文件版本对不上", d: "通常是刚更新过、浏览器还留着旧文件。点「重新加载」拉到新版即可。" };
+    }
+    if (/is not defined|Cannot read|Cannot set|undefined|null/i.test(t)) {
+      return { h: "这个模块出了 bug", d: "不是你填错了。点「复制诊断信息」发给我，我按这行报错去修。" };
+    }
+    return { h: "这个模块出了点问题", d: "先点「重新加载」试试；还不行就复制诊断信息发给我。" };
+  }
   function showErrorBox(msg) {
     if (!msg) return;
     ERR_LAST = diagText(msg);
+    var hi = errHuman(msg);
     if (!ERR_BOX) {
       ERR_BOX = document.createElement("div");
       ERR_BOX.className = "errbox";
       ERR_BOX.setAttribute("role", "alert");
       var t = document.createElement("b");
-      t.textContent = "这个模块出了点问题";
+      t.setAttribute("data-role", "head");
       var d = document.createElement("p");
       d.setAttribute("data-role", "msg");
       var acts = document.createElement("div");
@@ -13813,15 +13891,20 @@
         copyText(ERR_LAST).then(function () { copy.textContent = "已复制"; })
           .catch(function () { copy.textContent = "复制失败，请手动选择"; });
       });
+      var reload = document.createElement("button");
+      reload.textContent = "重新加载";
+      reload.addEventListener("click", function () { location.reload(); });
       var close = document.createElement("button");
       close.textContent = "关闭";
       close.addEventListener("click", function () { if (ERR_BOX) ERR_BOX.hidden = true; });
-      acts.appendChild(copy); acts.appendChild(close);
+      acts.appendChild(reload); acts.appendChild(copy); acts.appendChild(close);
       ERR_BOX.appendChild(t); ERR_BOX.appendChild(d); ERR_BOX.appendChild(acts);
       document.body.appendChild(ERR_BOX);
     }
+    var hd = ERR_BOX.querySelector('[data-role="head"]');
+    if (hd) hd.textContent = hi.h;
     var mp = ERR_BOX.querySelector('[data-role="msg"]');
-    if (mp) mp.textContent = String(msg).slice(0, 300);
+    if (mp) mp.textContent = hi.d + "（" + String(msg).slice(0, 200) + "）";
     ERR_BOX.hidden = false;
   }
   window.addEventListener("error", function (e) {

@@ -656,3 +656,11 @@ body.printing>*:not(.printbox){display:none !important}
   .printbox .ps-big b{color:#000}
   .printbox{break-inside:avoid}
 }
+
+/* 输入体检：可疑值提示（不是报错，所以用琥珀色，不用红） */
+.fwarn{display:block;margin:5px 0 0;font-size:11.5px;line-height:1.5;color:#a35b00;font-style:normal}
+.fwarn::before{content:"! ";font-weight:700}
+html[data-theme="dark"] .fwarn{color:#fbbf24}
+.inp-warn{margin:0 0 10px;padding:7px 10px;border-radius:9px;background:#fff7ed;border:1px solid #fed7aa;color:#8a4a00;font-size:12.5px;line-height:1.55}
+html[data-theme="dark"] .inp-warn{background:#2c2317;border-color:#5c421f;color:#fbbf24}
+@media print{.fwarn{display:none}.inp-warn{display:none}}

@@ -531,12 +531,41 @@ ok(await page.evaluate(() => document.documentElement.getAttribute('data-theme')
   await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
 }
 
-/* 错误自检浮层 */
+/* 输入体检：把百分比填成小数要提示，改回来要消失 */
+{
+  await page.goto(BASE + '#loan', { waitUntil: 'load' });
+  await page.waitForTimeout(800);
+  await page.fill('#ln-rate', '0.031');
+  await page.dispatchEvent('#ln-rate', 'input');
+  await page.waitForTimeout(300);
+  const h1 = await page.evaluate(() => {
+    const e = document.querySelector('#panel-loan .fwarn');
+    const box = document.querySelector('#panel-loan .inp-warn');
+    return { hint: e ? e.textContent : '', box: box ? box.textContent : '' };
+  });
+  ok(h1.hint.indexOf('按 % 填') >= 0, '年利率填 0.031 应该提示「单位是 %」，实际「' + h1.hint + '」');
+  ok(h1.box.indexOf('不太对') >= 0, '结果卡上方应该有一行汇总提示');
+
+  await page.fill('#ln-rate', '3.1');
+  await page.dispatchEvent('#ln-rate', 'input');
+  await page.waitForTimeout(300);
+  const h2 = await page.evaluate(() => ({ hint: !!document.querySelector('#panel-loan .fwarn'), box: !!document.querySelector('#panel-loan .inp-warn') }));
+  ok(!h2.hint && !h2.box, '改回正常值后提示应该消失');
+
+  /* 默认值不该触发（228 个模块都扫过，零误报）；这里抽查公司财务几个爱用「率」字的格子 */
+  await page.goto(BASE + '#vatdue', { waitUntil: 'load' });
+  await page.waitForTimeout(900);
+  ok((await page.evaluate(() => document.querySelectorAll('#panel-vatdue .fwarn').length)) === 0, '默认值不该出现输入提示');
+}
+
+/* 错误自检浮层：先说人话，再给「重新加载」和诊断信息 */
 await page.evaluate(() => { setTimeout(() => { throw new Error('自检测试'); }, 0); });
 let hasBox = false;
 for (let i = 0; i < 20; i++) { hasBox = await page.evaluate(() => { const e = document.querySelector('.errbox'); return !!e && !e.hidden; }); if (hasBox) break; await page.waitForTimeout(150); }
 ok(hasBox, '出错时没有弹出诊断卡');
 ok((await page.textContent('.errbox')).indexOf('复制诊断信息') >= 0, '诊断卡没有「复制诊断信息」按钮');
+ok((await page.textContent('.errbox')).indexOf('重新加载') >= 0, '诊断卡没有「重新加载」按钮');
+ok((await page.textContent('.errbox')).indexOf('这个模块出了点问题') >= 0, '诊断卡标题应该用人话说明');
 await page.evaluate(() => { const e = document.querySelector('.errbox'); if (e) e.hidden = true; });
 
 const realErrs = errs.filter(x => x.indexOf('自检测试') < 0); /* 错误浮层那条是我们自己抛的 */
