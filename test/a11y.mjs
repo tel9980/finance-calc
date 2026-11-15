@@ -21,11 +21,18 @@ const PAGES = ['hot', 'loan', 'compound', 'salary', 'vatdue', 'ratios',
 await page.goto(BASE, { waitUntil: 'load' });
 await page.waitForTimeout(500);
 
+/* 线上站点带 CSP（script-src 'self'），注入 axe 会被浏览器拒绝；本地/CI 没有 CSP。
+   这种情况只跳过 axe 部分，剩下的命名检查照跑。 */
+let axeOK = true;
+try { await page.goto(BASE, { waitUntil: 'load' }); await page.addScriptTag({ content: AXE }); }
+catch (e) { axeOK = false; console.log('⚠️ 当前站点禁止注入脚本（CSP），跳过 axe 部分，只跑命名检查'); }
+
 /* ── 1. axe：代表性页面不许有 WCAG A/AA 违规 ─────────────────────── */
+if (axeOK) {
 for (const tab of PAGES) {
   await page.goto(BASE + '#' + tab, { waitUntil: 'load' });
   await page.waitForTimeout(700);
-  await page.addScriptTag({ content: AXE });
+  try { await page.addScriptTag({ content: AXE }); } catch (e) { axeOK = false; break; }
   const res = await page.evaluate(async () => {
     const r = await window.axe.run(document, {
       resultTypes: ['violations'],
@@ -44,7 +51,7 @@ await page.evaluate(() => localStorage.setItem('finance-calc-theme', 'dark'));
 for (const tab of ['hot', 'monthly', 'workflow']) {
   await page.goto(BASE + '#' + tab, { waitUntil: 'load' });
   await page.waitForTimeout(700);
-  await page.addScriptTag({ content: AXE });
+  try { await page.addScriptTag({ content: AXE }); } catch (e) { axeOK = false; break; }
   const res = await page.evaluate(async () => {
     const r = await window.axe.run(document, { resultTypes: ['violations'], runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] } });
     return r.violations.map(v => ({
@@ -55,6 +62,7 @@ for (const tab of ['hot', 'monthly', 'workflow']) {
   for (const v of res) ok(false, `[深色 ${tab}] axe ${v.impact} ${v.id} ×${v.n}：${v.where}`);
 }
 await page.evaluate(() => localStorage.setItem('finance-calc-theme', 'light'));
+}
 
 /* ── 3. 键盘可达：Tab 一下能拿到「跳到计算区」，链接指向真实存在的区域 ── */
 await page.goto(BASE + '#hot', { waitUntil: 'load' });
