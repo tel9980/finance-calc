@@ -295,6 +295,20 @@ ok(!roll.meta['report:ratios'].due && roll.meta['report:ratios'].est === 12, '�
 ok(roll.meta['cash:expense'] && roll.meta['cash:expense'].due === '2099-12-20', '未来的截止日期被误删（' + JSON.stringify(roll.meta) + '）');
 ok(roll.man === '{}' || roll.man === null, '换月后本月勾选没清空（' + roll.man + '）');
 
+/* 搜索按使用频率排序 + 存储版本号 */
+await page.evaluate(() => { localStorage.removeItem('finance-calc-freq'); localStorage.removeItem('finance-calc-recent'); });
+for (let i = 0; i < 3; i++) {
+  await page.goto(BASE + '#deposit', { waitUntil: 'load' }); await page.waitForTimeout(200);
+  await page.goto(BASE + '#vatdue', { waitUntil: 'load' }); await page.waitForTimeout(260);
+}
+await page.fill('#q', 'vat'); await page.waitForTimeout(350);
+const rank = await page.$$eval('.tab:not([hidden])', els => els.map(e => e.dataset.tab));
+ok(rank[0] === 'vatdue', '常用模块没排在最前面（实际顺序 ' + rank.slice(0, 4).join(',') + '）');
+await page.fill('#q', ''); await page.waitForTimeout(300);
+const nat = await page.$$eval('#tabs .tab', els => els.map(e => e.dataset.tab));
+ok(nat.indexOf('vatdue') === nat.lastIndexOf('vatdue'), '清空搜索后标签重复了');
+ok(await page.evaluate(() => localStorage.getItem('finance-calc-schema')) === '1', '存储版本号没写进本机');
+
 /* 示例数据：填一组能算出结果的数，再点还原 */
 await page.goto(BASE + '#deposit', { waitUntil: 'load' }); await page.waitForTimeout(300);
 await page.goto(BASE + '#loan', { waitUntil: 'load' }); await page.waitForTimeout(650);

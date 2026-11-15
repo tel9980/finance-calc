@@ -3307,7 +3307,7 @@ undefined
   /* ---- 按分类懒加载：只有点到的模块才下载对应 chunk ---- */
   var CHUNK_OF = { "deposit": "save", "loan": "loan", "combo": "loan", "prepay": "loan", "compound": "save", "goal": "save", "installment": "life", "annual": "save", "inflation": "save", "tax": "tax", "deal": "life", "salary": "tax", "rentbuy": "house", "card": "life", "fx": "life", "fund": "loan", "lpr": "loan", "deed": "house", "split": "life", "pension": "tax", "sell": "house", "offset": "loan", "multi": "life", "repayvs": "loan", "edu": "family", "insure": "family", "car": "life", "bonus": "tax", "deduct": "tax", "ladder": "save", "rentyield": "house", "settle": "tax", "balance": "family", "selfins": "tax", "underpay": "tax", "loanways": "loan", "dca": "save", "checkup": "family", "calendar": "save", "cashflow": "family", "zeroloan": "loan", "riskalloc": "family", "penalty": "loan", "debtfree": "life", "fire": "family", "annualfee": "family", "budget": "house", "zhuan": "loan", "medins": "tax", "childcost": "family", "ppension": "tax", "fundlimit": "loan", "emergency": "family", "rule503020": "family", "debtmerge": "life", "freeperiod": "life", "overtime": "tax", "rentup": "house", "ev": "life", "vat": "acct-tax", "vatdue": "acct-tax", "deprec": "acct-cost", "breakeven": "acct-perf", "ratios": "acct-report", "recon": "acct-report", "expense": "acct-report", "aging": "acct-bd", "funding": "acct-cash", "pricing": "acct-perf", "triplede": "acct-report", "multimargin": "acct-perf", "apterms": "acct-bd", "assetledger": "acct-cost", "payage": "acct-bd", "costcard": "acct-cost", "budgetvar": "acct-cost", "finreport": "acct-report", "invoice": "acct-bd", "expbudget": "acct-report", "efficiency": "acct-report", "cashstmt": "acct-report", "invstock": "acct-bd", "exportrebate": "acct-tax", "tieout": "acct-bd", "feetrend": "acct-report2", "mpbe": "acct-perf", "payroll": "acct-perf", "assetdiff": "acct-cost", "monthclose": "acct-report", "factoring": "acct-cash", "deadstock": "acct-bd", "aptalk": "acct-cash", "cash13": "acct-cash", "bill": "acct-cash", "loanreal": "loan", "collect": "acct-bd", "mgmtpack": "acct-report", "settleway": "acct-cash", "creditline": "acct-cash", "impair": "acct-bd", "fxgain": "acct-cash", "taxburden": "acct-tax", "sens": "acct-report", "consol": "acct-report", "eoq": "acct-bd", "bplan": "acct-report", "refundflow": "acct-tax", "costalloc": "acct-cost", "importcost": "acct-perf", "makeorbuy": "acct-cost", "ecl": "acct-bd", "quotefx": "acct-perf", "capacity": "acct-cost", "mold": "acct-cost", "rebate": "acct-perf", "stdcost": "acct-cost", "svc": "acct-bd", "taxadj": "acct-tax", "supplier": "acct-bd", "debtcap": "acct-tax", "accdep": "acct-tax", "custwin": "acct-bd", "upgrade": "acct-cost", "deptalloc": "acct-cost", "payout": "acct-perf", "numwords": "util", "duedate": "util", "workday": "util", "cagr": "util", "apportion": "util", "grossup": "util", "trprice": "acct-cash", "esop": "acct-tax", "rdexp": "acct-tax", "rollfc": "acct-report", "commission": "acct-perf", "capex": "acct-cost", "pooling": "acct-cash", "creditlimit": "acct-cash", "contractperf": "acct-report2", "projrev": "acct-report2", "creditpolicy": "acct-bd", "rateadj": "tax", "invfund": "acct-bd", "machrate": "acct-cost", "govgrant": "acct-tax", "fxtranslate": "acct-report2", "rebateacc": "acct-perf", "pledgeloan": "acct-cash", "labvar": "acct-cost", "rdcap": "acct-tax", "processcost": "acct-cost", "makeoroutsource": "acct-cost", "rebatedta": "acct-tax", "leasebuy": "acct-cash", "welfare": "acct-tax", "inputout": "acct-tax", "stampduty": "acct-tax", "assetdisp": "acct-cost", "headcount": "acct-perf", "markroi": "acct-perf", "rdproject": "acct-cost", "intsvc": "acct-tax", "accrual": "acct-report2", "cfconsol": "acct-report2", "exportcheck": "acct-tax", "vatcheck": "acct-tax", "report": "family", "snaps": "util", "housecash": "house", "planner": "family", "healthcheck": "hot", "salesallow": "acct-tax", "lease": "acct-report2", "gpmix": "acct-report2", "vatchoose": "acct-tax", "datemath": "util", "pct3": "util", "xlhelp": "util", "csvrecon": "util", "bundle": "family", "monthly": "family", "yearcmp": "family", "yearreport": "family", "fifocost": "acct-cost", "hlcost": "acct-cost", "trialbal": "acct-report2", "citprep": "acct-tax", "rollbudget": "acct-report2", "csladv": "acct-report2", "taxwarn": "acct-tax", "loanledger": "acct-cash", "expcheck": "acct-report2", "dtax": "acct-tax", "invimpair": "acct-cost", "budgetalert": "acct-report2", "cashcycle": "acct-report2", "saleexp": "acct-perf", "deptcost": "acct-cost", "invvar": "acct-bd", "aroverdue": "acct-bd", "payterms": "acct-bd", "fxar": "acct-bd", "faimpair": "acct-cost", "costbehav": "acct-cost", "profitcenter": "acct-perf", "invorder": "acct-bd", "creditterm": "acct-bd", "workflow": "life", "excoll": "acct-cash", "assetdisptax": "acct-tax", "tpdocs": "acct-tax", "fxhedge": "acct-cash", "unbilled": "acct-bd", "deferred": "acct-tax", "interco": "acct-report", "sharepay": "acct-cost", "vatrefund": "acct-tax", "smallmicro": "acct-tax", "addcredit": "acct-tax", "losscontract": "acct-report2", "bankacct": "acct-cash", "equitychg": "acct-report2", "estimatechg": "acct-cost", "dtlind": "acct-tax", "relparty": "acct-bd", "repaircap": "acct-cost", "eps": "acct-report2" };
   var TABS = { "deposit": 1, "loan": 1, "combo": 1, "prepay": 1, "compound": 1, "goal": 1, "installment": 1, "annual": 1, "inflation": 1, "tax": 1, "deal": 1, "salary": 1, "rentbuy": 1, "card": 1, "fx": 1, "fund": 1, "lpr": 1, "deed": 1, "split": 1, "pension": 1, "sell": 1, "offset": 1, "multi": 1, "repayvs": 1, "edu": 1, "insure": 1, "car": 1, "bonus": 1, "deduct": 1, "ladder": 1, "rentyield": 1, "settle": 1, "balance": 1, "selfins": 1, "underpay": 1, "loanways": 1, "dca": 1, "checkup": 1, "calendar": 1, "cashflow": 1, "zeroloan": 1, "riskalloc": 1, "penalty": 1, "debtfree": 1, "fire": 1, "annualfee": 1, "budget": 1, "zhuan": 1, "medins": 1, "childcost": 1, "ppension": 1, "fundlimit": 1, "emergency": 1, "rule503020": 1, "debtmerge": 1, "freeperiod": 1, "overtime": 1, "rentup": 1, "ev": 1, "vat": 1, "vatdue": 1, "deprec": 1, "breakeven": 1, "ratios": 1, "recon": 1, "expense": 1, "aging": 1, "funding": 1, "pricing": 1, "triplede": 1, "multimargin": 1, "apterms": 1, "assetledger": 1, "payage": 1, "costcard": 1, "budgetvar": 1, "finreport": 1, "invoice": 1, "expbudget": 1, "efficiency": 1, "cashstmt": 1, "invstock": 1, "exportrebate": 1, "tieout": 1, "feetrend": 1, "mpbe": 1, "payroll": 1, "assetdiff": 1, "monthclose": 1, "factoring": 1, "deadstock": 1, "aptalk": 1, "cash13": 1, "bill": 1, "loanreal": 1, "collect": 1, "mgmtpack": 1, "settleway": 1, "creditline": 1, "impair": 1, "fxgain": 1, "taxburden": 1, "sens": 1, "consol": 1, "eoq": 1, "bplan": 1, "refundflow": 1, "costalloc": 1, "importcost": 1, "makeorbuy": 1, "ecl": 1, "quotefx": 1, "capacity": 1, "mold": 1, "rebate": 1, "stdcost": 1, "svc": 1, "taxadj": 1, "supplier": 1, "debtcap": 1, "accdep": 1, "custwin": 1, "upgrade": 1, "deptalloc": 1, "payout": 1, "numwords": 1, "duedate": 1, "workday": 1, "cagr": 1, "apportion": 1, "grossup": 1, "trprice": 1, "esop": 1, "rdexp": 1, "rollfc": 1, "commission": 1, "capex": 1, "pooling": 1, "creditlimit": 1, "contractperf": 1, "projrev": 1, "creditpolicy": 1, "rateadj": 1, "invfund": 1, "machrate": 1, "govgrant": 1, "fxtranslate": 1, "rebateacc": 1, "pledgeloan": 1, "labvar": 1, "rdcap": 1, "processcost": 1, "makeoroutsource": 1, "rebatedta": 1, "leasebuy": 1, "welfare": 1, "inputout": 1, "stampduty": 1, "assetdisp": 1, "headcount": 1, "markroi": 1, "rdproject": 1, "intsvc": 1, "accrual": 1, "cfconsol": 1, "exportcheck": 1, "vatcheck": 1, "report": 1, "snaps": 1, "housecash": 1, "planner": 1, "healthcheck": 1, "salesallow": 1, "lease": 1, "gpmix": 1, "vatchoose": 1, "datemath": 1, "pct3": 1, "xlhelp": 1, "csvrecon": 1, "bundle": 1, "monthly": 1, "yearcmp": 1, "yearreport": 1, "fifocost": 1, "hlcost": 1, "trialbal": 1, "citprep": 1, "rollbudget": 1, "csladv": 1, "taxwarn": 1, "loanledger": 1, "expcheck": 1, "dtax": 1, "invimpair": 1, "budgetalert": 1, "cashcycle": 1, "saleexp": 1, "deptcost": 1, "invvar": 1, "aroverdue": 1, "payterms": 1, "fxar": 1, "faimpair": 1, "costbehav": 1, "profitcenter": 1, "invorder": 1, "creditterm": 1, "workflow": 1, "excoll": 1, "assetdisptax": 1, "tpdocs": 1, "fxhedge": 1, "unbilled": 1, "deferred": 1, "interco": 1, "sharepay": 1, "vatrefund": 1, "smallmicro": 1, "addcredit": 1, "losscontract": 1, "bankacct": 1, "equitychg": 1, "estimatechg": 1, "dtlind": 1, "relparty": 1, "repaircap": 1, "eps": 1 };
-  var CHUNK_FILES = { "save": "assets/c-save.7335698f64.js", "loan": "assets/c-loan.654e5ff93b.js", "life": "assets/c-life.d814178fe0.js", "tax": "assets/c-tax.c289d1297b.js", "house": "assets/c-house.8dc6c370bf.js", "family": "assets/c-family.ff222c18a2.js", "acct-tax": "assets/c-acct-tax.3845fa7fea.js", "acct-cost": "assets/c-acct-cost.795396253f.js", "acct-perf": "assets/c-acct-perf.6e05c95e80.js", "acct-report": "assets/c-acct-report.a459556111.js", "acct-bd": "assets/c-acct-bd.c941ebace9.js", "acct-cash": "assets/c-acct-cash.1a9729c414.js", "acct-report2": "assets/c-acct-report2.ecb7fbc8fc.js", "util": "assets/c-util.3cfd6efbc5.js", "hot": "assets/c-hot.954c4a908f.js" };
+  var CHUNK_FILES = { "save": "assets/c-save.f192670572.js", "loan": "assets/c-loan.dc4aeb8363.js", "life": "assets/c-life.e2edfde383.js", "tax": "assets/c-tax.1e2a03d317.js", "house": "assets/c-house.52690c42be.js", "family": "assets/c-family.94552efd42.js", "acct-tax": "assets/c-acct-tax.e1adf45ed9.js", "acct-cost": "assets/c-acct-cost.df1f1c92b2.js", "acct-perf": "assets/c-acct-perf.53eb02ff99.js", "acct-report": "assets/c-acct-report.3b7f8132cd.js", "acct-bd": "assets/c-acct-bd.a9359d83f0.js", "acct-cash": "assets/c-acct-cash.f275e3de90.js", "acct-report2": "assets/c-acct-report2.627d4f31e3.js", "util": "assets/c-util.a277706e63.js", "hot": "assets/c-hot.29b0eb1fb9.js" };
   var CORE_CALC = { "loan": calcLoan, "workflow": calcWorkflow };
   var calcMap = {};
   Object.keys(CORE_CALC).forEach(function (k) { calcMap[k] = CORE_CALC[k]; });
@@ -3431,6 +3431,58 @@ undefined
     }
     return CAT_LABEL[toks[0]] || toks[0];
   }
+  /* ---------------- 搜索排序：常用的排前面 ---------------- */
+  var FREQ_KEY = "finance-calc-freq";
+  var FREQ = {}, FREQ_DIRTY = false, FREQ_TIMER = null;
+  try {
+    var fq = JSON.parse(localStorage.getItem(FREQ_KEY) || "{}");
+    FREQ = fq && typeof fq === "object" ? fq : {};
+  } catch (e) { FREQ = {}; }
+  function bumpFreq(id) {
+    if (!id) return;
+    FREQ[id] = (FREQ[id] || 0) + 1;
+    if (FREQ[id] > 9999) FREQ[id] = 9999;
+    if (FREQ_TIMER) return;
+    FREQ_TIMER = setTimeout(function () {
+      FREQ_TIMER = null;
+      try { localStorage.setItem(FREQ_KEY, JSON.stringify(FREQ)); } catch (e) {}
+    }, 800);
+  }
+  /* 搜索结果按「用得多 + 最近用过」排，同分保持原来的顺序 */
+  function tabScore(el) {
+    var id = el.dataset.tab || "";
+    var s = FREQ[id] || 0;
+    var r = recentList.indexOf(id);
+    if (r >= 0) s += 6 - Math.min(6, r);
+    return s;
+  }
+  function orderTabsForQuery(active) {
+    var box = $("tabs");
+    if (!box || !TAB_NATURAL.length) return;
+    var vis = [], rest = [];
+    for (var i = 0; i < TAB_NATURAL.length; i++) {
+      var el = TAB_NATURAL[i];
+      if (el.hidden) rest.push(el); else vis.push(el);
+    }
+    if (active) {
+      var idx = {};
+      for (var j = 0; j < vis.length; j++) idx[vis[j].dataset.tab] = j;
+      vis.sort(function (a, b) {
+        var d = tabScore(b) - tabScore(a);
+        return d !== 0 ? d : idx[a.dataset.tab] - idx[b.dataset.tab];
+      });
+    }
+    var frag = document.createDocumentFragment();
+    for (var k = 0; k < vis.length; k++) frag.appendChild(vis[k]);
+    for (var m = 0; m < rest.length; m++) frag.appendChild(rest[m]);
+    box.appendChild(frag);
+  }
+  var TAB_NATURAL = [];
+  (function () {
+    var all = document.querySelectorAll("#tabs .tab");
+    for (var i = 0; i < all.length; i++) TAB_NATURAL.push(all[i]);
+  })();
+
   function buildTabBadges() {
     var chips = document.querySelectorAll(".cat");
     for (var c = 0; c < chips.length; c++) {
@@ -3553,6 +3605,7 @@ undefined
       qc.hidden = !q;
       if (q) qc.textContent = shown ? "命中 " + shown + " 个" : "没有匹配的模块";
     }
+    orderTabsForQuery(!!q);
   }
   function setCat(cat) {
     curCat = cat; curSub = "";
@@ -3596,6 +3649,7 @@ undefined
     if (location.hash !== "#" + name) history.replaceState(null, "", "#" + name);
     /* 换模块时「示例」按钮回到初始状态（示例只对当前模块有意义） */
     if ($("btn-demo")) $("btn-demo").textContent = "示例";
+    bumpFreq(name);
     if (name !== "workflow") recordWf(name);
     var onTab = document.querySelector(".tab.is-on");
     /* 只有用户主动切页时才把标签滚到中间；首屏自动激活不滚，避免把浏览器的
@@ -3913,9 +3967,30 @@ undefined
 
 ];
   var KEY = "finance-calc-v63";
+  /* 存储版本号：以后改 localStorage 结构时，把 SCHEMA_VERSION 加一，在 schemaMigrate 里补迁移。
+     没有版本号的旧数据按 1 处理（现在的结构就是 1）。 */
+  var SCHEMA_KEY = "finance-calc-schema";
+  var SCHEMA_VERSION = 1;
+  function schemaInit() {
+    var v = 0;
+    try { v = parseInt(localStorage.getItem(SCHEMA_KEY) || "0", 10) || 0; } catch (e) { return; }
+    if (!v) {
+      try { localStorage.setItem(SCHEMA_KEY, String(SCHEMA_VERSION)); } catch (e) {}
+      return;
+    }
+    if (v > SCHEMA_VERSION) {
+      toast("本机存的数据来自更新版本（v" + v + "），当前页面是 v" + SCHEMA_VERSION + "，个别字段可能读不出来。建议先到「方案快照」做一次整站备份。", 7000);
+      return;
+    }
+    if (v < SCHEMA_VERSION) schemaMigrate(v, SCHEMA_VERSION);
+  }
+  function schemaMigrate(from, to) {
+    /* 目前没有要迁移的历史版本；以后在这里按版本号补 */
+    try { localStorage.setItem(SCHEMA_KEY, String(to)); } catch (e) {}
+  }
   var CAT_KEY = "finance-calc-cat";
   /* 构建时由 build.mjs 注入为 "v<内容哈希>"，页脚展示，方便核对版本 */
-  var BUILD_TAG = "vcad1d4d222";
+  var BUILD_TAG = "v4d8c4f8b4b";
 
   /* ---------------- 现金流月历 ---------------- */
 
@@ -5206,7 +5281,7 @@ undefined
     var wfRole = "";
     try { wfRole = localStorage.getItem(WF_ROLE_KEY) || ""; } catch (e) {}
     dlJson("财务计算器-备份-" + stamp() + ".json", {
-      app: "finance-calc", kind: "all", v: 1, at: new Date().toISOString(),
+      app: "finance-calc", kind: "all", v: 1, schema: SCHEMA_VERSION, at: new Date().toISOString(),
       fields: data, fav: favList, presets: presets, snaps: loadSnaps(), cat: cat,
       theme: document.documentElement.getAttribute("data-theme") || "light",
       wf: { done: WF_DONE, man: WF_MAN, skip: WF_SKIP, notes: WF_NOTES, meta: WF_META, cust: WF_CUST, custname: WF_CUST_NAME, role: wfRole, arch: WF_ARCH, month: wfLoad(WF_MONTH_KEY), edit: WF_EDIT, tasks: WF_TASK }
@@ -5218,7 +5293,11 @@ undefined
     readJsonFile(this, function (obj) {
       if (!obj || obj.app !== "finance-calc" || !obj.kind) { window.alert("这不是财务计算器的备份文件。"); return; }
       var ok = true;
-      try { ok = window.confirm("用这份备份覆盖本机的填写值、置顶、预设与快照？页面会刷新。"); } catch (e) {}
+      var newer = obj.schema && obj.schema > SCHEMA_VERSION;
+      try {
+        ok = window.confirm((newer ? "这份备份来自更新版本（v" + obj.schema + "），当前页面是 v" + SCHEMA_VERSION + "，可能有个别字段读不出来。\n\n" : "") +
+          "用这份备份覆盖本机的填写值、置顶、预设与快照？页面会刷新。");
+      } catch (e) {}
       if (!ok) return;
       try {
         if (obj.fields) FIELDS.forEach(function (f) {
@@ -5500,7 +5579,7 @@ undefined
   });
 
   /* chunk 里要用到的工具函数，统一挂到 window.FC */
-  window.FC = { $, BUILD_TAG, CAT_KEY, CAT_LABEL, CHUNK_FILES, CHUNK_OF, CMP_KEY, CORE_CALC, CURS, DEFERRED_TAPS, DEMO_SAVED, DIVISOR, EDITED, ERR_BOX, FAV_KEY, FIELDS, FIRST_ACTIVATE, INSTALL_HIDE_KEY, KEY, LAST_KEY, MONTH_CATS, MONTH_TABLE, NEXT_OF, PALETTE_EL, PENDING_PARAMS, PRE_KEY, QUOTA_WARNED, RECENT_KEY, SAVE_TIMER, SEARCH_KEY, SNAP_KEY, SNAP_PICK, STORED, TABS, THEME_KEY, TOAST_EL, TODAYBAR_KEY, UNITS, WF_ARCH_KEY, WF_AUTO_IDX, WF_AUTO_LIST, WF_AUTO_STEP, WF_AUTO_TIMER, WF_CUSTNAME_KEY, WF_CUST_KEY, WF_CUST_NAME, WF_DONE, WF_EDIT, WF_EDIT_KEY, WF_KEY, WF_LAST, WF_LEGACY, WF_MAN_KEY, WF_META_KEY, WF_MONTH_KEY, WF_NOTE_KEY, WF_NOTIFIED_KEY, WF_NOTIFY_KEY, WF_PATHS, WF_ROLE_KEY, WF_ROLE_READY, WF_SKIP_KEY, WF_TASK_KEY, WF_TEMPLATES, XL_ROWS, YEAR_TABLE, _onPanels, activate, addMonths, annuityPV, annuityPayment, applyFilter, applyParams, applyStoredTo, applyWfTpl, bindWfDnd, bindWfInline, bizAdd, bonusSoloTax, buildLoanSchedule, buildShare, buildTabBadges, calcLoan, calcMap, calcWorkflow, clearWfMan, closePalette, cmpTabName, cnUpper, combineTax, convertTemp, copyText, cumulativeTax, curCat, currentSnap, demoFill, demoHint, diagText, dlJson, doInstall, doPrint, drawMonthCats, drawMonthStack, drawReportCharts, drawRpMini, drawnMonthlyChart, drawnYearChart, enhanceNums, enhancePanelUi, ensureChunk, evalExpr, favList, fillCmpMod, fillMonthGrid, fillUnits, flash, flushParams, flushSave, fmt, fmtAt, fmtDate, fx, gauss, getWfCust, getWfDone, getWfMan, getWfMeta, getWfNotes, getWfSkip, hashTarget, installEvt, installHintHide, installHintOff, iosInstallTip, iosLike, isFav, lastName, leftAfter, linkTo, loadCmpA, loadSnaps, loadWfArch, loadWfCust, loadWfDone, loadWfEdit, loadWfMan, loadWfMeta, loadWfNotes, loadWfSkip, loadWfTask, loanRows, makeSnap, markBadInputs, matchQ, money, monthToDate, monthlyIRR, months, npvDiff, num, numBlur, numFocus, numInput, numKey, numOf, openPalette, palKey, panelEls, panelParams, parseAmounts, parseDate, parseNum, pct, percentile, plRank, plScoreCov, plScoreDsr, plScoreEmg, plScoreLev, plScoreSave, prePanels, prefetchAllChunks, presets, printCover, pushRecent, pushSearch, pwaStandalone, quickOf, rateOf, readJsonFile, readMonthGrid, recentList, recordWf, refreshCounts, refreshTableTools, refreshTrackMods, refreshWfBadge, renderLoanTable, renderNext, renderPalette, renderPresets, renderSearchHist, renderSnapCompare, renderSnapList, renderTodayBar, renderTrack, renderWfTpl, rentBuyAt, restore, runCalc, runDeferredTaps, save, saveCmpA, saveFav, savePresets, saveSnaps, saveWfCust, savedCat, scrollResultIfDeepLink, searchHist, setCat, setSub, setTheme, showErrorBox, showInstBar, showUpdateBar, snapNameOf, snapshot, st0, stamp, startName, syncInstallUi, tabCatLabel, tap, taxBy, toast, toggleWfStep, trimNum, unitFor, updShown, wfAllPaths, wfArchiveMonth, wfArchivePut, wfAutoNext, wfAutoStop, wfAutoWalk, wfBar, wfBindCustQ, wfBuildHandoff, wfCarryMissing, wfCarryQuery, wfCarryWarn, wfCsvCell, wfCustNameSave, wfDayDiff, wfDetailRender, wfEditPath, wfEditReset, wfEditSave, wfEditToggle, wfFillCustSel, wfHandoff, wfHandoffCopy, wfHandoffCsv, wfHandoffPrint, wfHasAnyData, wfHideStep, wfKnownMods, wfLegacyToNew, wfLoad, wfManSave, wfMetaSave, wfMigrateLegacy, wfMonthKey, wfMonthRoll, wfMonthTouch, wfMoveStep, wfNoteSave, wfNotifyCheck, wfNotifyGranted, wfNotifyPref, wfNotifySend, wfNotifySetPref, wfNotifyStatus, wfNotifyToggle, wfOpenInline, wfOpenTasks, wfPad2, wfPathMods, wfPlaceInline, wfPlaceNear, wfProgress, wfRenderSummary, wfRoleSaved, wfScopedPaths, wfSet, wfSkipCurrent, wfSkipSave, wfStepKey, wfStepShare, wfStepState, wfTaskAdd, wfTaskBox, wfTaskDel, wfTaskPending, wfTaskSave, wfTaskToggle, wfTodayPick, wfTodayStr, wfUnhideStep, wfVisiblePaths, yuan, zOf };
+  window.FC = { $, BUILD_TAG, CAT_KEY, CAT_LABEL, CHUNK_FILES, CHUNK_OF, CMP_KEY, CORE_CALC, CURS, DEFERRED_TAPS, DEMO_SAVED, DIVISOR, EDITED, ERR_BOX, FAV_KEY, FIELDS, FIRST_ACTIVATE, FREQ, FREQ_KEY, INSTALL_HIDE_KEY, KEY, LAST_KEY, MONTH_CATS, MONTH_TABLE, NEXT_OF, PALETTE_EL, PENDING_PARAMS, PRE_KEY, QUOTA_WARNED, RECENT_KEY, SAVE_TIMER, SCHEMA_KEY, SCHEMA_VERSION, SEARCH_KEY, SNAP_KEY, SNAP_PICK, STORED, TABS, TAB_NATURAL, THEME_KEY, TOAST_EL, TODAYBAR_KEY, UNITS, WF_ARCH_KEY, WF_AUTO_IDX, WF_AUTO_LIST, WF_AUTO_STEP, WF_AUTO_TIMER, WF_CUSTNAME_KEY, WF_CUST_KEY, WF_CUST_NAME, WF_DONE, WF_EDIT, WF_EDIT_KEY, WF_KEY, WF_LAST, WF_LEGACY, WF_MAN_KEY, WF_META_KEY, WF_MONTH_KEY, WF_NOTE_KEY, WF_NOTIFIED_KEY, WF_NOTIFY_KEY, WF_PATHS, WF_ROLE_KEY, WF_ROLE_READY, WF_SKIP_KEY, WF_TASK_KEY, WF_TEMPLATES, XL_ROWS, YEAR_TABLE, _onPanels, activate, addMonths, annuityPV, annuityPayment, applyFilter, applyParams, applyStoredTo, applyWfTpl, bindWfDnd, bindWfInline, bizAdd, bonusSoloTax, buildLoanSchedule, buildShare, buildTabBadges, bumpFreq, calcLoan, calcMap, calcWorkflow, clearWfMan, closePalette, cmpTabName, cnUpper, combineTax, convertTemp, copyText, cumulativeTax, curCat, currentSnap, demoFill, demoHint, diagText, dlJson, doInstall, doPrint, drawMonthCats, drawMonthStack, drawReportCharts, drawRpMini, drawnMonthlyChart, drawnYearChart, enhanceNums, enhancePanelUi, ensureChunk, evalExpr, favList, fillCmpMod, fillMonthGrid, fillUnits, flash, flushParams, flushSave, fmt, fmtAt, fmtDate, fx, gauss, getWfCust, getWfDone, getWfMan, getWfMeta, getWfNotes, getWfSkip, hashTarget, installEvt, installHintHide, installHintOff, iosInstallTip, iosLike, isFav, lastName, leftAfter, linkTo, loadCmpA, loadSnaps, loadWfArch, loadWfCust, loadWfDone, loadWfEdit, loadWfMan, loadWfMeta, loadWfNotes, loadWfSkip, loadWfTask, loanRows, makeSnap, markBadInputs, matchQ, money, monthToDate, monthlyIRR, months, npvDiff, num, numBlur, numFocus, numInput, numKey, numOf, openPalette, orderTabsForQuery, palKey, panelEls, panelParams, parseAmounts, parseDate, parseNum, pct, percentile, plRank, plScoreCov, plScoreDsr, plScoreEmg, plScoreLev, plScoreSave, prePanels, prefetchAllChunks, presets, printCover, pushRecent, pushSearch, pwaStandalone, quickOf, rateOf, readJsonFile, readMonthGrid, recentList, recordWf, refreshCounts, refreshTableTools, refreshTrackMods, refreshWfBadge, renderLoanTable, renderNext, renderPalette, renderPresets, renderSearchHist, renderSnapCompare, renderSnapList, renderTodayBar, renderTrack, renderWfTpl, rentBuyAt, restore, runCalc, runDeferredTaps, save, saveCmpA, saveFav, savePresets, saveSnaps, saveWfCust, savedCat, schemaInit, schemaMigrate, scrollResultIfDeepLink, searchHist, setCat, setSub, setTheme, showErrorBox, showInstBar, showUpdateBar, snapNameOf, snapshot, st0, stamp, startName, syncInstallUi, tabCatLabel, tabScore, tap, taxBy, toast, toggleWfStep, trimNum, unitFor, updShown, wfAllPaths, wfArchiveMonth, wfArchivePut, wfAutoNext, wfAutoStop, wfAutoWalk, wfBar, wfBindCustQ, wfBuildHandoff, wfCarryMissing, wfCarryQuery, wfCarryWarn, wfCsvCell, wfCustNameSave, wfDayDiff, wfDetailRender, wfEditPath, wfEditReset, wfEditSave, wfEditToggle, wfFillCustSel, wfHandoff, wfHandoffCopy, wfHandoffCsv, wfHandoffPrint, wfHasAnyData, wfHideStep, wfKnownMods, wfLegacyToNew, wfLoad, wfManSave, wfMetaSave, wfMigrateLegacy, wfMonthKey, wfMonthRoll, wfMonthTouch, wfMoveStep, wfNoteSave, wfNotifyCheck, wfNotifyGranted, wfNotifyPref, wfNotifySend, wfNotifySetPref, wfNotifyStatus, wfNotifyToggle, wfOpenInline, wfOpenTasks, wfPad2, wfPathMods, wfPlaceInline, wfPlaceNear, wfProgress, wfRenderSummary, wfRoleSaved, wfScopedPaths, wfSet, wfSkipCurrent, wfSkipSave, wfStepKey, wfStepShare, wfStepState, wfTaskAdd, wfTaskBox, wfTaskDel, wfTaskPending, wfTaskSave, wfTaskToggle, wfTodayPick, wfTodayStr, wfUnhideStep, wfVisiblePaths, yuan, zOf };
 
   /* ---------------- 启动 ---------------- */
   enhanceNums(document);
@@ -5514,6 +5593,7 @@ undefined
   try { savedCat = localStorage.getItem(CAT_KEY) || "hot"; } catch (e) {}
   if (!document.querySelector('.cat[data-cat="' + savedCat + '"]')) savedCat = "hot";
   setCat(savedCat);
+  schemaInit();
   var st0 = hashTarget();
   var lastName = "";
   try { lastName = localStorage.getItem(LAST_KEY) || ""; } catch (e) {}

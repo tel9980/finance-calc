@@ -12529,6 +12529,58 @@
     }
     return CAT_LABEL[toks[0]] || toks[0];
   }
+  /* ---------------- 搜索排序：常用的排前面 ---------------- */
+  var FREQ_KEY = "finance-calc-freq";
+  var FREQ = {}, FREQ_DIRTY = false, FREQ_TIMER = null;
+  try {
+    var fq = JSON.parse(localStorage.getItem(FREQ_KEY) || "{}");
+    FREQ = fq && typeof fq === "object" ? fq : {};
+  } catch (e) { FREQ = {}; }
+  function bumpFreq(id) {
+    if (!id) return;
+    FREQ[id] = (FREQ[id] || 0) + 1;
+    if (FREQ[id] > 9999) FREQ[id] = 9999;
+    if (FREQ_TIMER) return;
+    FREQ_TIMER = setTimeout(function () {
+      FREQ_TIMER = null;
+      try { localStorage.setItem(FREQ_KEY, JSON.stringify(FREQ)); } catch (e) {}
+    }, 800);
+  }
+  /* 搜索结果按「用得多 + 最近用过」排，同分保持原来的顺序 */
+  function tabScore(el) {
+    var id = el.dataset.tab || "";
+    var s = FREQ[id] || 0;
+    var r = recentList.indexOf(id);
+    if (r >= 0) s += 6 - Math.min(6, r);
+    return s;
+  }
+  function orderTabsForQuery(active) {
+    var box = $("tabs");
+    if (!box || !TAB_NATURAL.length) return;
+    var vis = [], rest = [];
+    for (var i = 0; i < TAB_NATURAL.length; i++) {
+      var el = TAB_NATURAL[i];
+      if (el.hidden) rest.push(el); else vis.push(el);
+    }
+    if (active) {
+      var idx = {};
+      for (var j = 0; j < vis.length; j++) idx[vis[j].dataset.tab] = j;
+      vis.sort(function (a, b) {
+        var d = tabScore(b) - tabScore(a);
+        return d !== 0 ? d : idx[a.dataset.tab] - idx[b.dataset.tab];
+      });
+    }
+    var frag = document.createDocumentFragment();
+    for (var k = 0; k < vis.length; k++) frag.appendChild(vis[k]);
+    for (var m = 0; m < rest.length; m++) frag.appendChild(rest[m]);
+    box.appendChild(frag);
+  }
+  var TAB_NATURAL = [];
+  (function () {
+    var all = document.querySelectorAll("#tabs .tab");
+    for (var i = 0; i < all.length; i++) TAB_NATURAL.push(all[i]);
+  })();
+
   function buildTabBadges() {
     var chips = document.querySelectorAll(".cat");
     for (var c = 0; c < chips.length; c++) {
@@ -12651,6 +12703,7 @@
       qc.hidden = !q;
       if (q) qc.textContent = shown ? "命中 " + shown + " 个" : "没有匹配的模块";
     }
+    orderTabsForQuery(!!q);
   }
   function setCat(cat) {
     curCat = cat; curSub = "";
@@ -12693,6 +12746,7 @@
     if (location.hash !== "#" + name) history.replaceState(null, "", "#" + name);
     /* 换模块时「示例」按钮回到初始状态（示例只对当前模块有意义） */
     if ($("btn-demo")) $("btn-demo").textContent = "示例";
+    bumpFreq(name);
     if (name !== "workflow") recordWf(name);
     var onTab = document.querySelector(".tab.is-on");
     /* 只有用户主动切页时才把标签滚到中间；首屏自动激活不滚，避免把浏览器的
@@ -13010,6 +13064,27 @@
 
 ];
   var KEY = "finance-calc-v63";
+  /* 存储版本号：以后改 localStorage 结构时，把 SCHEMA_VERSION 加一，在 schemaMigrate 里补迁移。
+     没有版本号的旧数据按 1 处理（现在的结构就是 1）。 */
+  var SCHEMA_KEY = "finance-calc-schema";
+  var SCHEMA_VERSION = 1;
+  function schemaInit() {
+    var v = 0;
+    try { v = parseInt(localStorage.getItem(SCHEMA_KEY) || "0", 10) || 0; } catch (e) { return; }
+    if (!v) {
+      try { localStorage.setItem(SCHEMA_KEY, String(SCHEMA_VERSION)); } catch (e) {}
+      return;
+    }
+    if (v > SCHEMA_VERSION) {
+      toast("本机存的数据来自更新版本（v" + v + "），当前页面是 v" + SCHEMA_VERSION + "，个别字段可能读不出来。建议先到「方案快照」做一次整站备份。", 7000);
+      return;
+    }
+    if (v < SCHEMA_VERSION) schemaMigrate(v, SCHEMA_VERSION);
+  }
+  function schemaMigrate(from, to) {
+    /* 目前没有要迁移的历史版本；以后在这里按版本号补 */
+    try { localStorage.setItem(SCHEMA_KEY, String(to)); } catch (e) {}
+  }
   var CAT_KEY = "finance-calc-cat";
   /* 构建时由 build.mjs 注入为 "v<内容哈希>"，页脚展示，方便核对版本 */
   var BUILD_TAG = "";
@@ -14553,7 +14628,7 @@
     var wfRole = "";
     try { wfRole = localStorage.getItem(WF_ROLE_KEY) || ""; } catch (e) {}
     dlJson("财务计算器-备份-" + stamp() + ".json", {
-      app: "finance-calc", kind: "all", v: 1, at: new Date().toISOString(),
+      app: "finance-calc", kind: "all", v: 1, schema: SCHEMA_VERSION, at: new Date().toISOString(),
       fields: data, fav: favList, presets: presets, snaps: loadSnaps(), cat: cat,
       theme: document.documentElement.getAttribute("data-theme") || "light",
       wf: { done: WF_DONE, man: WF_MAN, skip: WF_SKIP, notes: WF_NOTES, meta: WF_META, cust: WF_CUST, custname: WF_CUST_NAME, role: wfRole, arch: WF_ARCH, month: wfLoad(WF_MONTH_KEY), edit: WF_EDIT, tasks: WF_TASK }
@@ -14565,7 +14640,11 @@
     readJsonFile(this, function (obj) {
       if (!obj || obj.app !== "finance-calc" || !obj.kind) { window.alert("这不是财务计算器的备份文件。"); return; }
       var ok = true;
-      try { ok = window.confirm("用这份备份覆盖本机的填写值、置顶、预设与快照？页面会刷新。"); } catch (e) {}
+      var newer = obj.schema && obj.schema > SCHEMA_VERSION;
+      try {
+        ok = window.confirm((newer ? "这份备份来自更新版本（v" + obj.schema + "），当前页面是 v" + SCHEMA_VERSION + "，可能有个别字段读不出来。\n\n" : "") +
+          "用这份备份覆盖本机的填写值、置顶、预设与快照？页面会刷新。");
+      } catch (e) {}
       if (!ok) return;
       try {
         if (obj.fields) FIELDS.forEach(function (f) {
@@ -14858,6 +14937,7 @@
   try { savedCat = localStorage.getItem(CAT_KEY) || "hot"; } catch (e) {}
   if (!document.querySelector('.cat[data-cat="' + savedCat + '"]')) savedCat = "hot";
   setCat(savedCat);
+  schemaInit();
   var st0 = hashTarget();
   var lastName = "";
   try { lastName = localStorage.getItem(LAST_KEY) || ""; } catch (e) {}
