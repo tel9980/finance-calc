@@ -3,12 +3,17 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { transformSync } from 'esbuild';
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const PUB = path.join(ROOT, 'public');
 const ASSETS = path.join(PUB, 'assets');
 const read = f => fs.readFileSync(f, 'utf8');
 const hash8 = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 10);
+/* 产物压缩：只压空格/换行/注释和局部变量名，不改变导出给 chunk 的名字。
+   keepNames 保住函数名（报错栈和 typeof 判断都还认得），CSP 也没有 eval。 */
+const minJs = code => transformSync(code, { loader: 'js', minify: true, keepNames: true, target: 'es2020', legalComments: 'none' }).code;
+const minCss = code => transformSync(code, { loader: 'css', minify: true, legalComments: 'none' }).code;
 
 let src = read(path.join(ROOT, 'src/app.js'));
 let html = read(path.join(PUB, 'index.html'));
@@ -193,9 +198,10 @@ for (const grp of groups) {
     + code + '\n\n'
     + (panelWrap[grp] ? 'export const PANELS = ' + JSON.stringify(panelWrap[grp]) + ';\n' : '')
     + 'export default { ' + map + ' };\n';
-  const h = hash8(out);
+  const min = minJs(out);
+  const h = hash8(min);
   const name = 'c-' + grp + '.' + h + '.js';
-  fs.writeFileSync(path.join(ASSETS, name), out);
+  fs.writeFileSync(path.join(ASSETS, name), min);
   chunkFiles[grp] = './assets/' + name;
   written.push(name);
 }
@@ -355,13 +361,14 @@ if (!core.includes(bootMark)) throw new Error('boot marker not found');
 core = core.replace(bootMark, '  /* chunk 里要用到的工具函数，统一挂到 window.FC */\n  window.FC = { ' + fcNames + ' };\n\n' + bootMark);
 
 /* ---------- 8. CSS 指纹（先算，好把 css 也计入全站版本） ---------- */
-const css = read(path.join(PUB, 'style.css'));
+const cssRaw = read(path.join(PUB, 'style.css'));
+const css = minCss(cssRaw);
 const cssHash = hash8(css);
 const cssName = 'style.' + cssHash + '.css';
 fs.writeFileSync(path.join(ASSETS, cssName), css);
 written.push(cssName);
 
-const coreHash = hash8(core);
+const coreHash = hash8(minJs(core));
 const coreName = 'app.' + coreHash + '.js';
 
 /* ---------- 9. 重写 index.html（标签块从 src/tabs.html 写回，单一来源） ---------- */
@@ -397,7 +404,9 @@ fs.writeFileSync(path.join(PUB, 'index.html'), out);
    老客户端会一直用缓存里的旧外壳，看不到新增的模块。 */
 const ver = hash8(written.join('|') + '|' + coreHash + '|' + hash8(out));
 core = core.replace('var BUILD_TAG = "";', 'var BUILD_TAG = "v' + ver + '";');
-fs.writeFileSync(path.join(ASSETS, coreName), core);
+const coreMin = minJs(core);
+if (!coreMin.includes(ver)) throw new Error('BUILD_TAG 压缩后丢了');
+fs.writeFileSync(path.join(ASSETS, coreName), coreMin);
 written.push(coreName);
 
 /* ---------- 10. sw.js ---------- */

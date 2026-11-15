@@ -19,7 +19,7 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: 构建
         run: node scripts/build.mjs
-      - name: 产物体积预算（core 270KB / 单 chunk 160KB / public 2.6MB）
+      - name: 产物体积预算（core 200KB / 单 chunk 160KB / public 2.2MB）
         run: node scripts/sizebudget.mjs
       - name: 起本地服务器
         run: |

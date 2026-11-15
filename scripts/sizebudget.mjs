@@ -8,11 +8,11 @@ const dir = path.join(root, 'public/assets');
 const KB = 1024;
 
 const LIMITS = [
-  { name: 'core app.js', test: f => /^app\.[a-f0-9]+\.js$/.test(f), max: 270 * KB },
-  { name: 'style.css', test: f => /^style\.[a-f0-9]+\.css$/.test(f), max: 42 * KB },
+  { name: 'core app.js', test: f => /^app\.[a-f0-9]+\.js$/.test(f), max: 200 * KB },
+  { name: 'style.css', test: f => /^style\.[a-f0-9]+\.css$/.test(f), max: 36 * KB },
   { name: '单个分类 chunk', test: f => /^c-.+\.js$/.test(f), max: 160 * KB },
 ];
-const TOTAL_MAX = 2.6 * 1024 * KB;
+const TOTAL_MAX = 2.2 * 1024 * KB;
 
 const files = fs.readdirSync(dir).filter(f => fs.statSync(path.join(dir, f)).isFile());
 const rows = [];
