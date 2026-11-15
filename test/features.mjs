@@ -353,6 +353,34 @@ ok(tplSteps.length === 10 && tplSteps[0].indexOf('出口报价') >= 0, '外贸�
 ok((await page.inputValue('#wf-cust-name')) === '外贸出口', '模板没写入路径名');
 ok((await page.inputValue('#wf-role')) === '9', '套模板后没切到「我的路径」');
 
+/* 分享：手机调系统分享，桌面退回复制（都不经过服务器） */
+await page.goto(BASE + '#loan', { waitUntil: 'load' }); await page.waitForTimeout(1200);
+await page.click('#btn-demo'); await page.waitForTimeout(400);
+const shared = await page.evaluate(async () => {
+  window.__shared = null;
+  try {
+    Object.defineProperty(navigator, 'share', {
+      value: (d) => { window.__shared = d; return Promise.resolve(); },
+      configurable: true
+    });
+  } catch (e) {}
+  document.getElementById('btn-share').click();
+  await new Promise(r => setTimeout(r, 350));
+  return window.__shared && { url: window.__shared.url, text: window.__shared.text, title: window.__shared.title };
+});
+ok(!!shared && shared.url.indexOf('#loan?') > 0, '分享没带上「同样的数」链接（' + JSON.stringify(shared && shared.url) + '）');
+ok(!!shared && shared.text.indexOf('月供') >= 0, '分享正文里没有结果');
+ok((await page.textContent('#btn-share')).trim() === '已分享', '分享后按钮没给反馈');
+const fb = await page.evaluate(async () => {
+  try {
+    Object.defineProperty(navigator, 'share', { value: () => Promise.reject(new Error('no share')), configurable: true });
+  } catch (e) {}
+  document.getElementById('btn-share').click();
+  await new Promise(r => setTimeout(r, 600));
+  return document.getElementById('btn-share').textContent.trim();
+});
+ok(fb === '已复制' || fb.indexOf('复制失败') >= 0, '系统分享失败时没有退回复制（' + fb + '）');
+
 /* 深色主题：结果卡不再是白底，图表颜色跟着换（不含深蓝 #1e3a8a 那种看不清的颜色） */
 await page.goto(BASE + '#deposit', { waitUntil: 'load' }); await page.waitForTimeout(500);
 if (await page.evaluate(() => document.documentElement.getAttribute('data-theme')) !== 'dark') {

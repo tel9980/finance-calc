@@ -13525,6 +13525,8 @@
     });
   }
 
+  tap("btn-share", "click", function () { shareCalc(this); });
+
   $("btn-copy").addEventListener("click", function () {
     var snap = snapshot(), lines = ["【财务计算器】" + snap.name];
     snap.rows.forEach(function (r) { lines.push(r[0] + "：" + r[1]); });
@@ -13539,6 +13541,34 @@
       btn.textContent = "复制失败，请手动选择"; setTimeout(function () { btn.textContent = old; }, 1600);
     });
   });
+
+  /* 分享：手机调起系统分享（微信/备忘录/隔空投送都能收），桌面不支持就退回复制。
+     全在本地生成，不经过任何服务器——这也是不做「短码」的原因：短码要上传数据。 */
+  function sharePayload() {
+    var snap = snapshot(), lines = ["【财务计算器】" + snap.name];
+    snap.rows.slice(0, 8).forEach(function (r) { lines.push(r[0] + "：" + r[1]); });
+    lines.push("点开就是同样的数：" + buildShare());
+    return { text: lines.join("\n"), url: buildShare(), title: "财务计算器 · " + snap.name };
+  }
+  function shareCalc(btn) {
+    var p = sharePayload(), old = btn ? btn.textContent : "";
+    var done = function (txt) {
+      if (!btn) return;
+      btn.textContent = txt;
+      setTimeout(function () { btn.textContent = old; }, 1400);
+    };
+    if (navigator.share) {
+      navigator.share({ title: p.title, text: p.text, url: p.url })
+        .then(function () { done("已分享"); })
+        .catch(function (e) {
+          if (e && e.name === "AbortError") { done(old); return; }
+          copyText(p.text).then(function () { done("已复制"); }).catch(function () { done("复制失败"); });
+        });
+      return;
+    }
+    copyText(p.text).then(function () { done("已复制"); })
+      .catch(function () { done("复制失败，请手动选择"); });
+  }
 
   $("btn-csv").addEventListener("click", function () {
     var snap = snapshot();
