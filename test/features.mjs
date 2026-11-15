@@ -309,6 +309,27 @@ const nat = await page.$$eval('#tabs .tab', els => els.map(e => e.dataset.tab));
 ok(nat.indexOf('vatdue') === nat.lastIndexOf('vatdue'), '清空搜索后标签重复了');
 ok(await page.evaluate(() => localStorage.getItem('finance-calc-schema')) === '1', '存储版本号没写进本机');
 
+/* 本月数据：填一遍 → 生成带参链接 → 打开后回填 */
+await page.goto(BASE + '#deposit', { waitUntil: 'load' }); await page.waitForTimeout(200);
+await page.goto(BASE + '#workflow', { waitUntil: 'load' }); await page.waitForTimeout(600);
+await page.evaluate(() => localStorage.removeItem('finance-calc-monthdata'));
+await page.goto(BASE + '#deposit', { waitUntil: 'load' }); await page.waitForTimeout(200);
+await page.goto(BASE + '#workflow', { waitUntil: 'load' }); await page.waitForTimeout(700);
+await page.click('#wf-md-card > summary'); await page.waitForTimeout(250);
+for (const [id, v] of [['md-rev', '1200000'], ['md-cost', '800000'], ['md-ar', '300000'], ['md-inv', '250000']]) {
+  await page.fill('#' + id, v); await page.waitForTimeout(120);
+}
+const mdHref = await page.getAttribute('#wf-md-links a[href^="#finreport"]', 'href');
+ok(!!mdHref && mdHref.indexOf('pl-rev=1200000') > 0 && mdHref.indexOf('pl-cogs=800000') > 0, '本月数据没生成带参链接（' + mdHref + '）');
+ok(await page.evaluate(() => localStorage.getItem('finance-calc-monthdata')).then(v => !!v && v.indexOf('1200000') > 0), '本月数据没存进本机');
+await page.goto(BASE + '/' + mdHref, { waitUntil: 'load' });
+let mdOk = false;
+for (let i = 0; i < 40; i++) { if (await page.evaluate(() => !!document.getElementById('pl-rev'))) { mdOk = true; break; } await page.waitForTimeout(150); }
+ok(mdOk, '本月数据链接点开后面板没出来');
+await page.waitForTimeout(300);
+const mdVals = await page.evaluate(() => [document.getElementById('pl-rev').value, document.getElementById('pl-cogs').value]);
+ok(mdVals[0] === '1200000' && mdVals[1] === '800000', '本月数据没回填（' + mdVals.join('/') + '）');
+
 /* 示例数据：填一组能算出结果的数，再点还原 */
 await page.goto(BASE + '#deposit', { waitUntil: 'load' }); await page.waitForTimeout(300);
 await page.goto(BASE + '#loan', { waitUntil: 'load' }); await page.waitForTimeout(650);

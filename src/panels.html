@@ -9223,6 +9223,17 @@
           <option value="9">我的路径</option>
         </select></label></p>
         <p class="wfctl" id="wf-tpl-ctl"><span class="hint">行业模板：</span><span id="wf-tpl-btns" class="wf-tpl-btns"></span></p>
+        <details class="wf-md" id="wf-md-card">
+          <summary>本月数据（填一遍，带进利润表/报表体检/经营包/增值税）</summary>
+          <div class="wf-md-grid">
+            <label>营业收入<input id="md-rev" type="number" inputmode="decimal" min="0" step="1000" placeholder="如 1200000"></label>
+            <label>营业成本<input id="md-cost" type="number" inputmode="decimal" min="0" step="1000" placeholder="如 800000"></label>
+            <label>应收账款<input id="md-ar" type="number" inputmode="decimal" min="0" step="1000" placeholder="如 300000"></label>
+            <label>存货余额<input id="md-inv" type="number" inputmode="decimal" min="0" step="1000" placeholder="如 250000"></label>
+          </div>
+          <p class="hint">填完点下面的按钮，会带着这些数打开对应模块（照原样回填，可以直接再改）。</p>
+          <p class="wfctl" id="wf-md-links"></p>
+        </details>
         <p class="hint" id="wf-note"></p>
         <details class="hintd" open data-path="cash">
           <summary>① 报销 → 记账 → 出报表</summary>

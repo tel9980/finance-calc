@@ -10522,6 +10522,51 @@
     { id: "service", name: "服务项目", p: ["pricing", "contractperf", "projrev", "headcount", "efficiency", "aging", "finreport", "ratios", "cash13"] },
     { id: "export", name: "外贸出口", p: ["quotefx", "importcost", "exportrebate", "exportcheck", "excoll", "fxgain", "fxar", "vatdue", "vatrefund", "cash13"] }
   ];
+  /* 本月数据：填一遍，带进各模块（复用深链参数，值会照原样回填） */
+  var WF_MD_KEY = "finance-calc-monthdata";
+  var WF_MD = wfLoad(WF_MD_KEY) || {};
+  var WF_MD_FIELDS = [
+    { id: "md-rev", k: "rev", label: "营业收入" },
+    { id: "md-cost", k: "cost", label: "营业成本" },
+    { id: "md-ar", k: "ar", label: "应收账款" },
+    { id: "md-inv", k: "inv", label: "存货余额" }
+  ];
+  var WF_MD_LINKS = [
+    { mod: "finreport", label: "月度利润表", map: { rev: "pl-rev", cost: "pl-cogs" } },
+    { mod: "ratios", label: "报表体检", map: { rev: "rt-rev", cost: "rt-cogs", ar: "rt-ar", inv: "rt-inv" } },
+    { mod: "mgmtpack", label: "月度经营数据包", map: { rev: "pk-rev", ar: "pk-ar", inv: "pk-inv" } },
+    { mod: "vatdue", label: "增值税与附加", map: { rev: "vd-sales" } }
+  ];
+  function wfMdSave() { wfSet(WF_MD_KEY, WF_MD); }
+  function wfMdHref(link) {
+    var qs = [], any = false;
+    for (var k in link.map) {
+      if (!Object.prototype.hasOwnProperty.call(link.map, k)) continue;
+      var v = WF_MD[k];
+      if (v === undefined || v === null || v === "") continue;
+      qs.push(encodeURIComponent(link.map[k]) + "=" + encodeURIComponent(v));
+      any = true;
+    }
+    return any ? "#" + link.mod + "?" + qs.join("&") : "";
+  }
+  function wfMdRender() {
+    for (var i = 0; i < WF_MD_FIELDS.length; i++) {
+      var f = WF_MD_FIELDS[i], el = $(f.id);
+      if (el && document.activeElement !== el) el.value = WF_MD[f.k] === undefined ? "" : WF_MD[f.k];
+    }
+    var box = $("wf-md-links");
+    if (!box) return;
+    box.innerHTML = "";
+    for (var j = 0; j < WF_MD_LINKS.length; j++) {
+      var lk = WF_MD_LINKS[j], href = wfMdHref(lk);
+      var a = document.createElement("a");
+      a.className = "ghost wf-md-go" + (href ? "" : " off");
+      a.textContent = "带进" + lk.label;
+      if (href) { a.href = href; } else { a.href = "javascript:void(0)"; a.title = "先在上面填数字"; }
+      box.appendChild(a);
+    }
+  }
+
   function renderWfTpl() {
     var box = $("wf-tpl-btns");
     if (!box) return;
@@ -11555,7 +11600,7 @@
     }
 
     /* 渲染步骤 */
-    var dets = document.querySelectorAll("#panel-workflow .card:not(.res) details");
+    var dets = document.querySelectorAll("#panel-workflow .card:not(.res) details[data-path]");
     var total = 0, done = 0, man = 0, skip = 0, dueSoon = 0, nextEl = null;
     var today0 = new Date(); today0.setHours(0, 0, 0, 0);
     var weekLater = today0.getTime() + 8 * 86400000;
@@ -11775,6 +11820,7 @@
     renderTodayBar();
     wfNotifyCheck();
     renderWfTpl();
+    wfMdRender();
   }
 
   var WF_AUTO_TIMER = null;
@@ -12825,6 +12871,17 @@
   });
 
   document.addEventListener("input", function (e) {
+    var md = e.target && e.target.id && e.target.id.indexOf("md-") === 0 ? e.target : null;
+    if (md) {
+      for (var mi = 0; mi < WF_MD_FIELDS.length; mi++) {
+        if (WF_MD_FIELDS[mi].id === md.id) {
+          WF_MD[WF_MD_FIELDS[mi].k] = md.value === "" ? "" : Math.max(0, parseFloat(md.value) || 0);
+          wfMdSave();
+          wfMdRender();
+          return;
+        }
+      }
+    }
     var panel = e.target.closest(".panel");
     if (!panel) return;
     var name = panel.id.replace("panel-", "");
@@ -14631,7 +14688,7 @@
       app: "finance-calc", kind: "all", v: 1, schema: SCHEMA_VERSION, at: new Date().toISOString(),
       fields: data, fav: favList, presets: presets, snaps: loadSnaps(), cat: cat,
       theme: document.documentElement.getAttribute("data-theme") || "light",
-      wf: { done: WF_DONE, man: WF_MAN, skip: WF_SKIP, notes: WF_NOTES, meta: WF_META, cust: WF_CUST, custname: WF_CUST_NAME, role: wfRole, arch: WF_ARCH, month: wfLoad(WF_MONTH_KEY), edit: WF_EDIT, tasks: WF_TASK }
+      wf: { done: WF_DONE, man: WF_MAN, skip: WF_SKIP, notes: WF_NOTES, meta: WF_META, cust: WF_CUST, custname: WF_CUST_NAME, role: wfRole, arch: WF_ARCH, month: wfLoad(WF_MONTH_KEY), edit: WF_EDIT, tasks: WF_TASK, md: WF_MD }
     });
     flash(this, "已备份");
   });
@@ -14667,6 +14724,7 @@
           if (obj.wf.role) localStorage.setItem(WF_ROLE_KEY, obj.wf.role);
           if (obj.wf.arch) localStorage.setItem(WF_ARCH_KEY, JSON.stringify(obj.wf.arch));
           if (obj.wf.month) localStorage.setItem(WF_MONTH_KEY, JSON.stringify(obj.wf.month));
+          if (obj.wf.md) localStorage.setItem(WF_MD_KEY, JSON.stringify(obj.wf.md));
           if (obj.wf.edit) localStorage.setItem(WF_EDIT_KEY, JSON.stringify(obj.wf.edit));
           if (obj.wf.tasks) localStorage.setItem(WF_TASK_KEY, JSON.stringify(obj.wf.tasks));
         }

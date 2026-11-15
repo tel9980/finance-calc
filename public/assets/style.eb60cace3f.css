@@ -601,3 +601,12 @@ body.wf-printing > *:not(.wf-printbox) { display: none !important; }
 .wf-tpl-btns { display: inline-flex; flex-wrap: wrap; gap: 6px; }
 button.wf-tpl-b { font-size: 12px; padding: 3px 10px; border-radius: 999px; }
 button.wf-tpl-b:hover { border-color: var(--accent, #2563eb); color: var(--accent, #2563eb); }
+
+/* 本月数据（工作流页） */
+.wf-md { margin: 8px 0 10px; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+.wf-md > summary { cursor: pointer; font-size: 13px; font-weight: 600; }
+.wf-md-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); gap: 8px; margin: 10px 0 6px; }
+.wf-md-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+.wf-md-grid input { width: 100%; }
+a.wf-md-go { font-size: 12px; padding: 3px 10px; border-radius: 999px; margin: 0 6px 6px 0; display: inline-block; }
+a.wf-md-go.off { opacity: .45; }
