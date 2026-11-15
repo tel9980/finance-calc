@@ -12,8 +12,8 @@ const read = f => fs.readFileSync(f, 'utf8');
 const hash8 = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 10);
 /* 产物压缩：只压空格/换行/注释和局部变量名，不改变导出给 chunk 的名字。
    keepNames 保住函数名（报错栈和 typeof 判断都还认得），CSP 也没有 eval。 */
-const minJs = code => transformSync(code, { loader: 'js', minify: true, keepNames: true, target: 'es2020', legalComments: 'none' }).code;
-const minCss = code => transformSync(code, { loader: 'css', minify: true, legalComments: 'none' }).code;
+const minJs = code => transformSync(code, { loader: 'js', minify: true, keepNames: true, charset: 'utf8', target: 'es2020', legalComments: 'none' }).code;
+const minCss = code => transformSync(code, { loader: 'css', minify: true, charset: 'utf8', legalComments: 'none' }).code;
 
 let src = read(path.join(ROOT, 'src/app.js'));
 let html = read(path.join(PUB, 'index.html'));
