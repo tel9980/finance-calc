@@ -14424,6 +14424,101 @@
     }
     el.innerHTML = '<div class="pc-in"><h1>财务计算器</h1><h2>' + name.replace(/</g, "&lt;") + '</h2><p>纯前端计算 · 数据不上传</p><p class="pc-time">' + new Date().toLocaleString("zh-CN") + '</p><p class="pc-note">本页为打印封面，结果以正文为准；计算按页面假设推算，实际以合同与当地政策为准。</p></div>';
   }
+  /* ---- 单模块「一页纸」打印：模块名 + 输入 + 结果 + 说明 + 页脚 ----
+     打印时整页藏掉只留这张纸，避免把工具栏、其他面板、提示条一起打出来。 */
+  function psText(el) { return (el ? el.textContent : "").replace(/\s+/g, " ").trim(); }
+  function psInputs(panel) {
+    var rows = [], wraps = panel.querySelectorAll("label.f");
+    for (var i = 0; i < wraps.length; i++) {
+      var lab = wraps[i];
+      if (lab.querySelector(".chk")) continue;            /* 单选项只影响显示，不算输入 */
+      var nameEl = lab.querySelector("span");
+      var name = nameEl ? nameEl.textContent.trim() : "";
+      var ctl = lab.querySelector("input, select, textarea");
+      if (!name || !ctl) continue;
+      var val = "";
+      if (ctl.tagName === "SELECT") {
+        var op = ctl.options[ctl.selectedIndex];
+        val = op ? op.textContent.trim() : "";
+      } else if (ctl.type === "radio" || ctl.type === "checkbox") {
+        var pick = lab.querySelector("input:checked");
+        val = pick ? (pick.checked ? (pick.parentElement ? psText(pick.parentElement) : "是") : "") : "";
+      } else {
+        val = ctl.value;
+      }
+      if (val === "" || val == null) continue;
+      rows.push([name, String(val)]);
+    }
+    return rows;
+  }
+  function psResults(panel) {
+    var res = panel.querySelector(".card.res"), out = { big: null, kv: [] };
+    if (!res) return out;
+    var big = res.querySelector(".big");
+    if (big) out.big = { k: psText(big.querySelector(".k")), v: psText(big.querySelector("strong")), u: psText(big.querySelector(".unit")) };
+    var lis = res.querySelectorAll(".kv li");
+    for (var i = 0; i < lis.length; i++) {
+      var sp = lis[i].querySelector("span"), b = lis[i].querySelector("b");
+      if (sp && b) out.kv.push([psText(sp), psText(b)]);
+    }
+    return out;
+  }
+  function psNotes(panel) {
+    var out = [], hs = panel.querySelectorAll(".card.res .hint, .card:not(.res) .hint");
+    for (var i = 0; i < hs.length && out.length < 3; i++) {
+      var t = psText(hs[i]);
+      if (t.length < 6 || t.length > 200 || out.indexOf(t) >= 0) continue;
+      out.push(t);
+    }
+    return out;
+  }
+  function psEsc(v) {
+    return String(v == null ? "" : v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+  function printSheet() {
+    var tab = document.querySelector(".tab.is-on");
+    var panel = document.querySelector(".panel.is-on");
+    if (!panel) return;
+    var name = tab ? psText(tab) : "计算";
+    var box = $("printbox");
+    if (!box) {
+      box = document.createElement("div");
+      box.id = "printbox"; box.className = "printbox";
+      document.body.appendChild(box);
+    }
+    var ins = psInputs(panel), res = psResults(panel), notes = psNotes(panel);
+    var h = '<div class="ps-in"><h1>' + psEsc(name) + '</h1>'
+      + '<p class="ps-meta">财务计算器 · ' + psEsc(new Date().toLocaleString("zh-CN")) + ' · 数据只存在本机，不上传</p>';
+    if (ins.length) {
+      h += '<h2>输入</h2><table class="ps-tb"><tbody>';
+      for (var i = 0; i < ins.length; i++) h += '<tr><th>' + psEsc(ins[i][0]) + '</th><td>' + psEsc(ins[i][1]) + '</td></tr>';
+      h += '</tbody></table>';
+    }
+    h += '<h2>结果</h2>';
+    if (res.big && res.big.v) h += '<p class="ps-big"><span>' + psEsc(res.big.k) + '</span><b>' + psEsc(res.big.v) + '</b><i>' + psEsc(res.big.u) + '</i></p>';
+    if (res.kv.length) {
+      h += '<table class="ps-tb ps-kv"><tbody>';
+      for (var j = 0; j < res.kv.length; j++) h += '<tr><th>' + psEsc(res.kv[j][0]) + '</th><td>' + psEsc(res.kv[j][1]) + '</td></tr>';
+      h += '</tbody></table>';
+    }
+    if (notes.length) {
+      h += '<h2>说明</h2><ul class="ps-note">';
+      for (var k = 0; k < notes.length; k++) h += '<li>' + psEsc(notes[k]) + '</li>';
+      h += '</ul>';
+    }
+    h += '<p class="ps-foot">' + psEsc(location.origin + "/#" + (tab ? tab.dataset.tab : ""))
+      + ' · 计算按页面假设推算，实际以合同与当地政策为准</p></div>';
+    box.innerHTML = h;
+    document.body.classList.add("printing");
+    var done = function () {
+      document.body.classList.remove("printing");
+      window.removeEventListener("afterprint", done);
+    };
+    window.addEventListener("afterprint", done);
+    window.print();
+    setTimeout(done, 60000);
+  }
+
   function doPrint(name) {
     printCover(name);
     document.title = "财务计算器-" + name;
@@ -14433,12 +14528,11 @@
   }
 
   tap("rp-pdf", "click", function () {
-    doPrint("家庭财务体检");
+    printSheet();
   });
 
   if ($("btn-print")) $("btn-print").addEventListener("click", function () {
-    var t = document.querySelector(".tab.is-on");
-    doPrint(t ? t.textContent.trim() : "计算");
+    printSheet();
   });
 
   tap("snap-sort", "change", function () { renderSnapList(); });

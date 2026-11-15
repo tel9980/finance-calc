@@ -478,6 +478,59 @@ ok(await page.evaluate(() => document.documentElement.getAttribute('data-theme')
   await page.evaluate(() => { localStorage.removeItem('finance-calc-snaps'); });
 }
 
+/* 单模块「一页纸」打印 */
+{
+  let printed = 0;
+  await page.goto(BASE + '#loan', { waitUntil: 'load' });
+  await page.waitForTimeout(800);
+  await page.exposeFunction('__psPrint', () => { printed++; });
+  await page.evaluate(() => { window.print = () => { window.__psPrint(); }; });
+  /* 前面的用例改过贷款默认值，这里显式给一组，断言才有确定值 */
+  for (const [id, v] of [['ln-principal', '1000000'], ['ln-rate', '3.1'], ['ln-years', '30']]) {
+    await page.fill('#' + id, v);
+    await page.dispatchEvent('#' + id, 'input');
+  }
+  await page.waitForTimeout(250);
+  await page.click('#btn-print');
+  await page.waitForTimeout(300);
+  const sheet = await page.evaluate(() => {
+    const box = document.getElementById('printbox');
+    if (!box) return null;
+    return {
+      title: (box.querySelector('h1') || {}).textContent || '',
+      rows: box.querySelectorAll('.ps-tb tr').length,
+      text: box.textContent.replace(/\s+/g, ' '),
+      foot: (box.querySelector('.ps-foot') || {}).textContent || '',
+      printing: document.body.classList.contains('printing'),
+      mainHidden: getComputedStyle(document.querySelector('main')).display === 'none'
+    };
+  });
+  ok(printed === 1, '点「打印」应该只调一次 window.print，实际 ' + printed);
+  ok(sheet && sheet.title.indexOf('贷款月供') >= 0, '一页纸没写模块名');
+  ok(sheet && sheet.rows >= 7, '一页纸的输入+结果行数太少（' + (sheet && sheet.rows) + '）');
+  ok(sheet && sheet.text.indexOf('4,270.16') >= 0, '一页纸里没有结果数字（' + (sheet ? sheet.text.slice(0, 160) : 'no sheet') + '）');
+  ok(sheet && sheet.text.indexOf('输入') >= 0 && sheet.text.indexOf('结果') >= 0 && sheet.text.indexOf('说明') >= 0, '一页纸缺「输入/结果/说明」小标题');
+  ok(sheet && sheet.foot.indexOf('#loan') >= 0, '一页纸页脚没有可回看的链接');
+  ok(sheet && sheet.printing && sheet.mainHidden, '打印时应该只留这张纸（正文没藏起来）');
+  await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
+  await page.waitForTimeout(300);
+  ok((await page.evaluate(() => document.body.classList.contains('printing'))) === false, 'afterprint 后没恢复正文');
+  ok((await page.evaluate(() => getComputedStyle(document.querySelector('main')).display)) !== 'none', '打印结束后正文应该恢复显示');
+
+  /* 输入多的模块也要能出纸（抽查公司财务里的表格模块） */
+  await page.goto(BASE + '#ratios', { waitUntil: 'load' });
+  await page.waitForTimeout(900);
+  await page.click('#btn-print');
+  await page.waitForTimeout(400);
+  const sheet2 = await page.evaluate(() => {
+    const box = document.getElementById('printbox');
+    return box ? { rows: box.querySelectorAll('.ps-tb tr').length, text: box.textContent } : null;
+  });
+  ok(sheet2 && sheet2.rows >= 5, '财务比率的一页纸行数太少（' + (sheet2 && sheet2.rows) + '）');
+  ok(sheet2 && /毛利率|净利率/.test(sheet2.text), '财务比率的一页纸里没有结果项');
+  await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
+}
+
 /* 错误自检浮层 */
 await page.evaluate(() => { setTimeout(() => { throw new Error('自检测试'); }, 0); });
 let hasBox = false;
