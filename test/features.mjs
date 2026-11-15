@@ -428,6 +428,56 @@ ok(darkInfo.navy === 0, '深色图表里还有 ' + darkInfo.navy + ' 个深蓝�
 await page.click('#btn-theme'); await page.waitForTimeout(400);
 ok(await page.evaluate(() => document.documentElement.getAttribute('data-theme')) === 'light', '切不回浅色主题');
 
+/* 快照上限与备份提醒：超过 60 条要明确清理并提示，不许静默丢数据 */
+{
+  const seed = n => page.evaluate(cnt => {
+    const list = [];
+    for (let i = 0; i < cnt; i++) list.push({ id: 'seeded' + i, mod: 'loan', modName: '贷款计算器', name: '种子' + i, note: '', tag: '', rows: [], params: [], at: Date.now() - i * 1000 });
+    localStorage.setItem('finance-calc-snaps', JSON.stringify(list));
+    localStorage.removeItem('finance-calc-lastbackup');
+  }, n);
+
+  await seed(55);
+  await page.goto(BASE + '#deposit'); await page.waitForTimeout(200);
+  await page.goto(BASE + '#snaps'); await page.waitForTimeout(700);
+  ok((await page.textContent('#snap-count')).trim() === '55 / 60', '快照计数应显示「55 / 60」，实际 ' + await page.textContent('#snap-count'));
+  ok((await page.textContent('#snap-bak-tip')).indexOf('没导出过备份') >= 0, '从没备份过时应提示备份，实际「' + await page.textContent('#snap-bak-tip') + '」');
+
+  /* 备份一次 → 提示消失 */
+  const dl = page.waitForEvent('download', { timeout: 5000 }).catch(() => null);
+  await page.click('#snap-backup'); await dl; await page.waitForTimeout(400);
+  ok(!!(await page.evaluate(() => localStorage.getItem('finance-calc-lastbackup'))), '点整站备份后应记下备份时间');
+  await page.goto(BASE + '#deposit'); await page.waitForTimeout(150);
+  await page.goto(BASE + '#snaps'); await page.waitForTimeout(600);
+  const tipAfter = await page.textContent('#snap-bak-tip');
+  ok(tipAfter.indexOf('没导出过备份') < 0 && tipAfter.indexOf('天前') < 0, '刚备份完不该再提示备份，实际「' + tipAfter + '」');
+  /* 备份太久（40 天前）要提醒 */
+  await page.evaluate(() => localStorage.setItem('finance-calc-lastbackup', String(Date.now() - 40 * 86400000)));
+  await page.goto(BASE + '#deposit'); await page.waitForTimeout(150);
+  await page.goto(BASE + '#snaps'); await page.waitForTimeout(600);
+  ok((await page.textContent('#snap-bak-tip')).indexOf('40 天前') >= 0, '备份超过 30 天应提醒，实际「' + await page.textContent('#snap-bak-tip') + '」');
+
+  /* 塞 62 条 → 只留最近 60 条，并且 toast 明确说清掉了 */
+  await seed(62);
+  await page.goto(BASE + '#deposit'); await page.waitForTimeout(150);
+  await page.goto(BASE + '#snaps'); await page.waitForTimeout(700);
+  const kept = await page.evaluate(() => JSON.parse(localStorage.getItem('finance-calc-snaps') || '[]').length);
+  ok(kept === 60, '超过上限后本地只应留 60 条，实际 ' + kept);
+  const toastTxt = await page.evaluate(() => { const e = document.querySelector('.toast'); return e && !e.hidden ? e.textContent : ''; });
+  ok(toastTxt.indexOf('最旧的 2 条') >= 0, '清理最旧快照时要有明确提示，实际「' + toastTxt + '」');
+  ok((await page.textContent('#snap-count')).trim() === '60 / 60', '计数应显示「60 / 60」，实际 ' + await page.textContent('#snap-count'));
+
+  /* 存新方案仍能成功，且仍旧 60 条（挤掉最旧） */
+  await page.click('#btn-snap'); await page.waitForTimeout(800);   /* 页面层已有全局 dialog 处理器 */
+  const kept2 = await page.evaluate(() => JSON.parse(localStorage.getItem('finance-calc-snaps') || '[]').length);
+  ok(kept2 === 60, '再存一条后仍应是 60 条，实际 ' + kept2);
+  const first = await page.evaluate(() => JSON.parse(localStorage.getItem('finance-calc-snaps') || '[]')[0].name);
+  ok(first && first.indexOf('种子0') < 0, '新存的方案应排在最前，实际 ' + first);
+
+  /* 收尾：清掉种子数据 */
+  await page.evaluate(() => { localStorage.removeItem('finance-calc-snaps'); });
+}
+
 /* 错误自检浮层 */
 await page.evaluate(() => { setTimeout(() => { throw new Error('自检测试'); }, 0); });
 let hasBox = false;

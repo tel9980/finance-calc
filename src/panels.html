@@ -231,7 +231,7 @@
           <input type="file" id="snap-file" accept=".json,application/json" hidden>
           <input type="file" id="bak-file" accept=".json,application/json" hidden>
         </p>
-        <em>已存 <b id="snap-count">0</b> 个方案。点模块名可以带着当时的参数跳回那个模块继续调；换手机或换浏览器时用「整站备份」把填写值、置顶、预设、快照一起带走。</em>
+        <em>已存 <b id="snap-count">0</b> / 60 个方案。点模块名可以带着当时的参数跳回那个模块继续调；换手机或换浏览器时用「整站备份」把填写值、置顶、预设、快照一起带走。</em>
       </div>
       <div class="card res">
         <h2>快照列表</h2>
@@ -251,6 +251,7 @@
           <tbody id="snap-cmp-body"></tbody>
         </table>
       </div>
+      <p class="hint" id="snap-bak-tip"></p>
       <p class="hint" id="snap-note"></p>
     </div>
     <div class="card res">

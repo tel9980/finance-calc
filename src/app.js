@@ -8398,16 +8398,49 @@
 
   /* ---------------- 方案快照 / 一页体检报告 用到的公共件 ---------------- */
   var SNAP_KEY = "finance-calc-snaps";
+  var SNAP_MAX = 60;                       // 快照上限：超出就按「最旧的先走」清理，并明确告诉用户
+  var BACKUP_KEY = "finance-calc-lastbackup";   // 上次导出备份的时间戳
+  var SNAP_DROP_SEEN = false;
   var SNAP_PICK = {};   // 勾选状态存内存，避免表格重绘后丢失selected
 
   function loadSnaps() {
     var arr = [];
     try { arr = JSON.parse(localStorage.getItem(SNAP_KEY) || "[]") || []; } catch (e) { arr = []; }
-    return Array.isArray(arr) ? arr : [];
+    if (!Array.isArray(arr)) arr = [];
+    if (arr.length > SNAP_MAX) { saveSnaps(arr); arr = arr.slice(0, SNAP_MAX); }
+    return arr;
   }
 
   function saveSnaps(arr) {
-    try { localStorage.setItem(SNAP_KEY, JSON.stringify(arr.slice(0, 20))); } catch (e) {}
+    var list = (arr || []).slice(0, SNAP_MAX);
+    var dropped = (arr || []).length - list.length;
+    try { localStorage.setItem(SNAP_KEY, JSON.stringify(list)); } catch (e) {}
+    if (dropped > 0 && !SNAP_DROP_SEEN) {
+      SNAP_DROP_SEEN = true;
+      setTimeout(function () {
+        toast("方案最多存 " + SNAP_MAX + " 条，刚自动清掉了最旧的 " + dropped + " 条。点「整站备份」把旧的一起存成文件更稳妥。", 7000);
+      }, 80);
+    }
+    return list.length;
+  }
+
+  /* 备份时间戳：整站备份 / 导出快照 JSON 都算一次备份 */
+  function markBackup() {
+    try { localStorage.setItem(BACKUP_KEY, String(Date.now())); } catch (e) {}
+  }
+  function backupAgeDays() {
+    var t = 0;
+    try { t = parseInt(localStorage.getItem(BACKUP_KEY) || "0", 10) || 0; } catch (e) { t = 0; }
+    if (!t) return -1;                       // -1 = 从没备份过
+    return Math.floor((Date.now() - t) / 86400000);
+  }
+  /* 快照页顶部的「容量 + 备份」提示，返回给 renderSnapList 用 */
+  function snapTipText(count) {
+    var days = backupAgeDays();
+    if (days < 0) return count >= 3 ? "还没导出过备份：点「整站备份」把这台手机上的数据存成文件，换机或清理浏览器都不会丢。" : "";
+    if (days >= 30) return "上次备份是 " + days + " 天前了，建议再备份一次。";
+    if (count >= SNAP_MAX - 10) return "快照快满了（" + count + "/" + SNAP_MAX + "），建议导出备份后删掉旧方案。";
+    return "";
   }
 
   function snapNameOf(mod) {
@@ -8711,6 +8744,8 @@
     if (!arr.length) {
       tb.innerHTML = "<tr><td class=\"tal\" colspan=\"5\">还没有快照。先到任意模块调好参数，点顶部「＋ 存方案」。</td></tr>";
       $("snap-count").textContent = "0";
+      var tip0 = $("snap-bak-tip");
+      if (tip0) tip0.textContent = snapTipText(0);
       return;
     }
     var sortEl = $("snap-sort"), qEl = $("snap-q");
@@ -8740,7 +8775,10 @@
         + "<td>" + main + "</td><td>" + fmtAt(s.at) + " <button type=\"button\" class=\"ghost sm snap-ren\" data-id=\"" + s.id + "\">改</button><button type=\"button\" class=\"ghost sm snap-del\" data-id=\"" + s.id + "\">删</button></td></tr>";
     }
     tb.innerHTML = h;
-    $("snap-count").textContent = String(arr.length);
+    var all0 = loadSnaps().length;
+    $("snap-count").textContent = String(all0) + " / " + SNAP_MAX;
+    var tipEl = $("snap-bak-tip");
+    if (tipEl) tipEl.textContent = snapTipText(all0);
   }
 
   /* 只重绘对比表（勾选变化时用，不动列表，避免勾选被重绘吃掉） */
@@ -14662,6 +14700,8 @@
   tap("snap-export", "click", function () {
     dlJson("财务计算器-方案快照-" + stamp() + ".json",
       { app: "finance-calc", kind: "snaps", v: 1, at: new Date().toISOString(), snaps: loadSnaps() });
+    markBackup();
+    runCalc("snaps");
     flash(this, "已导出");
   });
   tap("snap-import", "click", function () { if ($("snap-file")) $("snap-file").click(); });
@@ -14705,7 +14745,7 @@
         if (!s || !s.id || !s.mod || ids[s.id]) return;
         ids[s.id] = 1; cur.unshift(s); add++;
       });
-      saveSnaps(cur.slice(0, 12));
+      saveSnaps(cur);
       runCalc("snaps");
       flash($("snap-import"), add ? "导入 " + add + " 条" : "没有新方案");
     });
@@ -14747,6 +14787,7 @@
   });
 
   tap("snap-backup", "click", function () {
+    markBackup();
     var data = {};
     FIELDS.forEach(function (f) { var el = $(f); if (el && el.value !== "") data[f] = el.value; });
     var cat = "hot";
