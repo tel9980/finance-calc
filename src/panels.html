@@ -9076,10 +9076,10 @@
           <table>
             <thead><tr><th>费用项目</th><th>固定部分（元）</th><th>单位变动（元/件）</th></tr></thead>
             <tbody>
-              <tr><td>房租物业</td><td><input id="cbh-f1" type="number" inputmode="decimal" min="0" step="1000" value="120000" class="num"></td><td><input id="cbh-v1" type="number" inputmode="decimal" min="0" step="0.1" value="0" class="num"></td></tr>
-              <tr><td>水电能源</td><td><input id="cbh-f2" type="number" inputmode="decimal" min="0" step="1000" value="30000" class="num"></td><td><input id="cbh-v2" type="number" inputmode="decimal" min="0" step="0.1" value="2.5" class="num"></td></tr>
-              <tr><td>销售佣金</td><td><input id="cbh-f3" type="number" inputmode="decimal" min="0" step="1000" value="0" class="num"></td><td><input id="cbh-v3" type="number" inputmode="decimal" min="0" step="0.1" value="8" class="num"></td></tr>
-              <tr><td>物流仓储</td><td><input id="cbh-f4" type="number" inputmode="decimal" min="0" step="1000" value="20000" class="num"></td><td><input id="cbh-v4" type="number" inputmode="decimal" min="0" step="0.1" value="3.2" class="num"></td></tr>
+              <tr><td>房租物业</td><td><input id="cbh-f1" aria-label="房租物业 固定部分（元）" type="number" inputmode="decimal" min="0" step="1000" value="120000" class="num"></td><td><input id="cbh-v1" aria-label="房租物业 单位变动（元/件）" type="number" inputmode="decimal" min="0" step="0.1" value="0" class="num"></td></tr>
+              <tr><td>水电能源</td><td><input id="cbh-f2" aria-label="水电能源 固定部分（元）" type="number" inputmode="decimal" min="0" step="1000" value="30000" class="num"></td><td><input id="cbh-v2" aria-label="水电能源 单位变动（元/件）" type="number" inputmode="decimal" min="0" step="0.1" value="2.5" class="num"></td></tr>
+              <tr><td>销售佣金</td><td><input id="cbh-f3" aria-label="销售佣金 固定部分（元）" type="number" inputmode="decimal" min="0" step="1000" value="0" class="num"></td><td><input id="cbh-v3" aria-label="销售佣金 单位变动（元/件）" type="number" inputmode="decimal" min="0" step="0.1" value="8" class="num"></td></tr>
+              <tr><td>物流仓储</td><td><input id="cbh-f4" aria-label="物流仓储 固定部分（元）" type="number" inputmode="decimal" min="0" step="1000" value="20000" class="num"></td><td><input id="cbh-v4" aria-label="物流仓储 单位变动（元/件）" type="number" inputmode="decimal" min="0" step="0.1" value="3.2" class="num"></td></tr>
             </tbody>
           </table>
         </div>
@@ -9149,9 +9149,9 @@
           <table>
             <thead><tr><th>库龄段</th><th>现有数量（件）</th><th>良品率（%）</th></tr></thead>
             <tbody>
-              <tr><td>90 天以内</td><td><input id="ivo-s1" type="number" inputmode="decimal" min="0" step="1000" value="25000" class="num"></td><td><input id="ivo-p1" type="number" inputmode="decimal" min="0" max="100" step="1" value="100" class="num"></td></tr>
-              <tr><td>91–180 天</td><td><input id="ivo-s2" type="number" inputmode="decimal" min="0" step="1000" value="10000" class="num"></td><td><input id="ivo-p2" type="number" inputmode="decimal" min="0" max="100" step="1" value="95" class="num"></td></tr>
-              <tr><td>181 天以上</td><td><input id="ivo-s3" type="number" inputmode="decimal" min="0" step="1000" value="5000" class="num"></td><td><input id="ivo-p3" type="number" inputmode="decimal" min="0" max="100" step="1" value="70" class="num"></td></tr>
+              <tr><td>90 天以内</td><td><input id="ivo-s1" aria-label="90 天以内 现有数量（件）" type="number" inputmode="decimal" min="0" step="1000" value="25000" class="num"></td><td><input id="ivo-p1" aria-label="90 天以内 良品率（%）" type="number" inputmode="decimal" min="0" max="100" step="1" value="100" class="num"></td></tr>
+              <tr><td>91–180 天</td><td><input id="ivo-s2" aria-label="91–180 天 现有数量（件）" type="number" inputmode="decimal" min="0" step="1000" value="10000" class="num"></td><td><input id="ivo-p2" aria-label="91–180 天 良品率（%）" type="number" inputmode="decimal" min="0" max="100" step="1" value="95" class="num"></td></tr>
+              <tr><td>181 天以上</td><td><input id="ivo-s3" aria-label="181 天以上 现有数量（件）" type="number" inputmode="decimal" min="0" step="1000" value="5000" class="num"></td><td><input id="ivo-p3" aria-label="181 天以上 良品率（%）" type="number" inputmode="decimal" min="0" max="100" step="1" value="70" class="num"></td></tr>
             </tbody>
           </table>
         </div>
@@ -9265,9 +9265,9 @@
           <button type="button" id="wf-cust-share" class="ghost sm">复制路径链接</button>
         </p>
         <p class="wfctl" id="wf-cust-ctl2" hidden>
-          <input id="wf-cust-q" class="ghost sm" type="search" placeholder="搜模块（名称/拼音首字母）">
-          <select id="wf-cust-add" class="ghost sm"></select>
-          <select id="wf-cust-at" class="ghost sm"></select>
+          <input id="wf-cust-q" class="ghost sm" type="search" placeholder="搜模块（名称/拼音首字母）" aria-label="搜索要加入路径的模块">
+          <select id="wf-cust-add" class="ghost sm" aria-label="选择要加入的模块"></select>
+          <select id="wf-cust-at" class="ghost sm" aria-label="插入到第几步"></select>
           <button type="button" id="wf-cust-addbtn" class="ghost sm">加进我的路径</button>
           <button type="button" id="wf-cust-clear" class="ghost sm">清空</button>
         </p>
@@ -9320,7 +9320,7 @@
     </div>
     <div id="wf-printbox" class="wf-printbox" hidden></div>
     <div id="wf-inline" class="wf-inline" hidden>
-      <textarea id="wf-inline-ta" rows="3" placeholder="这一步的备注（交接时能看到）"></textarea>
+      <textarea id="wf-inline-ta" rows="3" placeholder="这一步的备注（交接时能看到）" aria-label="这一步的备注"></textarea>
       <div class="wf-inline-btns">
         <label>预计 <input id="wf-inline-est" type="number" min="0" step="5"> 分钟</label>
         <label>截止 <input id="wf-inline-due" type="date"></label>
@@ -9512,10 +9512,10 @@
       <div class="card">
         <h2>集团内部往来抵销明细</h2>
         <div class="tablebox"><table><thead><tr><th>往来组</th><th>应收方</th><th>应付方</th></tr></thead><tbody>
-          <tr><td>1</td><td><input id="ico-a1" type="number" inputmode="decimal" min="0" value="1200000"></td><td><input id="ico-b1" type="number" inputmode="decimal" min="0" value="1200000"></td></tr>
-          <tr><td>2</td><td><input id="ico-a2" type="number" inputmode="decimal" min="0" value="800000"></td><td><input id="ico-b2" type="number" inputmode="decimal" min="0" value="800000"></td></tr>
-          <tr><td>3</td><td><input id="ico-a3" type="number" inputmode="decimal" min="0" value="500000"></td><td><input id="ico-b3" type="number" inputmode="decimal" min="0" value="480000"></td></tr>
-          <tr><td>4</td><td><input id="ico-a4" type="number" inputmode="decimal" min="0" value="300000"></td><td><input id="ico-b4" type="number" inputmode="decimal" min="0" value="300000"></td></tr>
+          <tr><td>1</td><td><input id="ico-a1" aria-label="第 1 组 应收方" type="number" inputmode="decimal" min="0" value="1200000"></td><td><input id="ico-b1" aria-label="第 1 组 应付方" type="number" inputmode="decimal" min="0" value="1200000"></td></tr>
+          <tr><td>2</td><td><input id="ico-a2" aria-label="第 2 组 应收方" type="number" inputmode="decimal" min="0" value="800000"></td><td><input id="ico-b2" aria-label="第 2 组 应付方" type="number" inputmode="decimal" min="0" value="800000"></td></tr>
+          <tr><td>3</td><td><input id="ico-a3" aria-label="第 3 组 应收方" type="number" inputmode="decimal" min="0" value="500000"></td><td><input id="ico-b3" aria-label="第 3 组 应付方" type="number" inputmode="decimal" min="0" value="480000"></td></tr>
+          <tr><td>4</td><td><input id="ico-a4" aria-label="第 4 组 应收方" type="number" inputmode="decimal" min="0" value="300000"></td><td><input id="ico-b4" aria-label="第 4 组 应付方" type="number" inputmode="decimal" min="0" value="300000"></td></tr>
         </tbody></table></div>
         <p class="hint" id="ico-note"></p>
       </div>

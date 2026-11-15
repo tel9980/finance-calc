@@ -34,6 +34,8 @@ jobs:
         run: node test/units.mjs http://127.0.0.1:8099/
       - name: 安装到主屏与离线（manifest / iOS 指引 / 断网可算）
         run: node test/pwa.mjs http://127.0.0.1:8099/
+      - name: 无障碍（axe-core WCAG 2.1 AA + 228 模块控件命名）
+        run: node test/a11y.mjs http://127.0.0.1:8099/
       - name: 构建产物与源码同步（public/ 必须由 src/ 重新构建得到）
         run: |
           node scripts/build.mjs

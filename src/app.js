@@ -12831,6 +12831,8 @@
     /* 换模块时「示例」按钮回到初始状态（示例只对当前模块有意义） */
     if ($("btn-demo")) $("btn-demo").textContent = "示例";
     bumpFreq(name);
+    a11yTouch();
+    setTimeout(a11yTouch, 80);
     if (name !== "workflow") recordWf(name);
     var onTab = document.querySelector(".tab.is-on");
     /* 只有用户主动切页时才把标签滚到中间；首屏自动激活不滚，避免把浏览器的
@@ -13727,6 +13729,44 @@
   });
 
   var TOAST_EL = null, TOAST_T = null;
+  /* 无障碍：滚动区要能键盘聚焦（否则读屏/键盘到不了里面），结果区变化要能被播报 */
+  function a11yTouch() {
+    try {
+      var boxes = document.querySelectorAll(".tablebox");
+      for (var i = 0; i < boxes.length; i++) {
+        var box = boxes[i];
+        if (!box.hasAttribute("tabindex")) box.setAttribute("tabindex", "0");
+        if (!box.hasAttribute("role")) box.setAttribute("role", "region");
+        if (!box.getAttribute("aria-label")) {
+          var card = box.closest(".card");
+          var h = card ? card.querySelector("h2") : null;
+          box.setAttribute("aria-label", (h ? h.textContent.trim() : "表格") + "（可用方向键滚动）");
+        }
+      }
+      /* 表格里的输入：用「表头 + 这一行首列」拼出名字，动态生成的月表也能覆盖 */
+      var tins = document.querySelectorAll(".panel.is-on table input");
+      for (var t2 = 0; t2 < tins.length; t2++) {
+        var el2 = tins[t2];
+        if (el2.getAttribute("aria-label") || el2.closest("label")) continue;
+        var td = el2.closest("td"), tr = el2.closest("tr"), tb = el2.closest("table");
+        if (!td || !tr || !tb) continue;
+        var names = tb.querySelectorAll("thead th");
+        var colIdx = 0, cells = tr.children;
+        for (var c2 = 0; c2 < cells.length; c2++) if (cells[c2] === td) { colIdx = c2; break; }
+        var colName = names[colIdx] ? names[colIdx].textContent.trim() : "数值";
+        var rowName = cells[0] ? cells[0].textContent.trim() : "";
+        el2.setAttribute("aria-label", (/^\d+$/.test(rowName) ? "第 " + rowName + " 行 " : (rowName ? rowName + " " : "")) + colName);
+      }
+      var bigs = document.querySelectorAll(".panel .big strong");
+      for (var j = 0; j < bigs.length; j++) {
+        if (!bigs[j].hasAttribute("aria-live")) {
+          bigs[j].setAttribute("aria-live", "polite");
+          bigs[j].setAttribute("aria-atomic", "true");
+        }
+      }
+    } catch (e) {}
+  }
+
   function toast(msg, ms) {
     try {
       if (!TOAST_EL) {
@@ -13992,7 +14032,7 @@
     document.documentElement.setAttribute("data-theme", t);
     try { localStorage.setItem(THEME_KEY, t); } catch (e) {}
     var b = $("btn-theme");
-    if (b) b.textContent = t === "dark" ? "浅色" : "深色";
+    if (b) { b.textContent = t === "dark" ? "浅色" : "深色"; b.setAttribute("aria-pressed", t === "dark" ? "true" : "false"); b.setAttribute("title", t === "dark" ? "切到浅色（当前深色）" : "切到深色（当前浅色）"); }
     /* 图表是画在 canvas 上的，切主题要重画一遍颜色才会跟上 */
     try {
       var on = document.querySelector(".panel.is-on");
