@@ -381,6 +381,24 @@ const fb = await page.evaluate(async () => {
 });
 ok(fb === '已复制' || fb.indexOf('复制失败') >= 0, '系统分享失败时没有退回复制（' + fb + '）');
 
+/* 面板只能有一个「正在显示」：深链进 save 组模块、点击切模块都不能两个面板同时亮 */
+const onCount = async () => page.evaluate(() => [...document.querySelectorAll('.panel.is-on')].map(e => e.id));
+await page.goto(BASE + '#compound', { waitUntil: 'load' });
+let deepOn = [];
+for (let i = 0; i < 40; i++) {
+  deepOn = await onCount();
+  if (deepOn.includes('panel-compound') && deepOn.length === 1) break;
+  await page.waitForTimeout(150);
+}
+ok(deepOn.length === 1 && deepOn[0] === 'panel-compound', '深链进「复利」后显示的面板是 ' + JSON.stringify(deepOn));
+for (const id of ['goal', 'annual', 'inflation', 'ladder', 'dca', 'calendar']) {
+  await page.goto(BASE + '#deposit', { waitUntil: 'load' }); await page.waitForTimeout(300);
+  await page.evaluate(t => { document.querySelector('.tab[data-tab="' + t + '"]').click(); }, id);
+  await page.waitForTimeout(900);
+  const on = await onCount();
+  ok(on.length === 1 && on[0] === 'panel-' + id, '点开「' + id + '」后显示的面板是 ' + JSON.stringify(on));
+}
+
 /* 深色主题：结果卡不再是白底，图表颜色跟着换（不含深蓝 #1e3a8a 那种看不清的颜色） */
 await page.goto(BASE + '#deposit', { waitUntil: 'load' }); await page.waitForTimeout(500);
 if (await page.evaluate(() => document.documentElement.getAttribute('data-theme')) !== 'dark') {

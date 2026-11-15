@@ -246,6 +246,8 @@ const runtime = [
   '      enhancePanelUi(el);',
   '      var bgl = el.querySelector(".big");',
   '      if (bgl && !bgl.getAttribute("aria-live")) { bgl.setAttribute("aria-live", "polite"); bgl.setAttribute("aria-atomic", "true"); }',
+  '      /* 面板 HTML 里可能带着写死的 is-on（历史遗留），挂载时一律先摘掉，只给当前激活的加 */',
+  '      el.classList.remove("is-on");',
   '      if (el.id === "panel-" + ACTIVE) el.classList.add("is-on");',
   '    }',
   '    delete PANEL_HTML[grp];',
