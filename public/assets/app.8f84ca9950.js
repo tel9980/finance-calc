@@ -3875,7 +3875,7 @@ undefined
   var KEY = "finance-calc-v63";
   var CAT_KEY = "finance-calc-cat";
   /* 构建时由 build.mjs 注入为 "v<内容哈希>"，页脚展示，方便核对版本 */
-  var BUILD_TAG = "v71cf50f83e";
+  var BUILD_TAG = "vc86b98e4a0";
 
   /* ---------------- 现金流月历 ---------------- */
 
