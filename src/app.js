@@ -10513,6 +10513,43 @@
       { m: "expbudget" } ] }
   ];
 
+  /* 行业模板：一条现成路径，直接套上就能按步做（套完可「编辑步骤」再调） */
+  var WF_TEMPLATES = [
+    { id: "factory", name: "小工厂（制造）", p: ["vat", "invstock", "costcard", "costalloc", "deprec", "payroll", "tieout", "aging", "payage", "finreport", "ratios", "vatdue", "taxburden", "cash13"] },
+    { id: "trade", name: "批发贸易", p: ["vat", "invstock", "pricing", "multimargin", "aging", "payage", "tieout", "finreport", "ratios", "vatdue", "taxburden", "cash13"] },
+    { id: "shop", name: "餐饮门店", p: ["pricing", "multimargin", "headcount", "efficiency", "deprec", "finreport", "ratios", "vatdue", "taxburden", "cash13", "breakeven"] },
+    { id: "ecom", name: "电商零售", p: ["pricing", "multimargin", "saleexp", "markroi", "invoice", "aging", "payage", "tieout", "finreport", "ratios", "cashcycle"] },
+    { id: "service", name: "服务项目", p: ["pricing", "contractperf", "projrev", "headcount", "efficiency", "aging", "finreport", "ratios", "cash13"] },
+    { id: "export", name: "外贸出口", p: ["quotefx", "importcost", "exportrebate", "exportcheck", "excoll", "fxgain", "fxar", "vatdue", "vatrefund", "cash13"] }
+  ];
+  function renderWfTpl() {
+    var box = $("wf-tpl-btns");
+    if (!box) return;
+    box.innerHTML = "";
+    for (var i = 0; i < WF_TEMPLATES.length; i++) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "ghost wf-tpl-b";
+      b.setAttribute("data-wftpl", WF_TEMPLATES[i].id);
+      b.textContent = WF_TEMPLATES[i].name;
+      box.appendChild(b);
+    }
+  }
+  function applyWfTpl(tid) {
+    var t = null;
+    for (var i = 0; i < WF_TEMPLATES.length; i++) if (WF_TEMPLATES[i].id === tid) { t = WF_TEMPLATES[i]; break; }
+    if (!t) return;
+    WF_CUST = t.p.slice(0);
+    saveWfCust();
+    WF_CUST_NAME = t.name;
+    wfCustNameSave();
+    var roleEl = $("wf-role");
+    if (roleEl) roleEl.value = "9";
+    try { localStorage.setItem(WF_ROLE_KEY, "9"); } catch (e) {}
+    runCalc("workflow");
+    toast("已套用「" + t.name + "」模板：" + t.p.length + " 步。点「编辑步骤」可以再删改。", 4200);
+  }
+
   /* 旧版 j-k 索引与 WF_PATHS 前 5 条顺序一致（仅用于迁移） */
   var WF_LEGACY = [
     ["expense", "expcheck", "recon", "cashstmt"],
@@ -11737,6 +11774,7 @@
     wfDetailRender(vpaths);
     renderTodayBar();
     wfNotifyCheck();
+    renderWfTpl();
   }
 
   var WF_AUTO_TIMER = null;
@@ -12653,6 +12691,8 @@
     if (panelEl) panelEl.classList.add("is-on");
     if (calcMap[name]) calcMap[name]();
     if (location.hash !== "#" + name) history.replaceState(null, "", "#" + name);
+    /* 换模块时「示例」按钮回到初始状态（示例只对当前模块有意义） */
+    if ($("btn-demo")) $("btn-demo").textContent = "示例";
     if (name !== "workflow") recordWf(name);
     var onTab = document.querySelector(".tab.is-on");
     /* 只有用户主动切页时才把标签滚到中间；首屏自动激活不滚，避免把浏览器的
@@ -13730,6 +13770,84 @@
     setTheme(t);
   })();
 
+  /* ---------------- 示例数据：一键填一组「能算出结果」的数字 ---------------- */
+  var DEMO_SAVED = null;
+  function demoHint(el) {
+    var id = el.id || "";
+    var u = unitFor(id);
+    if (u === "%") {
+      if (/(tax|vat|vd-|vt-|surtax|urban|edu|local|deduct)/.test(id)) return 13;
+      if (/-down$/.test(id)) return 30;
+      if (/-growth$/.test(id)) return 8;
+      if (/-ratio$/.test(id)) return 30;
+      if (/(deed|agent)/.test(id)) return 1.5;
+      if (/(swr|vac)/.test(id)) return 4;
+      if (/(discount|disc)/.test(id)) return 10;
+      return 4.2;
+    }
+    if (u === "年") return 20;
+    if (u === "月") return 12;
+    if (u === "天") return 30;
+    if (u === "公里") return 30;
+    if (u === "岁") return 35;
+    if (u === "折") return 8.5;
+    if (u === "‱") return 1.5;
+    if (u === "元/时") return 40;
+    if (/(-qty|-count|-num|people|person|-pax|-head|-people)/.test(id)) return 10;
+    if (/(-rate|rate-|-percent|-pct)/.test(id)) return 4.2;
+    if (/(-months?$|-term$)/.test(id)) return 12;
+    return 100000;
+  }
+  function demoFill() {
+    var panel = document.querySelector(".panel.is-on");
+    if (!panel) return;
+    var btn = $("btn-demo");
+    var name = panel.id.replace("panel-", "");
+    /* 同一个模块再点一次 = 还原成点「示例」之前的数 */
+    if (DEMO_SAVED && DEMO_SAVED.panel === panel.id) {
+      for (var k in DEMO_SAVED.vals) {
+        if (!Object.prototype.hasOwnProperty.call(DEMO_SAVED.vals, k)) continue;
+        var oldEl = document.getElementById(k);
+        if (oldEl) oldEl.value = DEMO_SAVED.vals[k];
+      }
+      DEMO_SAVED = null;
+      if (btn) btn.textContent = "示例";
+      if (calcMap[name]) calcMap[name]();
+      save();
+      toast("已还原成你原来填的数字。", 2500);
+      return;
+    }
+    var list = panel.querySelectorAll("input.num, input[type=number]");
+    var saved = { panel: panel.id, vals: {} }, first = null;
+    for (var i = 0; i < list.length; i++) {
+      var el = list[i];
+      if (!el.id || el.disabled || el.readOnly) continue;
+      if (el.type === "checkbox" || el.type === "radio") continue;
+      saved.vals[el.id] = el.value;
+      var v = demoHint(el);
+      var mx = parseFloat(el.getAttribute("max")), mn = parseFloat(el.getAttribute("min"));
+      if (isFinite(mx) && v > mx) v = mx;
+      if (isFinite(mn) && v < mn) v = mn;
+      el.value = String(v);
+      if (!first) first = el;
+    }
+    if (!first) { toast("这个模块不用填数字，直接看结果就行。", 2600); return; }
+    /* 下拉框留空的话，选第一个有值的选项（例如「等额本息」「期末」） */
+    var sels = panel.querySelectorAll("select");
+    for (var s = 0; s < sels.length; s++) {
+      if (sels[s].value !== "" || !sels[s].options.length) continue;
+      for (var o = 0; o < sels[s].options.length; o++) {
+        if (sels[s].options[o].value !== "") { sels[s].selectedIndex = o; break; }
+      }
+    }
+    DEMO_SAVED = saved;
+    if (calcMap[name]) calcMap[name]();
+    save();
+    if (btn) btn.textContent = "还原";
+    toast("已填了一组示例数字（照着改成你自己的就行），再点「示例」就还原。", 4200);
+  }
+  if ($("btn-demo")) $("btn-demo").addEventListener("click", demoFill);
+
   document.addEventListener("keydown", function (e) {
     var tag = (document.activeElement && document.activeElement.tagName) || "";
     if (e.key === "/" && !/^(INPUT|TEXTAREA|SELECT)$/.test(tag)) {
@@ -14686,6 +14804,8 @@
 
   /* 长列表表格工具栏 + 点击结果数字复制 */
   document.addEventListener("click", function (ev) {
+    var tplB = ev.target && ev.target.closest ? ev.target.closest("[data-wftpl]") : null;
+    if (tplB) { applyWfTpl(tplB.getAttribute("data-wftpl")); return; }
     var b = ev.target && ev.target.closest ? ev.target.closest("[data-act]") : null;
     if (b) {
       var act = b.getAttribute("data-act");

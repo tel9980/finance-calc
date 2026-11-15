@@ -295,6 +295,29 @@ ok(!roll.meta['report:ratios'].due && roll.meta['report:ratios'].est === 12, '�
 ok(roll.meta['cash:expense'] && roll.meta['cash:expense'].due === '2099-12-20', '未来的截止日期被误删（' + JSON.stringify(roll.meta) + '）');
 ok(roll.man === '{}' || roll.man === null, '换月后本月勾选没清空（' + roll.man + '）');
 
+/* 示例数据：填一组能算出结果的数，再点还原 */
+await page.goto(BASE + '#deposit', { waitUntil: 'load' }); await page.waitForTimeout(300);
+await page.goto(BASE + '#loan', { waitUntil: 'load' }); await page.waitForTimeout(650);
+const demoBefore = await page.inputValue('#ln-principal');
+await page.click('#btn-demo'); await page.waitForTimeout(450);
+const demoAfter = await page.inputValue('#ln-principal');
+ok(demoAfter !== demoBefore, '点「示例」后贷款金额没被填上（还是 ' + demoAfter + '）');
+ok((await page.textContent('#btn-demo')).trim() === '还原', '点「示例」后按钮没变成「还原」');
+ok(!/NaN|Infinity/.test(await page.textContent('#panel-loan')), '示例数据算出了 NaN');
+ok((await page.textContent('#panel-loan .big strong')).trim() !== '—', '示例数据没有算出结果');
+await page.click('#btn-demo'); await page.waitForTimeout(450);
+ok((await page.inputValue('#ln-principal')) === demoBefore, '点「还原」没回到原来的数字');
+ok((await page.textContent('#btn-demo')).trim() === '示例', '还原后按钮没变回「示例」');
+
+/* 行业模板：一键套一条现成路径 */
+await page.goto(BASE + '#workflow', { waitUntil: 'load' }); await page.waitForTimeout(700);
+ok((await page.$$('[data-wftpl]')).length >= 6, '行业模板按钮没渲染出来');
+await page.locator('[data-wftpl="export"]').click(); await page.waitForTimeout(600);
+const tplSteps = await page.$$eval('[data-path="mine"] .jump a', els => els.map(e => e.textContent.trim()));
+ok(tplSteps.length === 10 && tplSteps[0].indexOf('出口报价') >= 0, '外贸模板没套上（' + JSON.stringify(tplSteps) + '）');
+ok((await page.inputValue('#wf-cust-name')) === '外贸出口', '模板没写入路径名');
+ok((await page.inputValue('#wf-role')) === '9', '套模板后没切到「我的路径」');
+
 /* 错误自检浮层 */
 await page.evaluate(() => { setTimeout(() => { throw new Error('自检测试'); }, 0); });
 let hasBox = false;
