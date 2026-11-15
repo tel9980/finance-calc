@@ -610,3 +610,10 @@ button.wf-tpl-b:hover { border-color: var(--accent, #2563eb); color: var(--accen
 .wf-md-grid input { width: 100%; }
 a.wf-md-go { font-size: 12px; padding: 3px 10px; border-radius: 999px; margin: 0 6px 6px 0; display: inline-block; }
 a.wf-md-go.off { opacity: .45; }
+
+/* 深色主题：结果卡原来是写死的白底，深色下字看不清；错误提示卡、校验失败的输入框同理 */
+html[data-theme="dark"] .card.res{background:linear-gradient(180deg,#111b29,#0d1523);border-color:var(--line)}
+html[data-theme="dark"] .card.res .big{border-color:var(--line)}
+html[data-theme="dark"] .errbox{background:#1a1220;border-color:#5b2b2b;border-left-color:#f87171;color:#f2d9d9}
+html[data-theme="dark"] .num.bad{background:#2a1414;border-color:#7f1d1d}
+html[data-theme="dark"] .updbar .upd-go,html[data-theme="dark"] .instbar .inst-go{background:#dbe7ff;color:#12203a}

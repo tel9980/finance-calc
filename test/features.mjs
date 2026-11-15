@@ -353,6 +353,35 @@ ok(tplSteps.length === 10 && tplSteps[0].indexOf('出口报价') >= 0, '外贸�
 ok((await page.inputValue('#wf-cust-name')) === '外贸出口', '模板没写入路径名');
 ok((await page.inputValue('#wf-role')) === '9', '套模板后没切到「我的路径」');
 
+/* 深色主题：结果卡不再是白底，图表颜色跟着换（不含深蓝 #1e3a8a 那种看不清的颜色） */
+await page.goto(BASE + '#deposit', { waitUntil: 'load' }); await page.waitForTimeout(500);
+if (await page.evaluate(() => document.documentElement.getAttribute('data-theme')) !== 'dark') {
+  await page.click('#btn-theme'); await page.waitForTimeout(400);
+}
+await page.goto(BASE + '#monthly', { waitUntil: 'load' }); await page.waitForTimeout(1200);
+await page.click('#btn-demo').catch(() => {});
+await page.waitForTimeout(700);
+const darkInfo = await page.evaluate(() => {
+  const res = document.querySelector('.panel.is-on .card.res');
+  const bg = res ? getComputedStyle(res).backgroundImage : '';
+  const cvs = [...document.querySelectorAll('.panel.is-on canvas')].filter(c => c.isConnected && c.width);
+  let navy = 0, painted = 0;
+  cvs.forEach(cv => {
+    const d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
+    for (let i = 0; i < d.length; i += 4) {
+      if (d[i + 3] < 60) continue;
+      painted++;
+      if (d[i] < 60 && d[i + 1] < 80 && d[i + 2] > 100 && d[i + 2] < 190) navy++;
+    }
+  });
+  return { bg, navy, painted, canvases: cvs.length };
+});
+ok(darkInfo.bg.indexOf('255, 255, 255') < 0, '深色下结果卡还是白底（' + darkInfo.bg + '）');
+ok(darkInfo.canvases > 0 && darkInfo.painted > 0, '深色下图表没画出来');
+ok(darkInfo.navy === 0, '深色图表里还有 ' + darkInfo.navy + ' 个深蓝像素（看不清）');
+await page.click('#btn-theme'); await page.waitForTimeout(400);
+ok(await page.evaluate(() => document.documentElement.getAttribute('data-theme')) === 'light', '切不回浅色主题');
+
 /* 错误自检浮层 */
 await page.evaluate(() => { setTimeout(() => { throw new Error('自检测试'); }, 0); });
 let hasBox = false;

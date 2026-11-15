@@ -4047,7 +4047,7 @@ undefined
   }
   var CAT_KEY = "finance-calc-cat";
   /* 构建时由 build.mjs 注入为 "v<内容哈希>"，页脚展示，方便核对版本 */
-  var BUILD_TAG = "v4e441cb09a";
+  var BUILD_TAG = "vd0a6a3074c";
 
   /* ---------------- 现金流月历 ---------------- */
 
@@ -4538,12 +4538,52 @@ undefined
     save();
   });
 
+  /* 图表暗色适配：canvas 里有一批颜色是按浅色主题写死的（深蓝线、深灰字），深色下几乎看不见。
+     这里在绘制时做一次颜色替换——只作用于页面上真正显示的 canvas，
+     导出图片用的离屏 canvas（没挂到文档里）保持原样，导出仍是白底。 */
+  (function () {
+    var proto = window.CanvasRenderingContext2D && window.CanvasRenderingContext2D.prototype;
+    if (!proto || proto.__fcThemePatched) return;
+    proto.__fcThemePatched = true;
+    var DARK_MAP = {
+      "#1e3a8a": "#93b4f7", "#2563eb": "#7fb0ff", "#3b82f6": "#93b4f7",
+      "#0f172a": "#e8eefb", "#111827": "#e8eefb",
+      "#334155": "#cbd5e1", "#475569": "#cbd5e1", "#64748b": "#9fb0c9",
+      "#e2e8f0": "#33425a", "#e5e7eb": "#33425a", "#cbd5e1": "#64748b",
+      "#dc2626": "#f87171", "#b91c1c": "#f87171", "#16a34a": "#34d399", "#059669": "#34d399",
+      "#d97706": "#fbbf24", "#f59e0b": "#fbbf24"
+    };
+    function isDark() { return document.documentElement.getAttribute("data-theme") === "dark"; }
+    function swap(v) {
+      if (typeof v !== "string") return v;
+      var k = v.trim().toLowerCase();
+      return DARK_MAP[k] || v;
+    }
+    ["fillStyle", "strokeStyle"].forEach(function (prop) {
+      var d = Object.getOwnPropertyDescriptor(proto, prop);
+      if (!d || !d.set || !d.get) return;
+      Object.defineProperty(proto, prop, {
+        configurable: true,
+        get: function () { return d.get.call(this); },
+        set: function (v) {
+          d.set.call(this, isDark() && this.canvas && this.canvas.isConnected ? swap(v) : v);
+        }
+      });
+    });
+  })();
+
   var THEME_KEY = "finance-calc-theme";
   function setTheme(t) {
     document.documentElement.setAttribute("data-theme", t);
     try { localStorage.setItem(THEME_KEY, t); } catch (e) {}
     var b = $("btn-theme");
     if (b) b.textContent = t === "dark" ? "浅色" : "深色";
+    /* 图表是画在 canvas 上的，切主题要重画一遍颜色才会跟上 */
+    try {
+      var on = document.querySelector(".panel.is-on");
+      var nm = on && on.id.replace(/^panel-/, "");
+      if (nm && calcMap[nm]) calcMap[nm]();
+    } catch (e) {}
   }
   if ($("btn-theme")) $("btn-theme").addEventListener("click", function () {
     setTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark");
