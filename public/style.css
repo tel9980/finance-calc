@@ -664,3 +664,8 @@ html[data-theme="dark"] .fwarn{color:#fbbf24}
 .inp-warn{margin:0 0 10px;padding:7px 10px;border-radius:9px;background:#fff7ed;border:1px solid #fed7aa;color:#8a4a00;font-size:12.5px;line-height:1.55}
 html[data-theme="dark"] .inp-warn{background:#2c2317;border-color:#5c421f;color:#fbbf24}
 @media print{.fwarn{display:none}.inp-warn{display:none}}
+
+/* 搜索空结果的建议词 */
+.searchnone{margin:8px 0 0;font-size:12.5px;color:var(--ink3);display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.searchnone .sug{font-size:12px;padding:3px 10px;border-radius:999px;border:1px solid var(--line);background:var(--soft);color:var(--accent2);cursor:pointer}
+.searchnone .sug:hover{border-color:var(--accent2)}

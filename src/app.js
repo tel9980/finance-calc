@@ -12787,12 +12787,191 @@
       chips[c].textContent = label + " " + n;
     }
   }
-  function matchQ(el, q) {
-    if (el.textContent.toLowerCase().indexOf(q) >= 0) return true;
-    if ((el.dataset.tab || "").indexOf(q) >= 0) return true;
-    if ((el.dataset.py || "").indexOf(q) >= 0) return true;
-    if ((el.dataset.alias || "").toLowerCase().indexOf(q) >= 0) return true;
+  /* ---- 搜索容错：同义词 + 少打/多打一个字也能命中 ----
+     SYN 是「用户会说的词 → 模块里可能出现的词」，只做加法，不改原有精确匹配。 */
+  var SYN = {
+    "个税": ["个人所得税", "工资个税", "个税"],
+    "所得税": ["所得税", "预缴", "汇算"],
+    "五险一金": ["社保", "公积金", "五险一金"],
+    "社保": ["社保", "五险一金", "公积金"],
+    "公积金": ["公积金", "社保"],
+    "年终奖": ["年终奖", "奖金"],
+    "奖金": ["奖金", "年终奖", "提成"],
+    "提成": ["提成", "返利", "佣金"],
+    "房贷": ["房贷", "按揭", "贷款", "月供"],
+    "按揭": ["按揭", "房贷", "贷款"],
+    "月供": ["月供", "贷款", "还款"],
+    "利率": ["利率", "年化", "真实利率"],
+    "利息": ["利息", "利率"],
+    "发票": ["发票", "开票", "价税"],
+    "开票": ["开票", "发票", "票据"],
+    "增值税": ["增值税", "销项", "进项", "附加"],
+    "折旧": ["折旧", "摊销"],
+    "摊销": ["摊销", "折旧"],
+    "报销": ["报销", "差旅"],
+    "报税": ["申报", "纳税", "税务"],
+    "纳税": ["纳税", "申报", "税务"],
+    "工资": ["工资", "税前", "税后", "到手"],
+    "到手": ["到手", "税后", "实发"],
+    "税后": ["税后", "到手", "实发"],
+    "汇率": ["汇率", "结汇", "汇兑"],
+    "库存": ["库存", "存货", "库龄"],
+    "存货": ["存货", "库存"],
+    "应收": ["应收", "回款", "账龄"],
+    "账龄": ["账龄", "逾期", "回款"],
+    "预算": ["预算", "差异"],
+    "现金流": ["现金流", "资金", "周转"],
+    "利润": ["利润", "毛利", "净利"],
+    "毛利": ["毛利", "毛利率", "成本"],
+    "养老金": ["养老", "退休", "社保"],
+    "退休": ["退休", "养老", "FIRE"],
+    "理财": ["理财", "收益", "定投", "复利"],
+    "定投": ["定投", "dca", "平均成本"],
+    "存款": ["存款", "存单", "储蓄"],
+    "存单": ["存单", "存款", "阶梯"],
+    "车贷": ["车贷", "贷款", "月供"],
+    "首付": ["首付", "买房", "购房"],
+    "买房": ["买房", "购房", "首付", "房贷"],
+    "租房": ["租房", "租金"],
+    "租金": ["租金", "租房"],
+    "保险": ["保险", "保障", "保额"],
+    "教育金": ["教育", "教育金", "学费"],
+    "养老金缺口": ["养老", "缺口", "FIRE"]
+  };
+  function synWords(term) {
+    var out = [term];
+    var hit = SYN[term];
+    if (hit) for (var i = 0; i < hit.length; i++) if (out.indexOf(hit[i]) < 0) out.push(hit[i]);
+    return out;
+  }
+  /* 少打一个字 / 多打一个字；再宽松一点：字被别的字隔开也算（「公司体检」→「公司财务体检」） */
+  /* 错一个字（房贷→房货）、少一个字、字被隔开，都还能撞上 */
+  function fuzzyHit(hay, nd) {
+    if (!hay || !nd || nd.length < 2) return false;
+    if (hay.indexOf(nd) >= 0) return true;
+    if (!/[\u4e00-\u9fa5]/.test(nd)) return false;   /* 拼音/英文只认原样包含，不猜错字 */
+    if (nd.length < 3) return false;            /* 两个字的词不猜错字，否则几乎全中 */
+    for (var i = 0; i + nd.length <= hay.length; i++) {
+      var diff = 0;
+      for (var j = 0; j < nd.length; j++) {
+        if (hay.charAt(i + j) !== nd.charAt(j)) { diff++; if (diff > 1) break; }
+      }
+      if (diff <= 1) return true;               /* 同长度窗口内只差一个字 */
+    }
+    for (var k = 0; k < nd.length; k++) {       /* 多打/少打一个字 */
+      var cut = nd.slice(0, k) + nd.slice(k + 1);
+      if (cut.length >= 2 && hay.indexOf(cut) >= 0) return true;
+    }
     return false;
+  }
+  /* 「字被别的字隔开」只对中文名生效，且要求跨度别太夸张（否则拼音里的 z/y 会乱中） */
+  function subseqHit(hayZh, nd) {
+    if (!hayZh || !nd || nd.length < 3) return false;
+    if (!/[\u4e00-\u9fa5]/.test(nd)) return false;
+    var m = 0, first = -1, last = -1;
+    for (var x = 0; x < hayZh.length && m < nd.length; x++) {
+      if (hayZh.charAt(x) === nd.charAt(m)) {
+        if (m === 0) first = x;
+        last = x; m++;
+      }
+    }
+    if (m !== nd.length) return false;
+    return (last - first + 1) <= nd.length * 3;
+  }
+  /* 「房贷怎么算」「房贷计算器」这类口语：先去掉废话再匹配 */
+  var FILLER = /(怎么算|怎么|怎样|如何|多少|计算器|计算|测算|算一下|算算|查询|查一下|帮我|我要|想知道|请问|一下|的|呢|吗|？|\?)/g;
+  function normTerm(t) {
+    var n = String(t || "").replace(FILLER, "").trim();
+    return n.length >= 2 ? n : t;
+  }
+  function synKey(w) {
+    if (!w) return "";
+    if (SYN[w]) return w;
+    for (var key in SYN) {
+      if (!Object.prototype.hasOwnProperty.call(SYN, key)) continue;
+      if (key.length !== w.length) continue;
+      var d = 0;
+      for (var i = 0; i < w.length; i++) {
+        if (w.charAt(i) !== key.charAt(i)) { d++; if (d > 1) break; }
+      }
+      if (d <= 1) return key;
+    }
+    return "";
+  }
+  function termWords(term) {
+    var out = [], add = function (w) { if (w && w.length >= 2 && out.indexOf(w) < 0) out.push(w); };
+    add(term);
+    var nt = normTerm(term);
+    add(nt);
+    var syns = synWords(term).concat(synWords(nt));
+    var sk = synKey(nt);
+    if (sk) syns = syns.concat(SYN[sk]);
+    for (var i = 0; i < syns.length; i++) add(syns[i]);
+    for (var key in SYN) {                      /* 「房贷xxx」：前缀是同义词就补上 */
+      if (!Object.prototype.hasOwnProperty.call(SYN, key)) continue;
+      if (term.indexOf(key) !== 0) continue;
+      var ks = SYN[key];
+      for (var k = 0; k < ks.length; k++) add(ks[k]);
+    }
+    return out;
+  }
+  function matchOne(hay, hayZh, term) {
+    var words = termWords(term);
+    for (var i = 0; i < words.length; i++) {
+      if (fuzzyHit(hay, words[i])) return true;
+      if (subseqHit(hayZh, words[i])) return true;
+    }
+    return false;
+  }
+  function matchQ(el, q, mode) {
+    if (!q) return true;
+    var hayZh = (el.textContent || "").toLowerCase();
+    var hay = (el.textContent + " " + (el.dataset.tab || "") + " " + (el.dataset.py || "") + " " + (el.dataset.alias || "")).toLowerCase();
+    var terms = q.split(/\s+/), any = false;
+    for (var t = 0; t < terms.length; t++) {
+      var term = terms[t];
+      if (!term) continue;
+      /* 先按「原样包含」找；一个都找不到时才放宽（同义词 / 错一个字） */
+      var hit = hay.indexOf(term) >= 0 ? true : (mode !== "strict" ? matchOne(hay, hayZh, term) : false);
+      if (hit) { any = true; continue; }
+      if (mode === "any") continue;                /* OR 模式：沾上一个就够 */
+      return false;                                /* 多个词之间是「且」：都命中才算 */
+    }
+    return any;
+  }
+  /* 搜不到时给几句能点的建议，而不是干瞪眼 */
+  var SUGGEST = ["个税", "社保", "房贷", "发票", "折旧", "预算", "加班费", "汇率"];
+  function renderSearchNone(q, shown) {
+    var host = $("q-none");
+    if (!host) {
+      host = document.createElement("div");
+      host.id = "q-none";
+      host.className = "searchnone";
+      var qc = $("qcount");
+      if (qc && qc.parentNode) qc.parentNode.insertBefore(host, qc.nextSibling);
+      else document.body.appendChild(host);
+    }
+    if (!q || shown) { host.hidden = true; host.innerHTML = ""; return; }
+    host.hidden = false;
+    var h = document.createElement("span");
+    h.textContent = "没找到「" + q + "」，试试：";
+    host.innerHTML = "";
+    host.appendChild(h);
+    for (var i = 0; i < SUGGEST.length; i++) {
+      (function (w) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "sug";
+        b.textContent = w;
+        b.addEventListener("click", function () {
+          var qb = $("q");
+          if (qb) { qb.value = w; applyFilter(); pushSearch(w); }
+          var first = document.querySelector(".tab:not([hidden])");
+          if (first) first.focus();
+        });
+        host.appendChild(b);
+      })(SUGGEST[i]);
+    }
   }
   function applyFilter() {
     var qb = $("q");
@@ -12814,28 +12993,42 @@
     var pm = raw.match(/^(\S+?)[:：\s]\s*(.*)$/);
     if (pm && CATS[pm[1].toLowerCase()]) { qcat = CATS[pm[1].toLowerCase()]; q = pm[2].toLowerCase(); }
     else if (raw && CATS[raw.toLowerCase()]) { qcat = CATS[raw.toLowerCase()]; q = ""; }
-    var tb = document.querySelectorAll(".tab"), shown = 0;
-    for (var t = 0; t < tb.length; t++) {
-      var el = tb[t], cat = el.dataset.cat || "", ok;
-      if (qcat === "fav") {
-        ok = isFav(el.dataset.tab) && (!q || matchQ(el, q));
-      } else if (qcat === "recent") {
-        ok = recentList.indexOf(el.dataset.tab) >= 0 && (!q || matchQ(el, q));
-      } else if (q) {
-        ok = matchQ(el, q);                    /* 一搜索就跨分类找，不用先切分类 */
-        if (ok && qcat) ok = cat.split(/\s+/).indexOf(qcat) >= 0;
-      } else if (qcat) {
-        ok = cat.split(/\s+/).indexOf(qcat) >= 0;
-      } else if (curCat === "fav") {
-        ok = isFav(el.dataset.tab);
-      } else if (curCat === "recent") {
-        ok = recentList.indexOf(el.dataset.tab) >= 0;
-      } else {
-        ok = cat.split(/\s+/).indexOf(curCat) >= 0;
-        if (ok && curCat === "acct" && curSub) ok = (el.dataset.grp || "") === curSub || (curSub === "report" && (el.dataset.grp || "") === "report2");
+    var tb = document.querySelectorAll(".tab"), shown = 0, loose = false;
+    var runFilter = function (mode) {
+      var n = 0;
+      for (var t = 0; t < tb.length; t++) {
+        var el = tb[t], cat = el.dataset.cat || "", ok;
+        if (qcat === "fav") {
+          ok = isFav(el.dataset.tab) && (!q || matchQ(el, q, mode));
+        } else if (qcat === "recent") {
+          ok = recentList.indexOf(el.dataset.tab) >= 0 && (!q || matchQ(el, q, mode));
+        } else if (q) {
+          ok = matchQ(el, q, mode);            /* 一搜索就跨分类找，不用先切分类 */
+          if (ok && qcat) ok = cat.split(/\s+/).indexOf(qcat) >= 0;
+        } else if (qcat) {
+          ok = cat.split(/\s+/).indexOf(qcat) >= 0;
+        } else if (curCat === "fav") {
+          ok = isFav(el.dataset.tab);
+        } else if (curCat === "recent") {
+          ok = recentList.indexOf(el.dataset.tab) >= 0;
+        } else {
+          ok = cat.split(/\s+/).indexOf(curCat) >= 0;
+          if (ok && curCat === "acct" && curSub) ok = (el.dataset.grp || "") === curSub || (curSub === "report" && (el.dataset.grp || "") === "report2");
+        }
+        el.hidden = !ok;
+        if (ok) n++;
       }
-      el.hidden = !ok;
-      if (ok) shown++;
+      return n;
+    };
+    shown = runFilter("strict");
+    /* 原样搜不到才放宽：同义词 + 容错一个字，避免平时搜出几十个不相干的结果 */
+    if (!shown && q) {
+      shown = runFilter("loose");
+      loose = shown > 0;
+    }
+    if (!shown && q && q.split(/\s+/).length > 1) {   /* 「公积金 贷款」这类：两个词凑不到一起，就只要能沾上一个 */
+      shown = runFilter("any");
+      loose = shown > 0;
     }
     var subs = $("subs");
     if (subs) subs.hidden = curCat !== "acct" || !!q;
@@ -12845,8 +13038,9 @@
     var qc = $("qcount");
     if (qc) {
       qc.hidden = !q;
-      if (q) qc.textContent = shown ? "命中 " + shown + " 个" : "没有匹配的模块";
+      if (q) qc.textContent = shown ? (loose ? "按近似匹配找到 " + shown + " 个" : "命中 " + shown + " 个") : "没有匹配的模块";
     }
+    renderSearchNone(q, shown);
     orderTabsForQuery(!!q);
   }
   function setCat(cat) {

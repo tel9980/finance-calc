@@ -531,6 +531,35 @@ ok(await page.evaluate(() => document.documentElement.getAttribute('data-theme')
   await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
 }
 
+/* 搜索容错：同义词、错一个字、口语化都能命中；搜不到给可点的建议 */
+{
+  await page.goto(BASE + '#hot', { waitUntil: 'load' });
+  await page.waitForTimeout(700);
+  const search = async (q) => {
+    await page.fill('#q', q);
+    await page.waitForTimeout(220);
+    return page.evaluate(() => {
+      const vis = [...document.querySelectorAll('#tabs .tab:not([hidden])')];
+      const none = document.getElementById('q-none');
+      return { n: vis.length, first: vis.length ? vis[0].textContent.trim() : '', count: (document.getElementById('qcount') || {}).textContent || '', none: !!none && !none.hidden };
+    });
+  };
+  const a = await search('房贷计算');
+  ok(a.n > 0 && a.first.indexOf('贷款月供') >= 0, '「房贷计算」应该能命中贷款月供，实际 ' + a.n + ' 个，首个 ' + a.first);
+  const b = await search('房货计算');                       /* 故意打错一个字 */
+  ok(b.n > 0 && b.first.indexOf('贷款月供') >= 0, '错一个字「房货计算」也该命中，实际 ' + b.n + ' 个');
+  const c = await search('个税');
+  ok(c.n > 0 && c.count.indexOf('命中') >= 0, '「个税」应该精确命中，实际「' + c.count + '」');
+  const d = await search('zzzz');
+  ok(d.n === 0 && d.none, '搜不到时应该出现建议词');
+  await page.click('#q-none .sug');
+  await page.waitForTimeout(300);
+  ok((await page.evaluate(() => [...document.querySelectorAll('#tabs .tab:not([hidden])')].length)) > 0, '点建议词后应该有结果');
+  ok((await page.inputValue('#q')).length > 0, '点建议词后搜索框应填上这个词');
+  await page.fill('#q', '');
+  await page.waitForTimeout(200);
+}
+
 /* 输入体检：把百分比填成小数要提示，改回来要消失 */
 {
   await page.goto(BASE + '#loan', { waitUntil: 'load' });
